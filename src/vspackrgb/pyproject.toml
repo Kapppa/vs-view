@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling", "hatch-cython", "cython>=3.0.0", "setuptools"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vspackrgb"
+version = "0.1.0"
+description = "Cython-accelerated RGB packing for VapourSynth frames"
+requires-python = ">=3.14"
+dependencies = ["vapoursynth"]
+
+[project.optional-dependencies]
+numpy = ["numpy>=2.0.0"]
+
+[dependency-groups]
+dev = ["cython>=3.0.0"]
+
+# https://github.com/joshua-auchincloss/hatch-cython#readme
+# https://setuptools.pypa.io/en/latest/deprecated/distutils/apiref.html#distutils.core.Extension
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vspackrgb"]
+# Exclude .pyx source files from wheel
+exclude = ["**/*.pyx"]
+
+[tool.hatch.build.targets.wheel.hooks.cython]
+dependencies = ["hatch-cython"]
+
+[tool.hatch.build.targets.wheel.hooks.cython.options]
+compile_py = false
+
+# Cython directives
+directives = { boundscheck = false, wraparound = false, nonecheck = false, language_level = 3 }
+
+# Platform-specific compilation arguments
+compile_args = [
+    { platforms = [
+        "linux",
+        "darwin",
+    ], arg = "-O3" },
+    { platforms = [
+        "windows",
+    ], arg = "/O2" },
+]
