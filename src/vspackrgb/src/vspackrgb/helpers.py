@@ -56,7 +56,7 @@ class _ModifyFrameFunction(Protocol):
 
 def _make_pack_frame_8bit(pack_bgra_8bit: Callable[..., None]) -> _ModifyFrameFunction:
     def _pack_frame(n: int, f: list[vs.VideoFrame]) -> vs.VideoFrame:
-        frame_src, frame_dst = f[0], f[1].copy()
+        frame_src, frame_dst = f[0], f[1]
 
         width, height = frame_src.width, frame_src.height
         src_stride = frame_src.get_stride(0)
@@ -79,7 +79,7 @@ def _make_pack_frame_8bit(pack_bgra_8bit: Callable[..., None]) -> _ModifyFrameFu
 
 def _make_pack_frame_10bit(pack_rgb30_10bit: Callable[..., None]) -> _ModifyFrameFunction:
     def _pack_frame(n: int, f: list[vs.VideoFrame]) -> vs.VideoFrame:
-        frame_src, frame_dst = f[0], f[1].copy()
+        frame_src, frame_dst = f[0], f[1]
 
         width, height = frame_src.width, frame_src.height
         src_stride = frame_src.get_stride(0)
