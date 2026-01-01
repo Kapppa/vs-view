@@ -2,7 +2,7 @@
 # cython: boundscheck=False
 # cython: wraparound=False
 # cython: cdivision=True
-"""Cython-optimized RGB packing functions."""
+"""Cython-accelerated RGB packing functions."""
 
 from libc.stdint cimport uint8_t, uint16_t, uint32_t, uintptr_t
 

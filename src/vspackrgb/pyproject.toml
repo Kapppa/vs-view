@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "vspackrgb"
 version = "0.1.0"
-description = "Cython-accelerated RGB packing for VapourSynth frames"
+description = "RGB packing for VapourSynth frames"
 requires-python = ">=3.14"
 dependencies = ["vapoursynth"]
 
