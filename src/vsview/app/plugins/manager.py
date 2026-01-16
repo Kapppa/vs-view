@@ -8,6 +8,7 @@ from typing import Literal
 
 import pluggy
 from jetpytools import Singleton, inject_self
+from pydantic import BaseModel
 from PySide6.QtCore import QObject, Signal
 
 from ...vsenv import run_in_background
@@ -111,4 +112,8 @@ class PluginManager(Singleton):
 
             defaults = model().model_dump()
             existing = settings_container.plugins.get(plugin.identifier, {})
+
+            if isinstance(existing, BaseModel):
+                existing.model_dump()
+
             settings_container.plugins[plugin.identifier] = defaults | existing
