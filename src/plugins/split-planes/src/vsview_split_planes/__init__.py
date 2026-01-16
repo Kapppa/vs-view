@@ -226,12 +226,15 @@ class SplitPlanesView(PluginGraphicsView):
             case _:
                 raise NotImplementedError
 
+        self.local_settings = parent.local_settings
         self.refresh(parent)
 
     def on_offset_spinbox_changed(self, value: float) -> None:
         if self.offset_segment.index == 0:
-            self.parent().update_local_settings(offset_chroma=value)
-            self.refresh(self.parent())
+            parent = self.parent()
+            parent.update_local_settings(offset_chroma=value)
+            self.local_settings = parent.local_settings
+            self.refresh(parent)
 
     def _on_autofit_action(self) -> None:
         super()._on_autofit_action()
