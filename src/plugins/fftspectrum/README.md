@@ -5,7 +5,7 @@ A [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view) plugin that di
 ## Requirements
 
 - [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view)
-- [vsjetpack](https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack) 1.1.0 or ulterior
+- [vsjetpack](https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack) 1.1.0 or later
 - [fftspectrum_rs](https://github.com/sgt0/vapoursynth-fftspectrum-rs) VapourSynth plugin
 
 ## Installation
