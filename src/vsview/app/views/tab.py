@@ -1,5 +1,7 @@
 """Custom tab widget implementations for video output views."""
 
+from __future__ import annotations
+
 from collections import OrderedDict
 from collections.abc import Iterator
 from contextlib import contextmanager

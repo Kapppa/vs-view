@@ -2,13 +2,14 @@
 
 <div align="center">
 
-[![Python Version](https://img.shields.io/badge/python-3.14%2B-blue)](pyproject.toml)
+[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](pyproject.toml)
 [![Discord](https://img.shields.io/discord/856381934052704266?label=Discord&logo=discord&logoColor=white)](https://discord.gg/XTpc6Fa9eB)
 
 **The next-generation VapourSynth previewer**
 
 </div>
 
+<!-- prettier-ignore -->
 > [!WARNING]
 > **Alpha Software**: This project is currently in early alpha. Features are missing, bugs are expected, and the API is subject to breaking changes.
 
@@ -16,7 +17,7 @@
 
 ### Prerequisites
 
-- **Python**: `>=3.14`
+- **Python**: `>=3.12`
 - **VapourSynth**: `R73+`
 
 ## Usage

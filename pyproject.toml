@@ -8,15 +8,15 @@ version = "0.1.0a0"
 description = "The next-generation VapourSynth previewer"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 classifiers = [
     "Topic :: Multimedia :: Graphics",
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     # TODO: Change python version
-    # "Programming Language :: Python :: 3.12",
-    # "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)",
     "Operating System :: OS Independent",
@@ -35,7 +35,7 @@ dependencies = [
 ]
 [dependency-groups]
 dev = [
-    "vsstubs>=1.0.2",
+    "vsstubs>=1.0.2; python_version>='3.13'",
     "mypy>=1.19.0",
     "ruff>=0.14.7",
     # "objgraph>=3.6.2",

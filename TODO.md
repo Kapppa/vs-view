@@ -24,7 +24,7 @@ These features are present in VSPreview and need to be brought over.
 ## Enhancements & Tasks
 
 - [ ] Workspace API definition
-- [ ] Downgrade Python minimum requirement to 3.12
+- [x] Downgrade Python minimum requirement to 3.12
 - [ ] Relax VS minimum version
 - [ ] View Menu: Toggle visibility for toolpanels/tooldocks
 - [ ] Theming: Add option for loading external QSS themes

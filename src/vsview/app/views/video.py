@@ -2,6 +2,8 @@
 Graphics view widget for displaying video frames.
 """
 
+from __future__ import annotations
+
 from logging import getLogger
 from typing import NamedTuple
 
