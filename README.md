@@ -9,7 +9,8 @@
 
 </div>
 
-> [!WARNING] > **Alpha Software**: This project is currently in early alpha. Features are missing, bugs are expected, and the API is subject to breaking changes.
+> [!WARNING]
+> **Alpha Software**: This project is currently in early alpha. Features are missing, bugs are expected, and the API is subject to breaking changes.
 
 ## Installation
 
