@@ -1,5 +1,5 @@
 """
-Plugin interface for VSView.
+Plugin API for VSView.
 """
 
 from __future__ import annotations
@@ -7,29 +7,19 @@ from __future__ import annotations
 import sys
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from itertools import zip_longest
-from logging import getLogger
 from pathlib import Path
-from types import get_original_bases
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Self, TypeVar, get_args, get_origin
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Self, TypeVar
 
 import vapoursynth as vs
 from pydantic import BaseModel
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap, QShowEvent
-from PySide6.QtWidgets import QDockWidget, QSplitter, QTabWidget, QWidget
+from PySide6.QtWidgets import QWidget
 
-from vsview.app.settings import SettingsManager
-from vsview.app.utils import ObjectType
 from vsview.app.views.video import BaseGraphicsView
 from vsview.vsenv.loop import run_in_loop
 
-if TYPE_CHECKING:
-    from vsview.app.workspace.loader import LoaderWorkspace
-
-from .settings import PluginSettingsStore
-
-_logger = getLogger(__name__)
+from ._interface import _PluginAPI, _PluginBaseMeta
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,207 +40,6 @@ class VideoOutputProxy:
     Frame properties of the clip.
     The props of the current frame are guaranteed to be available.
     """
-
-
-class LocalSettingsModel(BaseModel):
-    """
-    Base class for settings with optional local overrides.
-
-    Fields set to `None` fall back to the corresponding global value.
-    """
-
-    def resolve(self, global_settings: BaseModel) -> Self:
-        """
-        Resolve global settings with local overrides applied.
-
-        Args:
-            global_settings: Source of default values.
-
-        Returns:
-            A new instance with all fields resolved.
-        """
-        base_values = global_settings.model_dump(include=set(self.__class__.model_fields))
-
-        overrides = self.model_dump(exclude_none=True)
-
-        return self.__class__(**base_values | overrides)
-
-
-class _PluginAPI(QObject):
-    statusMessage = Signal(str)
-    globalSettingsChanged = Signal()
-    localSettingsChanged = Signal(str)
-
-    def __init__(self, workspace: LoaderWorkspace[Any]) -> None:
-        super().__init__()
-        self.__workspace = workspace
-        self.__settings_store: PluginSettingsStore | None = None
-
-        SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
-        SettingsManager.signals.localChanged.connect(self._on_local_settings_changed)
-
-    @property
-    def current_voutput(self) -> VideoOutputProxy:
-        """Return the VideoOutput for the currently selected tab."""
-        if voutput := self.__workspace.tab_manager.current_voutput:
-            return VideoOutputProxy(voutput.vs_index, voutput.vs_name, voutput.vs_output, voutput.props)
-
-        # This shouldn't happen
-        raise NotImplementedError
-
-    # PRIVATE API
-
-    @property
-    def _settings_store(self) -> PluginSettingsStore:
-        if self.__settings_store is None:
-            self.__settings_store = PluginSettingsStore(self.__workspace)
-        return self.__settings_store
-
-    def _is_truly_visible(self, plugin: PluginBase[Any, Any]) -> bool:
-        # Check if this plugin is truly visible to the user.
-
-        # This accounts for:
-        # - Widgets in a QTabWidget that are not the current tab
-        # - Widgets in a QDockWidget that is tabified and not visible
-        # - Widgets in a QSplitter panel that is collapsed (size=0)
-        if not plugin.isVisible():
-            return False
-
-        widget: QObject | None = plugin
-
-        while widget:
-            parent = widget.parent()
-
-            # Plugin is not the current tab (compare against self, not intermediate widget)
-            if isinstance(parent, QTabWidget) and parent.currentWidget() is not plugin:
-                return False
-
-            # Dock widget is tabified and not visible
-            if isinstance(parent, QDockWidget) and parent.visibleRegion().isEmpty():
-                return False
-
-            # Check if our panel in the splitter is collapsed
-            if (
-                isinstance(parent, QSplitter)
-                and isinstance(widget, QWidget)
-                and (idx := parent.indexOf(widget)) >= 0
-                and parent.sizes()[idx] == 0
-            ):
-                return False
-
-            widget = parent
-
-        return True
-
-    def _register_plugin_nodes_to_buffer(self) -> None:
-        # Register visible plugin nodes with the buffer for pre-fetching during playback.
-        for plugin in self.__workspace.plugins:
-            if not self._is_truly_visible(plugin):
-                return
-
-            for view in plugin.findChildren(PluginGraphicsView):
-                if view.current_tab in view.outputs and self.__workspace._playback.buffer:
-                    self.__workspace._playback.buffer.register_plugin_node(
-                        plugin.identifier, view.outputs[view.current_tab]
-                    )
-
-    def _on_current_voutput_changed(self) -> None:
-        # Notify all visible plugin views of output change.
-        for plugin in self.__workspace.plugins:
-            if self._is_truly_visible(plugin):
-                self._init_plugin(plugin)
-
-    def _init_plugin(self, plugin: PluginBase[Any, Any]) -> None:
-        # Initialize plugin for the current output and render initial frame if needed.
-        if not self._is_truly_visible(plugin):
-            return
-
-        tab_index = self.__workspace.current_tab_index
-        current_frame = self.__workspace.current_frame
-
-        try:
-            plugin.on_current_voutput_changed(self.current_voutput, tab_index)
-        except Exception:
-            _logger.exception("on_current_voutput_changed: Failed to initialize plugin %r", plugin)
-            return
-
-        try:
-            plugin.on_current_frame_changed(current_frame)
-        except Exception:
-            _logger.exception("on_current_frame_changed: Failed to initialize plugin %r", plugin)
-            return
-
-        for view in plugin.findChildren(PluginGraphicsView):
-            try:
-                self._init_view(view, plugin)
-            except Exception:
-                _logger.exception("Failed to initialize view %r", view)
-
-    def _init_view(self, view: PluginGraphicsView, plugin: PluginBase[Any, Any], refresh: bool = False) -> None:
-        if not self._is_truly_visible(plugin):
-            return
-
-        tab_index = self.__workspace.current_tab_index
-        current_frame = self.__workspace.current_frame
-
-        view.current_tab = tab_index
-        _logger.debug("Found view: %s, current_tab=%d, outputs=%s", view, view.current_tab, list(view.outputs.keys()))
-
-        if refresh:
-            view.outputs.clear()
-
-        if tab_index not in view.outputs:
-            with self.__workspace.env.use():
-                node = view.get_node(self.current_voutput.vs_output.clip)
-                packed = self.__workspace._packer.pack_clip(node)
-                view.outputs[tab_index] = packed
-                _logger.debug("Created output node for tab %d", tab_index)
-
-        with self.__workspace.env.use():
-            view.on_current_voutput_changed(self.current_voutput, tab_index)
-
-        if view.pixmap_item.pixmap().isNull() or refresh:
-            with self.__workspace.env.use(), view.outputs[tab_index].get_frame(current_frame) as frame:
-                _logger.debug("Got frame, calling on_current_frame_changed")
-                view.on_current_frame_changed(current_frame, frame)
-        view.setSceneRect(view.pixmap_item.boundingRect())
-        view.set_autofit(view.autofit)
-
-    def _on_current_frame_changed(self, n: int, plugin_frames: dict[str, vs.VideoFrame] | None = None) -> None:
-        # Notify plugins of frame change.
-        # If plugin_frames is provided, uses pre-fetched frames.
-        # Otherwise, fetches frames synchronously for each plugin view.
-        for plugin in self.__workspace.plugins:
-            if not self._is_truly_visible(plugin):
-                continue
-
-            plugin.on_current_frame_changed(n)
-
-            for view in plugin.findChildren(PluginGraphicsView):
-                if view.current_tab == -1 or view.current_tab not in view.outputs:
-                    continue
-
-                # Get pre-fetched frame or fall back to sync request
-                if plugin_frames and plugin.identifier in plugin_frames:
-                    view.on_current_frame_changed(n, plugin_frames[plugin.identifier])
-                else:
-                    with self.__workspace.env.use(), view.outputs[view.current_tab].get_frame(n) as frame:
-                        view.on_current_frame_changed(n, frame)
-
-    def _get_cached_settings(self, plugin: PluginBase[Any, Any], scope: str) -> Any:
-        return self._settings_store.get(plugin, scope)
-
-    def _update_settings(self, plugin: PluginBase[Any, Any], scope: str, **updates: Any) -> None:
-        self._settings_store.update(plugin, scope, **updates)
-
-    def _on_global_settings_changed(self) -> None:
-        self._settings_store.invalidate("global")
-        self._settings_store.invalidate("local")
-        self.globalSettingsChanged.emit()
-
-    def _on_local_settings_changed(self, path: str) -> None:
-        self._settings_store.invalidate("local")
-        self.localSettingsChanged.emit(path)
 
 
 class PluginAPI(_PluginAPI):
@@ -314,6 +103,30 @@ class PluginAPI(_PluginAPI):
         return QPixmap.fromImage(self.__workspace._packer.frame_to_qimage(f), flags).copy()
 
 
+class LocalSettingsModel(BaseModel):
+    """
+    Base class for settings with optional local overrides.
+
+    Fields set to `None` fall back to the corresponding global value.
+    """
+
+    def resolve(self, global_settings: BaseModel) -> Self:
+        """
+        Resolve global settings with local overrides applied.
+
+        Args:
+            global_settings: Source of default values.
+
+        Returns:
+            A new instance with all fields resolved.
+        """
+        base_values = global_settings.model_dump(include=set(self.__class__.model_fields))
+
+        overrides = self.model_dump(exclude_none=True)
+
+        return self.__class__(**base_values | overrides)
+
+
 if sys.version_info >= (3, 13):
     TGlobalSettings = TypeVar("TGlobalSettings", bound=BaseModel | None, default=None)
     TLocalSettings = TypeVar("TLocalSettings", bound=BaseModel | None, default=None)
@@ -341,44 +154,6 @@ class PluginSettings(Generic[TGlobalSettings, TLocalSettings]):  # noqa: UP046
     def local_(self) -> TLocalSettings:
         """Get the current local settings (resolved with global fallbacks)."""
         return self._plugin.api._get_cached_settings(self._plugin, "local")
-
-
-class _PluginBaseMeta(ObjectType):
-    global_settings_model: type[BaseModel] | None
-    local_settings_model: type[BaseModel] | None
-
-    def __new__[MetaSelf: _PluginBaseMeta](  # noqa: PYI019
-        mcls: type[MetaSelf],
-        name: str,
-        bases: tuple[type, ...],
-        namespace: dict[str, Any],
-        /,
-        **kwargs: Any,
-    ) -> MetaSelf:
-        cls = super().__new__(mcls, name, bases, namespace, **kwargs)
-
-        if name == "PluginBase":
-            return cls
-
-        for base in get_original_bases(cls):
-            if (origin := get_origin(base)) and issubclass(origin, PluginBase):
-                args = get_args(base)
-
-                for n, arg in zip_longest(["global", "local"], args, fillvalue=None):
-                    if arg is None or not isinstance(arg, type):
-                        setattr(cls, f"{n}_settings_model", None)
-                        continue
-
-                    origin = get_origin(arg)
-                    is_basemodel = (origin is None and issubclass(arg, BaseModel)) or (
-                        origin is not None and issubclass(origin, BaseModel)
-                    )
-                    setattr(cls, f"{n}_settings_model", arg if is_basemodel else None)
-                break
-        else:
-            cls.global_settings_model, cls.local_settings_model = None, None
-
-        return cls
 
 
 class PluginBase(QWidget, Generic[TGlobalSettings, TLocalSettings], metaclass=_PluginBaseMeta):  # noqa: UP046
