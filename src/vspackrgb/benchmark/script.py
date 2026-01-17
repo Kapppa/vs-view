@@ -156,9 +156,9 @@ def benchmark_rgb30() -> Table:
 
 def main() -> None:
     console.print()
-    table_rgb24 = benchmark_rgb24()
+    table_rgb24 = benchmark_rgb24()  # noqa: F841
     console.print()
-    table_rgb30 = benchmark_rgb30()
+    table_rgb30 = benchmark_rgb30()  # noqa: F841
     console.print()
 
 
