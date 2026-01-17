@@ -4,11 +4,13 @@ Plugin interface for VSView.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable, Mapping, MutableMapping
 from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
+from types import get_original_bases
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, Self, TypeVar, get_args, get_origin
 from weakref import WeakKeyDictionary
 
 import vapoursynth as vs
@@ -18,6 +20,7 @@ from PySide6.QtGui import QPixmap, QShowEvent
 from PySide6.QtWidgets import QDockWidget, QSplitter, QTabWidget, QWidget
 
 from vsview.app.settings import SettingsManager
+from vsview.app.utils import ObjectType
 from vsview.app.views.video import BaseGraphicsView
 from vsview.vsenv.loop import run_in_loop
 
@@ -86,8 +89,8 @@ class PluginAPI(QObject):
     def __init__(self, workspace: LoaderWorkspace[Any]) -> None:
         super().__init__()
         self.__workspace = workspace
-        self.__global_settings_cache = WeakKeyDictionary[PluginBase, Any]()
-        self.__local_settings_cache = WeakKeyDictionary[PluginBase, Any]()
+        self.__global_settings_cache = WeakKeyDictionary[PluginBase[Any, Any], Any]()
+        self.__local_settings_cache = WeakKeyDictionary[PluginBase[Any, Any], Any]()
 
         SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
         SettingsManager.signals.localChanged.connect(self._on_local_settings_changed)
@@ -146,7 +149,7 @@ class PluginAPI(QObject):
         return QPixmap.fromImage(self.__workspace._packer.frame_to_qimage(f), flags).copy()
 
     # PRIVATE API
-    def _is_truly_visible(self, plugin: PluginBase) -> bool:
+    def _is_truly_visible(self, plugin: PluginBase[Any, Any]) -> bool:
         # Check if this plugin is truly visible to the user.
 
         # This accounts for:
@@ -200,7 +203,7 @@ class PluginAPI(QObject):
             if self._is_truly_visible(plugin):
                 self._init_plugin(plugin)
 
-    def _init_plugin(self, plugin: PluginBase) -> None:
+    def _init_plugin(self, plugin: PluginBase[Any, Any]) -> None:
         # Initialize plugin for the current output and render initial frame if needed.
         if not self._is_truly_visible(plugin):
             return
@@ -226,7 +229,7 @@ class PluginAPI(QObject):
             except Exception:
                 _logger.exception("Failed to initialize view %r", view)
 
-    def _init_view(self, view: PluginGraphicsView, plugin: PluginBase, refresh: bool = False) -> None:
+    def _init_view(self, view: PluginGraphicsView, plugin: PluginBase[Any, Any], refresh: bool = False) -> None:
         if not self._is_truly_visible(plugin):
             return
 
@@ -277,19 +280,19 @@ class PluginAPI(QObject):
                     with self.__workspace.env.use(), view.outputs[view.current_tab].get_frame(n) as frame:
                         view.on_current_frame_changed(n, frame)
 
-    def _get_cached_settings(self, plugin: PluginBase, scope: Literal["global", "local"]) -> Any:
+    def _get_cached_settings(self, plugin: PluginBase[Any, Any], scope: Literal["global", "local"]) -> Any:
         cache = self.__global_settings_cache if scope == "global" else self.__local_settings_cache
 
         if plugin not in cache:
             if scope == "global":
                 raw = SettingsManager.global_settings.plugins.setdefault(plugin.identifier, {})
-                model = plugin.global_settings_model
+                model = getattr(plugin, "global_settings_model", None)
             else:
                 if self.file_path is None:
                     raw = {}
                 else:
                     raw = SettingsManager.get_local_settings(self.file_path).plugins.setdefault(plugin.identifier, {})
-                model = plugin.local_settings_model
+                model = getattr(plugin, "local_settings_model", None)
 
             settings = model.model_validate(raw) if model is not None else raw
 
@@ -300,7 +303,7 @@ class PluginAPI(QObject):
 
         return cache[plugin]
 
-    def _set_settings(self, plugin: PluginBase, scope: Literal["global", "local"], value: Any) -> None:
+    def _set_settings(self, plugin: PluginBase[Any, Any], scope: Literal["global", "local"], value: Any) -> None:
         if scope == "global":
             SettingsManager.global_settings.plugins[plugin.identifier] = value
             self.__global_settings_cache.pop(plugin, None)
@@ -317,7 +320,67 @@ class PluginAPI(QObject):
         self.localSettingsChanged.emit(path)
 
 
-class PluginBase(QWidget):
+if sys.version_info >= (3, 13):
+    TGlobalSettings = TypeVar("TGlobalSettings", bound=BaseModel | dict[str, Any], default=dict[str, Any])
+    TLocalSettings = TypeVar("TLocalSettings", bound=BaseModel | dict[str, Any], default=dict[str, Any])
+else:
+    TGlobalSettings = TypeVar("TGlobalSettings", bound=BaseModel | dict[str, Any])
+    TLocalSettings = TypeVar("TLocalSettings", bound=BaseModel | dict[str, Any])
+
+
+class PluginSettings(Generic[TGlobalSettings, TLocalSettings]):  # noqa: UP046
+    """
+    Settings wrapper providing lazy, always-fresh access.
+
+    Defaults to dict[str, Any] when no model is defined.
+    """
+
+    def __init__(self, plugin: PluginBase[TGlobalSettings, TLocalSettings]) -> None:
+        self._plugin = plugin
+
+    @property
+    def global_(self) -> TGlobalSettings:
+        """Get the current global settings."""
+        return self._plugin.api._get_cached_settings(self._plugin, "global")
+
+    @property
+    def local_(self) -> TLocalSettings:
+        """Get the current local settings (resolved with global fallbacks)."""
+        return self._plugin.api._get_cached_settings(self._plugin, "local")
+
+
+class _PluginBaseMeta(ObjectType):
+    global_settings_model: type[BaseModel] | None
+    local_settings_model: type[BaseModel] | None
+
+    def __new__[MetaSelf: _PluginBaseMeta](  # noqa: PYI019
+        mcls: type[MetaSelf],
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        /,
+        **kwargs: Any,
+    ) -> MetaSelf:
+        cls = super().__new__(mcls, name, bases, namespace, **kwargs)
+
+        if name == "PluginBase":
+            return cls
+
+        for base in get_original_bases(cls):
+            if (origin := get_origin(base)) and issubclass(origin, PluginBase):
+                for arg, n in zip(get_args(base), ["global", "local"]):
+                    is_basemodel = (get_origin(arg) is None and issubclass(arg, BaseModel)) or issubclass(
+                        get_origin(arg), BaseModel
+                    )
+                    setattr(cls, f"{n}_settings_model", arg if is_basemodel else None)
+                break
+        else:
+            cls.global_settings_model, cls.local_settings_model = None, None
+
+        return cls
+
+
+class PluginBase(QWidget, Generic[TGlobalSettings, TLocalSettings], metaclass=_PluginBaseMeta):  # noqa: UP046
     """Base class for all plugins."""
 
     identifier: ClassVar[str]
@@ -326,59 +389,38 @@ class PluginBase(QWidget):
     display_name: ClassVar[str]
     """Display name for the tool."""
 
-    global_settings_model: ClassVar[type[BaseModel] | None] = None
-    """Pydantic model for global settings."""
-
-    local_settings_model: ClassVar[type[BaseModel] | None] = None
-    """Pydantic model for local settings."""
-
     def __init__(self, parent: QWidget, api: PluginAPI) -> None:
         super().__init__(parent)
         self.api = api
-        self.global_settings
-        self.local_settings
 
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
         self.api._init_plugin(self)
 
     @property
-    def global_settings(self) -> Any:
-        """Get the global settings for this plugin."""
-        return self.api._get_cached_settings(self, "global")
-
-    @global_settings.setter
-    def global_settings(self, value: MutableMapping[str, Any] | BaseModel) -> None:
-        self.api._set_settings(self, "global", value)
+    def settings(self) -> PluginSettings[TGlobalSettings, TLocalSettings]:
+        """Get the settings wrapper for lazy, always-fresh access."""
+        return PluginSettings(self)
 
     def update_global_settings(self, **updates: Any) -> None:
         """Update specific global settings fields and trigger persistence."""
-        settings = self.global_settings
+        settings = self.api._get_cached_settings(self, "global")
         for key, value in updates.items():
             if isinstance(settings, MutableMapping):
                 settings[key] = value
             else:
                 setattr(settings, key, value)
-        self.global_settings = settings
-
-    @property
-    def local_settings(self) -> Any:
-        """Get the local settings for this plugin."""
-        return self.api._get_cached_settings(self, "local")
-
-    @local_settings.setter
-    def local_settings(self, value: MutableMapping[str, Any] | BaseModel) -> None:
-        self.api._set_settings(self, "local", value)
+        self.api._set_settings(self, "global", settings)
 
     def update_local_settings(self, **updates: Any) -> None:
         """Update specific local settings fields and trigger persistence."""
-        settings = self.local_settings
+        settings = self.api._get_cached_settings(self, "local")
         for key, value in updates.items():
             if isinstance(settings, MutableMapping):
                 settings[key] = value
             else:
                 setattr(settings, key, value)
-        self.local_settings = settings
+        self.api._set_settings(self, "local", settings)
 
     def on_current_voutput_changed(self, voutput: VideoOutputProxy, tab_index: int) -> None:
         """Called when the current video output changes."""
@@ -402,7 +444,7 @@ class PluginGraphicsView(BaseGraphicsView):
         """Update the UI with the new image on the main thread."""
         self.pixmap_item.setPixmap(image)
 
-    def refresh(self, plugin: PluginBase) -> None:
+    def refresh(self, plugin: PluginBase[Any, Any]) -> None:
         """Refresh the view."""
         self.api._init_view(self, plugin, refresh=True)
 

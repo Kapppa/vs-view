@@ -1,6 +1,6 @@
 """API for vsview"""
 
-from ..app.plugins import LocalSettingsModel, PluginAPI, PluginBase, PluginGraphicsView, hookimpl
+from ..app.plugins import LocalSettingsModel, PluginAPI, PluginBase, PluginGraphicsView, PluginSettings, hookimpl
 from ..app.settings.models import Checkbox, DoubleSpin, Dropdown, PlainTextEdit, Spin, WidgetMetadata
 from ..app.views.components import AnimatedToggle, SegmentedControl
 from ..vsenv import run_in_background, run_in_loop
@@ -16,6 +16,7 @@ __all__ = [
     "PluginAPI",
     "PluginBase",
     "PluginGraphicsView",
+    "PluginSettings",
     "SegmentedControl",
     "Spin",
     "WidgetMetadata",

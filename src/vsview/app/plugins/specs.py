@@ -6,7 +6,7 @@ This module defines the interfaces that plugins should implement to extend the a
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pluggy
 
@@ -21,12 +21,12 @@ hookimpl = pluggy.HookimplMarker("vsview")
 
 
 @hookspec
-def vsview_register_tooldock() -> type[PluginBase]:
+def vsview_register_tooldock() -> type[PluginBase[Any, Any]]:
     """Return a ToolSpec for a tool dock widget."""
     raise NotImplementedError
 
 
 @hookspec
-def vsview_register_toolpanel() -> type[PluginBase]:
+def vsview_register_toolpanel() -> type[PluginBase[Any, Any]]:
     """Return a ToolSpec for a tool panel widget."""
     raise NotImplementedError

@@ -5,8 +5,10 @@ import os
 import weakref
 from collections import OrderedDict, UserDict
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import vapoursynth as vs
+from shiboken6 import Shiboken
 
 
 def path_to_hash(path: str | os.PathLike[str]) -> str:
@@ -87,3 +89,10 @@ def cache_clip(clip: vs.VideoNode, cache_size: int) -> vs.VideoNode:
     from_cache_node = vs.core.std.ModifyFrame(blank, blank, cache.get_frame)
 
     return vs.core.std.FrameEval(blank, lambda n: from_cache_node if n in cache else to_cache_node)
+
+
+if TYPE_CHECKING:
+
+    class ObjectType(type): ...
+else:
+    ObjectType = type(Shiboken.Object)

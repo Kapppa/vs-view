@@ -1,5 +1,5 @@
 from math import copysign
-from typing import Annotated, Literal, assert_never
+from typing import Annotated, Any, Literal, assert_never
 
 from pydantic import BaseModel
 from PySide6.QtWidgets import QBoxLayout, QDoubleSpinBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget, QWidgetAction
@@ -13,6 +13,7 @@ from vsview.api import (
     PluginAPI,
     PluginBase,
     PluginGraphicsView,
+    PluginSettings,
     SegmentedControl,
     Spin,
     hookimpl,
@@ -88,16 +89,14 @@ class LocalSettings(LocalSettingsModel):
     offset_chroma: float | Literal["min", "max"] | None = None
 
 
-class SplitPlanesPlugin(PluginBase):
+class SplitPlanesPlugin(PluginBase[GlobalSettings, LocalSettings]):
     identifier = "jet_vsview_split_planes"
     display_name = "Split Planes"
-    global_settings_model = GlobalSettings
-    local_settings_model = LocalSettings
 
     def __init__(self, parent: QWidget, api: PluginAPI) -> None:
         super().__init__(parent, api)
 
-        self.view = SplitPlanesView(self, self.api, self.global_settings, self.local_settings)
+        self.view = SplitPlanesView(self, self.api, self.settings)
         self.current_layout = QHBoxLayout(self)
         self.current_layout.setContentsMargins(0, 0, 0, 0)
         self.current_layout.setSpacing(0)
@@ -106,20 +105,17 @@ class SplitPlanesPlugin(PluginBase):
         self.api.globalSettingsChanged.connect(self.on_settings_changed)
 
     def on_settings_changed(self) -> None:
-        if self.global_settings.autofit != self.view.autofit:
+        if self.settings.global_.autofit != self.view.autofit:
             self.view.autofit_action.trigger()
-        self.view.global_settings = self.global_settings
-        self.view.local_settings = self.local_settings
         self.view.refresh(self)
 
 
 class SplitPlanesView(PluginGraphicsView):
     def __init__(
-        self, parent: QWidget, api: PluginAPI, global_settings: GlobalSettings, local_settings: LocalSettings
+        self, parent: QWidget, api: PluginAPI, settings: PluginSettings[GlobalSettings, LocalSettings]
     ) -> None:
         super().__init__(parent, api)
-        self.global_settings = global_settings
-        self.local_settings = local_settings
+        self.settings = settings
 
         self.context_menu.addSeparator()
 
@@ -169,7 +165,7 @@ class SplitPlanesView(PluginGraphicsView):
         # Set initial state from global settings
         self.sync_offset_controls_from_settings()
 
-        if self.local_settings.autofit:
+        if self.settings.local_.autofit:
             self.autofit_action.trigger()
 
     def parent(self) -> SplitPlanesPlugin:
@@ -179,26 +175,26 @@ class SplitPlanesView(PluginGraphicsView):
         raise NotImplementedError
 
     def get_node(self, clip: VideoNode) -> VideoNode:
-        if self.local_settings.offset_chroma is None:
+        if self.settings.local_.offset_chroma is None:
             offset = False
-        elif isinstance(self.local_settings.offset_chroma, (float, int)):
-            offset = scale_mask(abs(self.local_settings.offset_chroma), 32, clip)
-            offset = copysign(offset, self.local_settings.offset_chroma)
+        elif isinstance(self.settings.local_.offset_chroma, (float, int)):
+            offset = scale_mask(abs(self.settings.local_.offset_chroma), 32, clip)
+            offset = copysign(offset, self.settings.local_.offset_chroma)
         else:
-            offset = self.local_settings.offset_chroma
+            offset = self.settings.local_.offset_chroma
 
         return stack_planes(
             clip,
-            self.global_settings.shift_float_chroma,
+            self.settings.global_.shift_float_chroma,
             offset,
-            self.global_settings.mode,
-            self.global_settings.write_plane_name,
-            self.global_settings.alignment,
-            self.global_settings.scale,
+            self.settings.global_.mode,
+            self.settings.global_.write_plane_name,
+            self.settings.global_.alignment,
+            self.settings.global_.scale,
         )
 
     def sync_offset_controls_from_settings(self) -> None:
-        match offset := self.parent().local_settings.offset_chroma:
+        match offset := self.settings.local_.offset_chroma:
             case int() | float() | None:
                 self.offset_segment.index = 0
                 self.fixed_spinbox_container.setEnabled(True)
@@ -226,14 +222,12 @@ class SplitPlanesView(PluginGraphicsView):
             case _:
                 raise NotImplementedError
 
-        self.local_settings = parent.local_settings
         self.refresh(parent)
 
     def on_offset_spinbox_changed(self, value: float) -> None:
         if self.offset_segment.index == 0:
             parent = self.parent()
             parent.update_local_settings(offset_chroma=value)
-            self.local_settings = parent.local_settings
             self.refresh(parent)
 
     def _on_autofit_action(self) -> None:
@@ -243,10 +237,10 @@ class SplitPlanesView(PluginGraphicsView):
 
 
 @hookimpl
-def vsview_register_toolpanel() -> type[PluginBase]:
+def vsview_register_toolpanel() -> type[PluginBase[Any, Any]]:
     return SplitPlanesPlugin
 
 
 @hookimpl
-def vsview_register_tooldock() -> type[PluginBase]:
+def vsview_register_tooldock() -> type[PluginBase[Any, Any]]:
     return SplitPlanesPlugin
