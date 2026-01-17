@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "versioningit"]
 build-backend = "hatchling.build"
 
 [project]
 name = "vsview-fftspectrum"
-version = "1.0.0"
+dynamic = ["version"]
 description = "A vsview plugin displaying the Fast Fourier transform spectrum of a video clip"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -26,3 +26,13 @@ vsview_fftspectrum = "vsview_fftspectrum"
 [tool.uv.sources]
 vsview = { workspace = true }
 vsjetpack = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack", branch = "main" }
+
+[tool.hatch.version]
+source = "versioningit"
+
+[tool.versioningit.vcs]
+match = ["fftspectrum/v*"]
+default-tag = "fftspectrum/v0.0.0"
+
+[tool.versioningit.tag2version]
+rmprefix = "fftspectrum/v"

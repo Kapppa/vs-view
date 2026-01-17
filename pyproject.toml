@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "versioningit"]
 build-backend = "hatchling.build"
 
 [project]
 name = "vsview"
-version = "0.1.0a0"
+dynamic = ["version"]
 description = "The next-generation VapourSynth previewer"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -65,6 +65,16 @@ include = ["README.md", "LICENSE", "pyproject.toml"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/vsview"]
 exclude = ["README.md"]
+
+[tool.hatch.version]
+source = "versioningit"
+
+[tool.versioningit.vcs]
+match = ["vsview/v*"]
+default-tag = "vsview/v0.0.0"
+
+[tool.versioningit.tag2version]
+rmprefix = "vsview/v"
 
 [tool.uv.workspace]
 members = ["src/vspackrgb", "src/plugins/*"]

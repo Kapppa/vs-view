@@ -570,7 +570,6 @@ dependencies = [
 
 [[package]]
 name = "vspackrgb"
-version = "0.1.0"
 source = { editable = "src/vspackrgb" }
 dependencies = [
     { name = "vapoursynth" },
@@ -612,7 +611,6 @@ wheels = [
 
 [[package]]
 name = "vsview"
-version = "0.1.0a0"
 source = { editable = "." }
 dependencies = [
     { name = "jetpytools" },
@@ -674,7 +672,6 @@ plugins = [
 
 [[package]]
 name = "vsview-fftspectrum"
-version = "1.0.0"
 source = { editable = "src/plugins/fftspectrum" }
 dependencies = [
     { name = "vsjetpack" },
@@ -689,7 +686,6 @@ requires-dist = [
 
 [[package]]
 name = "vsview-split-planes"
-version = "1.0.0"
 source = { editable = "src/plugins/split-planes" }
 dependencies = [
     { name = "vsjetpack" },

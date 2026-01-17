@@ -1,10 +1,16 @@
 [build-system]
-requires = ["hatchling", "hatch-cython", "cython>=3.0.0", "setuptools"]
+requires = [
+    "hatchling",
+    "hatch-cython",
+    "cython>=3.0.0",
+    "setuptools",
+    "versioningit",
+]
 build-backend = "hatchling.build"
 
 [project]
 name = "vspackrgb"
-version = "0.1.0"
+dynamic = ["version"]
 description = "RGB packing for VapourSynth frames"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -48,3 +54,28 @@ compile_args = [ # nofmt
     { platforms = ["linux", "darwin"], arg = "-O3" },
     { platforms = ["windows"], arg = "/O2" },
 ]
+
+[tool.hatch.version]
+source = "versioningit"
+
+[tool.versioningit.vcs]
+match = ["vspackrgb/v*"]
+default-tag = "vspackrgb/v0.0.0"
+
+[tool.versioningit.tag2version]
+rmprefix = "vspackrgb/v"
+
+[tool.cibuildwheel]
+build = "cp312-* cp313-* cp314-*"
+skip = "*-win32 *-manylinux_i686 *-musllinux_*"
+# Test would require vapoursynth
+test-skip = "*"
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
+
+[tool.cibuildwheel.linux]
+archs = ["native"]
