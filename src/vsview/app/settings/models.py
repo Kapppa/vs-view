@@ -1,5 +1,7 @@
 """Settings models for vsview."""
 
+from __future__ import annotations
+
 import os
 from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Callable, Iterable
@@ -9,6 +11,7 @@ from enum import StrEnum
 from functools import wraps
 from logging import getLogger
 from pathlib import Path
+from types import SimpleNamespace
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -23,7 +26,8 @@ from typing import (
 )
 
 from jetpytools import SupportsRichComparison
-from pydantic import BaseModel, Field, TypeAdapter, ValidationError, field_validator
+from pydantic import BaseModel, Field, GetCoreSchemaHandler, TypeAdapter, ValidationError, field_validator
+from pydantic_core import core_schema
 from PySide6.QtCore import QTime
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import QCheckBox, QComboBox, QDoubleSpinBox, QPlainTextEdit, QSpinBox, QTimeEdit, QWidget
@@ -400,6 +404,29 @@ class ActionID(StrEnum):
         return self
 
 
+class PluginNamespace(SimpleNamespace):
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
+        return core_schema.no_info_plain_validator_function(
+            cls._validate,
+            serialization=core_schema.plain_serializer_function_ser_schema(cls._serialize, info_arg=False),
+        )
+
+    @classmethod
+    def _validate(cls, value: Any) -> PluginNamespace:
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, SimpleNamespace):
+            return cls(**vars(value))
+        if isinstance(value, dict):
+            return cls(**value)
+        raise ValueError(f"Cannot convert {type(value)} to PluginNamespace")
+
+    @staticmethod
+    def _serialize(value: PluginNamespace) -> dict[str, Any]:
+        return vars(value)
+
+
 class ShortcutConfig(BaseModel):
     """Configuration for a single keyboard shortcut."""
 
@@ -678,7 +705,7 @@ class GlobalSettings(BaseSettings):
     timeline: TimelineSettings = TimelineSettings()
     view: ViewSettings = ViewSettings()
 
-    plugins: dict[str, Any] = Field(default_factory=dict)
+    plugins: dict[str, PluginNamespace | BaseModel] = Field(default_factory=dict)
 
     # Hidden
     window_geometry: WindowGeometry = WindowGeometry()
@@ -759,7 +786,7 @@ class LocalSettings(BaseSettings):
     last_output_tab_index: int = 0
     playback: LocalPlaybackSettings = LocalPlaybackSettings()
     synchronization: SynchronizationSettings = SynchronizationSettings()
-    plugins: dict[str, Any] = Field(default_factory=dict)
+    plugins: dict[str, PluginNamespace | BaseModel] = Field(default_factory=dict)
 
 
 # Global settings file location is inside the package directory

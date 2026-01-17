@@ -8,7 +8,6 @@ from typing import Literal
 
 import pluggy
 from jetpytools import Singleton, inject_self
-from pydantic import BaseModel
 from PySide6.QtCore import QObject, Signal
 
 from ...vsenv import run_in_background
@@ -98,6 +97,7 @@ class PluginManager(Singleton):
     @inject_self
     def populate_default_settings(self, scope: Literal["global", "local"], file_path: Path | None = None) -> None:
         from ..settings import SettingsManager
+        from ..settings.models import PluginNamespace
 
         if scope == "local" and file_path is not None:
             settings_container = SettingsManager.get_local_settings(file_path)
@@ -111,9 +111,6 @@ class PluginManager(Singleton):
                 continue
 
             defaults = model().model_dump()
-            existing = settings_container.plugins.get(plugin.identifier, {})
+            existing = vars(settings_container.plugins.get(plugin.identifier, PluginNamespace()))
 
-            if isinstance(existing, BaseModel):
-                existing.model_dump()
-
-            settings_container.plugins[plugin.identifier] = defaults | existing
+            settings_container.plugins[plugin.identifier] = model.model_validate(defaults | existing)

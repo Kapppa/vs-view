@@ -20,6 +20,7 @@ from PySide6.QtGui import QPixmap, QShowEvent
 from PySide6.QtWidgets import QDockWidget, QSplitter, QTabWidget, QWidget
 
 from vsview.app.settings import SettingsManager
+from vsview.app.settings.models import PluginNamespace
 from vsview.app.utils import ObjectType
 from vsview.app.views.video import BaseGraphicsView
 from vsview.vsenv.loop import run_in_loop
@@ -285,13 +286,15 @@ class PluginAPI(QObject):
 
         if plugin not in cache:
             if scope == "global":
-                raw = SettingsManager.global_settings.plugins.setdefault(plugin.identifier, {})
+                raw = SettingsManager.global_settings.plugins.setdefault(plugin.identifier, PluginNamespace())
                 model = getattr(plugin, "global_settings_model", None)
             else:
                 if self.file_path is None:
-                    raw = {}
+                    raw = PluginNamespace()
                 else:
-                    raw = SettingsManager.get_local_settings(self.file_path).plugins.setdefault(plugin.identifier, {})
+                    raw = SettingsManager.get_local_settings(self.file_path).plugins.setdefault(
+                        plugin.identifier, PluginNamespace()
+                    )
                 model = getattr(plugin, "local_settings_model", None)
 
             settings = model.model_validate(raw) if model is not None else raw
@@ -321,18 +324,18 @@ class PluginAPI(QObject):
 
 
 if sys.version_info >= (3, 13):
-    TGlobalSettings = TypeVar("TGlobalSettings", bound=BaseModel | dict[str, Any], default=dict[str, Any])
-    TLocalSettings = TypeVar("TLocalSettings", bound=BaseModel | dict[str, Any], default=dict[str, Any])
+    TGlobalSettings = TypeVar("TGlobalSettings", bound=BaseModel | PluginNamespace, default=PluginNamespace)
+    TLocalSettings = TypeVar("TLocalSettings", bound=BaseModel | PluginNamespace, default=PluginNamespace)
 else:
-    TGlobalSettings = TypeVar("TGlobalSettings", bound=BaseModel | dict[str, Any])
-    TLocalSettings = TypeVar("TLocalSettings", bound=BaseModel | dict[str, Any])
+    TGlobalSettings = TypeVar("TGlobalSettings", bound=BaseModel | PluginNamespace)
+    TLocalSettings = TypeVar("TLocalSettings", bound=BaseModel | PluginNamespace)
 
 
 class PluginSettings(Generic[TGlobalSettings, TLocalSettings]):  # noqa: UP046
     """
     Settings wrapper providing lazy, always-fresh access.
 
-    Defaults to dict[str, Any] when no model is defined.
+    Defaults to PluginNamespace when no model is defined.
     """
 
     def __init__(self, plugin: PluginBase[TGlobalSettings, TLocalSettings]) -> None:
@@ -369,8 +372,9 @@ class _PluginBaseMeta(ObjectType):
         for base in get_original_bases(cls):
             if (origin := get_origin(base)) and issubclass(origin, PluginBase):
                 for arg, n in zip(get_args(base), ["global", "local"]):
-                    is_basemodel = (get_origin(arg) is None and issubclass(arg, BaseModel)) or issubclass(
-                        get_origin(arg), BaseModel
+                    origin = get_origin(arg)
+                    is_basemodel = (origin is None and issubclass(arg, BaseModel)) or (
+                        origin is not None and issubclass(get_origin(arg), BaseModel)
                     )
                     setattr(cls, f"{n}_settings_model", arg if is_basemodel else None)
                 break
