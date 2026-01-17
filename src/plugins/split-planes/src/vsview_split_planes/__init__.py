@@ -105,8 +105,7 @@ class SplitPlanesPlugin(PluginBase[GlobalSettings, LocalSettings]):
         self.api.globalSettingsChanged.connect(self.on_settings_changed)
 
     def on_settings_changed(self) -> None:
-        if self.settings.global_.autofit != self.view.autofit:
-            self.view.autofit_action.trigger()
+        self.view.autofit = self.settings.global_.autofit
         self.view.refresh(self)
 
 
