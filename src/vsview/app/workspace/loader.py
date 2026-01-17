@@ -1064,21 +1064,26 @@ class VSEngineWorkspace[T](LoaderWorkspace[T]):
             case _:
                 assert_never(self.content_type)
 
-        def on_complete(f: Future[None]) -> None:
-            if isinstance(e := f.exception(), ExecutionError):
-                from ...app.error import show_error
-
-                show_error(e, self)
-                self.statusLoadingErrored.emit("Execution error")
-                return
-
-            logger.debug("%s execution completed successfully", self.content_type.title())
-
         logger.debug("Running Script...")
 
         fut = self.script.run()
-        fut.add_done_callback(on_complete)
-        fut.result()
+
+        # Wait for script execution to complete
+        try:
+            fut.result()
+            logger.debug("%s execution completed successfully", self.content_type.title())
+        except ExecutionError as e:
+            from ...app.error import show_error
+
+            self.statusLoadingErrored.emit("Execution error")
+
+            show_error(e, self)
+            # Clear traceback to release VS core references held in the exception chain
+            e.parent_error.__traceback__ = None
+            e.__traceback__ = None
+
+            # Raise a clean exception without the original traceback chain
+            raise RuntimeError("Script execution failed") from None
 
     def clear_environment(self) -> None:
         super().clear_environment()

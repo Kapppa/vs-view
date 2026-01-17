@@ -207,7 +207,10 @@ class VideoFileWorkspace(GenericFileWorkspace):
                     clip = self.env.core.bs.VideoSource(str(self.content))
 
                 clip.set_output()
-
+        except Exception:
+            logger.exception("There was an error:")
+            self.env.dispose()
+            return
         finally:
             self.statusConsoleResumed.emit()
         logger.debug("Loaded file: %s", self.content)

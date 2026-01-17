@@ -13,7 +13,23 @@ from ..vsenv import run_in_loop
 logger = getLogger(__name__)
 
 
-@run_in_loop
+def _is_user_script_frame(filename: str) -> bool:
+    return not filename.startswith("src/cython/") and not filename.startswith("<")
+
+
+def _find_user_script_frame(tb: TracebackException) -> tuple[str, int] | None:
+    if not tb.stack:
+        return None
+
+    # Walk backwards from the last frame to find a user script frame
+    for frame in reversed(tb.stack):
+        if frame.filename and frame.lineno is not None and _is_user_script_frame(frame.filename):
+            return (frame.filename, frame.lineno)
+
+    return None
+
+
+@run_in_loop(return_future=False)
 def show_error(error: ExecutionError, parent: QWidget) -> None:
     e = error.parent_error
     tb = TracebackException.from_exception(e)
@@ -23,14 +39,13 @@ def show_error(error: ExecutionError, parent: QWidget) -> None:
     # (traceback points to vsengine's compile() call, not the user's script)
     if isinstance(e, SyntaxError) and e.filename is not None and e.lineno is not None:
         filename, lineno = e.filename, e.lineno
-    elif tb.stack and (last_frame := tb.stack[-1]) and last_frame.filename and last_frame.lineno is not None:
-        filename, lineno = last_frame.filename, last_frame.lineno
+    elif result := _find_user_script_frame(tb):
+        filename, lineno = result
     else:
         filename, lineno = None, None
 
     if filename and lineno:
         # Try reading from real file first, then fall back to linecache (for virtual files)
-
         if not filename.startswith("<") and (p := Path(filename)).exists():
             lines = p.read_text().splitlines()
         else:
@@ -68,3 +83,7 @@ def show_error(error: ExecutionError, parent: QWidget) -> None:
         layout.addItem(spacer, layout.rowCount(), 0, 1, layout.columnCount())
 
     msg.exec()
+
+    # Clear traceback references to avoid holding VS core objects
+    del tb, e
+    error.parent_error.__traceback__ = None
