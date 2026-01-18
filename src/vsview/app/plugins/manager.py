@@ -25,9 +25,9 @@ class PluginSignals(QObject):
 class PluginManager(Singleton):
     def __init__(self) -> None:
         self.manager = pluggy.PluginManager("vsview")
-        self.signals = PluginSignals()
-        self.loaded = False
-        self.settings_extracted = False
+        self._signals = PluginSignals()
+        self._loaded = False
+        self._settings_extracted = False
         self._load_future: Future[None] | None = None
 
     @inject_self.cached.property
@@ -38,9 +38,21 @@ class PluginManager(Singleton):
     def toolpanels(self) -> list[type[PluginBase]]:
         return self.manager.hook.vsview_register_toolpanel()
 
+    @inject_self.property
+    def settings_extracted(self) -> bool:
+        return self._settings_extracted
+
+    @inject_self.property
+    def loaded(self) -> bool:
+        return self._loaded
+
+    @inject_self.property
+    def signals(self) -> PluginSignals:
+        return self._signals
+
     @inject_self
     def load(self) -> None:
-        if self.loaded or self._load_future:
+        if self._loaded or self._load_future:
             return
 
         self._load_future = self._load_worker()
@@ -56,8 +68,8 @@ class PluginManager(Singleton):
         logger.debug("Loading entrypoints...")
         n = self.manager.load_setuptools_entrypoints("vsview")
 
-        self.loaded = True
-        self.signals.pluginsLoaded.emit()
+        self._loaded = True
+        self._signals.pluginsLoaded.emit()
 
         logger.debug("Loaded %d third party plugins", n)
 
@@ -92,7 +104,7 @@ class PluginManager(Singleton):
         SettingsDialog.global_settings_registry.extend(global_entries)
         SettingsDialog.local_settings_registry.extend(local_entries)
 
-        self.settings_extracted = True
+        self._settings_extracted = True
         logger.debug("Plugin settings extracted")
 
     @inject_self

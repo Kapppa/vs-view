@@ -279,7 +279,7 @@ class MainWindow(QMainWindow):
 
     def _on_open_settings(self) -> None:
         # Get current workspace's script path if available
-        if not PluginManager().settings_extracted:
+        if not PluginManager.settings_extracted:
             logger.warning("Plugins not loaded yet, cannot open settings dialog")
             return
 
@@ -365,7 +365,7 @@ class MainWindow(QMainWindow):
     ) -> None:
         menu.clear()
 
-        if not PluginManager().loaded:
+        if not PluginManager.loaded:
             menu.addAction(QAction(empty_text, menu, enabled=False))
             return
 

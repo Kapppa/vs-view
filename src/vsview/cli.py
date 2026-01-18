@@ -58,7 +58,7 @@ def vsview_cli(
     ShortcutManager()
 
     app = QApplication(sys.argv)
-    PluginManager().load()
+    PluginManager.load()
     load_fonts()
 
     main_window = MainWindow()

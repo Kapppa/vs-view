@@ -405,10 +405,10 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         # Load plugins in the load_content function so the plugins can get the file_path
         # and do VS things in the init since the environment is already created.
-        if PluginManager().loaded:
+        if PluginManager.loaded:
             self.load_plugins()
         else:
-            PluginManager().signals.pluginsLoaded.connect(self.load_plugins)
+            PluginManager.signals.pluginsLoaded.connect(self.load_plugins)
 
         @run_in_loop(return_future=False)
         def on_complete(f: Future[None]) -> None:
