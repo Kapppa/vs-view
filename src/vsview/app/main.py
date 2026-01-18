@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from logging import getLogger
 from pathlib import Path
 from typing import Any, cast
@@ -135,6 +136,14 @@ class MainWindow(QMainWindow):
 
         self.view_menu = self.menu_bar.addMenu("View")
 
+        self.view_tooldocks_submenu = QMenu("Tool Docks", self.view_menu)
+        self.view_tooldocks_submenu.aboutToShow.connect(self._populate_tooldocks_menu)
+        self.view_menu.addMenu(self.view_tooldocks_submenu)
+
+        self.view_toolpanels_submenu = QMenu("Tool Panels", self.view_menu)
+        self.view_toolpanels_submenu.aboutToShow.connect(self._populate_toolpanels_menu)
+        self.view_menu.addMenu(self.view_toolpanels_submenu)
+
         self.settings_action = QAction("Settings", self)
         self.settings_action.triggered.connect(self._on_open_settings)
         self.menu_bar.addAction(self.settings_action)
@@ -144,6 +153,11 @@ class MainWindow(QMainWindow):
         self.status_widget = StatusWidget(self)
         self.statusBar().addWidget(self.status_widget, 1)
         self.status_widget.set_ready()
+
+        if (pm := PluginManager()).loaded:
+            self._init_view_tools_settings()
+        else:
+            pm.signals.pluginsLoaded.connect(self._init_view_tools_settings)
 
         # Track currently connected workspace for status bar
         self._connected_workspace: LoaderWorkspace[Any] | None = None
@@ -331,6 +345,68 @@ class MainWindow(QMainWindow):
         else:
             self.status_widget.clear()
             self.status_widget.set_ready()
+
+    def _init_view_tools_settings(self) -> None:
+        view_tools = self.settings_manager.global_settings.view_tools
+
+        for dock in PluginManager.tooldocks:
+            view_tools.docks.setdefault(dock.identifier, True)
+
+        for panel in PluginManager.toolpanels:
+            view_tools.panels.setdefault(panel.identifier, True)
+
+    def _populate_plugin_menu(
+        self,
+        menu: QMenu,
+        plugins: list[Any],
+        settings: dict[str, bool],
+        callback: Callable[[LoaderWorkspace[Any], int, bool], None],
+        empty_text: str,
+    ) -> None:
+        menu.clear()
+
+        if not PluginManager().loaded:
+            menu.addAction(QAction(empty_text, menu, enabled=False))
+            return
+
+        for i, plugin in enumerate(plugins):
+            action = QAction(
+                plugin.display_name,
+                menu,
+                checkable=True,
+                checked=settings.get(plugin.identifier, True),
+            )
+
+            def on_toggled(
+                checked: bool,
+                idx: int = i,
+                identifier: str = plugin.identifier,
+                workspace: QWidget = self.stack.currentWidget(),
+            ) -> None:
+                settings[identifier] = checked
+                if isinstance(workspace, LoaderWorkspace) and workspace.plugins_loaded:
+                    callback(workspace, idx, checked)
+
+            action.toggled.connect(on_toggled)
+            menu.addAction(action)
+
+    def _populate_tooldocks_menu(self) -> None:
+        self._populate_plugin_menu(
+            self.view_tooldocks_submenu,
+            PluginManager.tooldocks,
+            self.settings_manager.global_settings.view_tools.docks,
+            lambda wk, idx, checked: wk.docks[idx].setVisible(checked),
+            "No tool docks available",
+        )
+
+    def _populate_toolpanels_menu(self) -> None:
+        self._populate_plugin_menu(
+            self.view_toolpanels_submenu,
+            PluginManager.toolpanels,
+            self.settings_manager.global_settings.view_tools.panels,
+            lambda wk, idx, checked: wk.plugin_splitter.plugin_tabs.setTabVisible(idx, checked),
+            "No tool panels available",
+        )
 
     def _on_sidebar_button_clicked(self, btn: WorkspaceToolButton[Any]) -> None:
         self.stack.animate_to_widget(btn.workspace)

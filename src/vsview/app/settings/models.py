@@ -621,6 +621,11 @@ class WindowGeometry(BaseModel):
     is_maximized: bool = False
 
 
+class ViewTools(BaseModel):
+    docks: dict[str, bool] = Field(default_factory=dict)
+    panels: dict[str, bool] = Field(default_factory=dict)
+
+
 class BaseSettings(BaseModel):
     def get_nested_value(self, key: str) -> Any:
         obj: Any = self
@@ -688,6 +693,7 @@ class GlobalSettings(BaseSettings):
 
     # Hidden
     window_geometry: WindowGeometry = WindowGeometry()
+    view_tools: ViewTools = ViewTools()
 
     def get_key(self, action_id: ActionID) -> str:
         """Get the key sequence for a specific action."""

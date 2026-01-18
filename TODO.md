@@ -26,7 +26,7 @@ These features are present in VSPreview and need to be brought over.
 - [ ] Workspace API definition
 - [x] Downgrade Python minimum requirement to 3.12
 - [x] Relax VS minimum version
-- [ ] View Menu: Toggle visibility for toolpanels/tooldocks
+- [x] View Menu: Toggle visibility for toolpanels/tooldocks
 - [ ] Theming: Add option for loading external QSS themes
 - [ ] Allow plugins to have configurable shortcuts.
 - [ ] Allow arbitrary hooks as plugin such as custom chroma resizers.

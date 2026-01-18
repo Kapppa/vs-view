@@ -636,7 +636,8 @@ class LoaderWorkspace[T](BaseWorkspace):
 
     def _on_dock_toggle(self, checked: bool) -> None:
         for dock in self.docks:
-            dock.setVisible(checked)
+            if self.global_settings.view_tools.docks.get(dock.objectName(), True):
+                dock.setVisible(checked)
 
     def _init_visible_plugins(self) -> None:
         if not self.tab_manager.current_voutput:
@@ -1006,6 +1007,7 @@ class LoaderWorkspace[T](BaseWorkspace):
     def _setup_docks(self) -> None:
         for plugin_type in PluginManager.tooldocks:
             dock = QDockWidget(plugin_type.display_name, self.dock_container)
+            dock.setObjectName(plugin_type.identifier)
             dock.setFeatures(self.dock_widget_feature)
             dock.setVisible(False)
 
@@ -1022,11 +1024,14 @@ class LoaderWorkspace[T](BaseWorkspace):
                 self.dock_container.tabifyDockWidget(self.docks[0], dock)
 
     def _setup_panels(self) -> None:
-        for plugin_type in PluginManager.toolpanels:
+        for i, plugin_type in enumerate(PluginManager.toolpanels):
             plugin_obj = plugin_type(self.plugin_splitter.plugin_tabs, self.api)
 
             self.plugins.append(plugin_obj)
             self.plugin_splitter.add_plugin(plugin_obj, plugin_type.display_name)
+            self.plugin_splitter.plugin_tabs.setTabVisible(
+                i, self.global_settings.view_tools.panels.get(plugin_type.identifier, True)
+            )
 
 
 class VSEngineWorkspace[T](LoaderWorkspace[T]):
