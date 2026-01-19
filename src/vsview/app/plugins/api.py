@@ -85,6 +85,11 @@ class PluginAPI(_PluginAPI):
             """Return the VideoOutput for the currently selected tab."""
             ...
 
+    @property
+    def is_playing(self) -> bool:
+        """Return whether playback is currently active."""
+        return self.__workspace.tbar.is_playing
+
     def register_on_destroy(self, cb: Callable[[], Any]) -> None:
         """
         Register a callback to be called before the workspace begins a reload or when the workspace is destroyed.
@@ -203,6 +208,20 @@ class PluginBase(QWidget, Generic[TGlobalSettings, TLocalSettings], metaclass=_P
 
         Execution Thread: **Main or Background**.
         If you need to update the UI, use the `@run_in_loop` decorator.
+        """
+
+    def on_playback_started(self) -> None:
+        """
+        Called when playback starts.
+
+        Execution Thread: **Main**.
+        """
+
+    def on_playback_stopped(self) -> None:
+        """
+        Called when playback stops.
+
+        Execution Thread: **Main**.
         """
 
 

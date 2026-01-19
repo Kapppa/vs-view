@@ -14,6 +14,7 @@ from PySide6.QtWidgets import QDockWidget, QSplitter, QTabWidget, QWidget
 
 from vsview.app.settings import SettingsManager
 from vsview.app.utils import ObjectType
+from vsview.vsenv.loop import run_in_loop
 
 if TYPE_CHECKING:
     from vsview.app.workspace.loader import LoaderWorkspace
@@ -305,6 +306,17 @@ class _PluginAPI(QObject):
 
     def _update_settings(self, plugin: PluginBase[Any, Any], scope: str, **updates: Any) -> None:
         self._settings_store.update(plugin, scope, **updates)
+
+    @run_in_loop(return_future=False)
+    def _on_playback_started(self) -> None:
+        for plugin in self.__workspace.plugins:
+            if self._is_truly_visible(plugin):
+                plugin.on_playback_started()
+
+    def _on_playback_stopped(self) -> None:
+        for plugin in self.__workspace.plugins:
+            if self._is_truly_visible(plugin):
+                plugin.on_playback_stopped()
 
     def _on_global_settings_changed(self) -> None:
         self._settings_store.invalidate("global")

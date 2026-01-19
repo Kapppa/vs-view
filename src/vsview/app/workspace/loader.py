@@ -947,6 +947,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         # Initialize target time for first frame
         self._playback.next_frame_time_ns = perf_counter_ns()
         self._playback.buffer = FrameBuffer(video_output=voutput, env=self.env)
+        self.api._on_playback_started()
         # Register visible plugin nodes for pre-fetching
         self.api._register_plugin_nodes_to_buffer()
 
@@ -975,6 +976,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         self._playback.reset()
 
         self.tbar.playback_container.play_pause_btn.setChecked(False)
+        self.api._on_playback_stopped()
         self.statusLoadingFinished.emit("Paused")
 
     def _copy_current_frame_to_clipboard(self) -> None:
