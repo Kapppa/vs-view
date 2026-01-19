@@ -20,6 +20,7 @@ from PySide6.QtGui import (
     QPalette,
 )
 from PySide6.QtWidgets import (
+    QApplication,
     QButtonGroup,
     QFrame,
     QGraphicsOpacityEffect,
@@ -248,23 +249,58 @@ class MainWindow(QMainWindow):
         gc_collect()
 
     def _save_geometry(self) -> None:
-        normal_geom = self.normalGeometry()
+        # For maximized windows, use normalGeometry to get the unmaximized dimensions
+        # For normal windows, use pos() and size() to avoid frame coordinate issues that cause drift
+        # on multi-monitor setups. (Like mine :))
+        is_max = self.isMaximized()
+
+        if is_max:
+            normal_geom = self.normalGeometry()
+            x, y = normal_geom.x(), normal_geom.y()
+            w, h = normal_geom.width(), normal_geom.height()
+        else:
+            pos = self.pos()
+            size = self.size()
+            x, y = pos.x(), pos.y()
+            w, h = size.width(), size.height()
 
         self.settings_manager.global_settings.window_geometry = WindowGeometry(
-            x=normal_geom.x(),
-            y=normal_geom.y(),
-            width=normal_geom.width(),
-            height=normal_geom.height(),
-            is_maximized=self.isMaximized(),
+            x=x,
+            y=y,
+            width=w,
+            height=h,
+            is_maximized=is_max,
         )
 
     def _restore_geometry(self) -> None:
         geom = self.settings_manager.global_settings.window_geometry
 
-        if geom.x is not None and geom.y is not None:
-            self.move(geom.x, geom.y)
         if geom.width is not None and geom.height is not None:
             self.resize(geom.width, geom.height)
+
+        if geom.x is not None and geom.y is not None:
+            # Validate that the position is within any available screen
+            target_pos = QPoint(geom.x, geom.y)
+            is_visible = False
+
+            for screen in QApplication.screens():
+                if screen.availableGeometry().contains(target_pos):
+                    is_visible = True
+                    break
+
+            if is_visible:
+                self.move(geom.x, geom.y)
+            else:
+                # Position is off-screen (monitor disconnected?), center on primary
+                logger.debug("Saved position %s is off-screen, centering on primary", target_pos)
+                primary = QApplication.primaryScreen()
+                if primary:
+                    screen_geom = primary.availableGeometry()
+                    self.move(
+                        screen_geom.x() + (screen_geom.width() - self.width()) // 2,
+                        screen_geom.y() + (screen_geom.height() - self.height()) // 2,
+                    )
+
         if geom.is_maximized:
             self.showMaximized()
 
