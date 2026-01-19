@@ -113,6 +113,7 @@ class LoaderWorkspace[T](BaseWorkspace):
     statusOutputChanged = Signal(object)  # OutputInfo dataclass
     statusConsolePaused = Signal()  # pause console status
     statusConsoleResumed = Signal()  # resume console status
+    workspacePluginsLoaded = Signal()  # emitted when plugin instances are created
 
     dock_widget_feature = (
         QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable
@@ -1003,6 +1004,7 @@ class LoaderWorkspace[T](BaseWorkspace):
                 self._setup_panels()
 
             self.plugins_loaded = True
+            self.workspacePluginsLoaded.emit()
 
     def _setup_docks(self) -> None:
         for plugin_type in PluginManager.tooldocks:
@@ -1022,6 +1024,9 @@ class LoaderWorkspace[T](BaseWorkspace):
 
             if len(self.docks) > 1:
                 self.dock_container.tabifyDockWidget(self.docks[0], dock)
+
+        # Docks are hidden by default, so toggle button starts unchecked
+        self.dock_toggle_btn.setChecked(False)
 
     def _setup_panels(self) -> None:
         for i, plugin_type in enumerate(PluginManager.toolpanels):

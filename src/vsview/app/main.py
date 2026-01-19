@@ -395,7 +395,7 @@ class MainWindow(QMainWindow):
             self.view_tooldocks_submenu,
             PluginManager.tooldocks,
             self.settings_manager.global_settings.view_tools.docks,
-            lambda wk, idx, checked: wk.docks[idx].setVisible(checked),
+            lambda wk, idx, checked: wk.docks[idx].setVisible(checked) if wk.dock_toggle_btn.isChecked() else None,
             "No tool docks available",
         )
 

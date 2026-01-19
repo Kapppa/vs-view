@@ -757,6 +757,19 @@ class SynchronizationSettings(BaseModel):
     ] = False
 
 
+class LayoutSettings(BaseModel):
+    """Layout settings for plugin splitter and dock widgets."""
+
+    plugin_splitter_sizes: list[int] | None = None
+    """Splitter sizes from QSplitter.sizes()"""
+
+    plugin_tab_index: int = 0
+    """Currently selected plugin tab index"""
+
+    dock_state: str | None = None
+    """Base64-encoded QMainWindow.saveState() byte array for dock positions"""
+
+
 class LocalSettings(BaseSettings):
     """
     Per-script settings stored in the .vsjet directory.
@@ -771,6 +784,7 @@ class LocalSettings(BaseSettings):
     last_output_tab_index: int = 0
     playback: LocalPlaybackSettings = LocalPlaybackSettings()
     synchronization: SynchronizationSettings = SynchronizationSettings()
+    layout: LayoutSettings = LayoutSettings()
     plugins: dict[str, dict[str, Any] | BaseModel] = Field(default_factory=dict)
 
 

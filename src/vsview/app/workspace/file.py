@@ -1,11 +1,13 @@
+from base64 import b64decode, b64encode
 from collections.abc import Sequence
+from concurrent.futures import Future
 from importlib.util import find_spec
 from logging import getLogger
 from pathlib import Path
 from typing import ClassVar, NamedTuple
 
 from jetpytools import to_arr
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QByteArray, Qt, QTimer
 from PySide6.QtWidgets import QFileDialog, QWidget
 from vsengine.loops import get_loop
 
@@ -71,8 +73,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         """Return the local settings for this workspace."""
         return SettingsManager.get_local_settings(self.content)
 
-    @run_in_background(name="SaveSettings")
-    def save_settings(self) -> None:
+    def save_settings(self) -> Future[None]:
         self.local_settings.last_frame = self.current_frame
         self.local_settings.last_output_tab_index = self.tab_manager.tabs.currentIndex()
         self.local_settings.synchronization.sync_playhead = self.tab_manager.is_sync_playhead_enabled
@@ -86,6 +87,15 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.local_settings.playback.zone_frames = self.tbar.playback_container.settings.zone_frames
         self.local_settings.playback.loop = self.tbar.playback_container.settings.loop
 
+        # Save layout state
+        self.local_settings.layout.plugin_splitter_sizes = self.plugin_splitter.sizes()
+        self.local_settings.layout.plugin_tab_index = self.plugin_splitter.plugin_tabs.currentIndex()
+        self.local_settings.layout.dock_state = b64encode(self.dock_container.saveState().data()).decode("ascii")
+
+        return self._save_settings_worker()
+
+    @run_in_background(name="SaveSettings")
+    def _save_settings_worker(self) -> None:
         SettingsManager.save_local(self.content, self.local_settings)
 
     def init_load(self, frame: int | None = None, tab_index: int | None = None) -> None:
@@ -108,6 +118,11 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
             self.current_tab_index = self.local_settings.last_output_tab_index
 
         PluginManager.populate_default_settings("local", self.content)
+
+        if self.plugins_loaded:
+            self._restore_layout()
+        else:
+            self.workspacePluginsLoaded.connect(self._restore_layout)
 
     def get_output_metadata(self) -> dict[int, str]:
         return output_metadata.get(str(self.content), {})
@@ -141,6 +156,21 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
     def clear_failed_load(self) -> None:
         self._autosave_timer.stop()
         super().clear_failed_load()
+
+    @run_in_loop(return_future=False)
+    def _restore_layout(self) -> None:
+        layout = self.local_settings.layout
+
+        if layout.plugin_splitter_sizes:
+            self.plugin_splitter.setSizes(layout.plugin_splitter_sizes)
+
+        if layout.plugin_tab_index is not None:
+            self.plugin_splitter.plugin_tabs.setCurrentIndex(layout.plugin_tab_index)
+
+        if layout.dock_state:
+            self.dock_container.restoreState(QByteArray(b64decode(layout.dock_state)))
+
+        self.dock_toggle_btn.setChecked(any(not dock.isHidden() for dock in self.docks))
 
     def _on_open_file_button_clicked(self) -> None:
         file_path_str, _ = QFileDialog.getOpenFileName(
