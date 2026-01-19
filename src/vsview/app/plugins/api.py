@@ -229,15 +229,20 @@ class PluginGraphicsView(BaseGraphicsView):
         """
         Called when the current video output changes.
 
+        **Warning**: Do not call `self.refresh()` here, as it will cause an infinite loop.
+        If you need to update the display manually, use `self.update_display()`.
+
         Execution Thread: **Main or Background**.
         If you need to update the UI, use the `@run_in_loop` decorator.
         """
-        self.api._init_view(self)
 
     def on_current_frame_changed(self, n: int, f: vs.VideoFrame) -> None:
         """
         Called when the current frame changes.
         `n` is the frame number and `f` is the packed VideoFrame in GRAY32 format.
+
+        **Warning**: Do not call `self.refresh()` here, as it will cause an infinite loop.
+        If you need to update the display manually, use `self.update_display()`.
 
         Execution Thread: **Main or Background**.
         If you need to update the UI, use the `@run_in_loop` decorator.
