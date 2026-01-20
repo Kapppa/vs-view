@@ -116,7 +116,7 @@ class Checkbox(WidgetMetadata[QCheckBox]):
     def load_value(self, widget: QCheckBox, value: Any) -> None:
         if self.to_ui:
             value = self.to_ui(value)
-        widget.setChecked(bool(value))
+        widget.setChecked(not not value)  # noqa: SIM208
 
     def get_value(self, widget: QCheckBox) -> Any:
         value = widget.isChecked()
