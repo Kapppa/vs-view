@@ -157,9 +157,6 @@ class BaseGraphicsView(QGraphicsView):
         sm.register_action(ActionID.SAVE_CURRENT_IMAGE, self.save_image_action)
         sm.register_action(ActionID.COPY_IMAGE_TO_CLIPBOARD, self.copy_image_action)
 
-        for action in (self.autofit_action, self.save_image_action, self.copy_image_action):
-            action.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-
         # Add actions to the widget so shortcuts work even when context menu is hidden
         self.addActions([self.autofit_action, self.save_image_action, self.copy_image_action])
 
