@@ -38,7 +38,6 @@ class VideoOutputProxy:
     props: Mapping[int, Mapping[str, Any]]
     """
     Frame properties of the clip.
-    The props of the current frame are guaranteed to be available.
     """
 
 
