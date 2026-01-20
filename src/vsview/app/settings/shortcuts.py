@@ -55,8 +55,11 @@ class ShortcutManager(Singleton):
             action_id: The ActionID for this shortcut.
             action: The QAction to manage.
         """
+        action.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+
         self._actions[action_id].add(action)
         self._update_action(action_id, action)
+
         logger.debug("Registered action for %s: %r", action_id, action.text())
 
     @inject_self
