@@ -6,7 +6,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import suppress
 from logging import getLogger
-from typing import TYPE_CHECKING, Annotated, Any, NamedTuple
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, NamedTuple
 
 import vapoursynth as vs
 from jetpytools import fallback
@@ -16,6 +16,7 @@ from PySide6.QtGui import QAction, QIcon, QImage, QPalette, QPixmap, QStandardIt
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QHBoxLayout,
     QHeaderView,
     QLabel,
     QMenu,
@@ -49,11 +50,12 @@ from .builtins.field import FIELD_CATEGORY, FIELD_FORMATTERS
 from .builtins.metrics import METRICS_CATEGORY, METRICS_FORMATTERS
 from .builtins.video import VIDEO_CATEGORY, VIDEO_FORMATTERS
 from .categories import CategoryRegistry
-from .formatters import CompoundFormatterProperty, FormatterProperty, FormatterRegistry
+from .formatters import FormatterProperty, FormatterRegistry
 
 # Item roles and types
 ROLE_ITEM_TYPE = Qt.ItemDataRole.UserRole + 1
 ROLE_RAW_DATA = Qt.ItemDataRole.UserRole + 2
+ROLE_FORMATTED_VALUE = Qt.ItemDataRole.UserRole + 3
 
 ITEM_TYPE_CATEGORY = "category"
 ITEM_TYPE_PROPERTY = "property"
@@ -62,9 +64,7 @@ logger = getLogger(__name__)
 
 
 class RowData(NamedTuple):
-    key: str
-    value: str
-    raw_key: str | list[str]
+    raw_key: str
     raw_value: Any
 
 
@@ -80,13 +80,10 @@ class FramePropsViewMixin:
         name_index = model.index(row, 0, parent)
         value_index = model.index(row, 1, parent)
 
-        name = name_index.data(Qt.ItemDataRole.DisplayRole)
-        value = value_index.data(Qt.ItemDataRole.DisplayRole)
-
         raw_key = name_index.data(ROLE_RAW_DATA)
         raw_value = value_index.data(ROLE_RAW_DATA)
 
-        return RowData(name, value, raw_key, raw_value)
+        return RowData(raw_key, raw_value)
 
     def _show_context_menu(self: FramePropsTreeView | FramePropsTableView, pos: QPoint) -> None:  # type: ignore[misc]
         if not (index := self.indexAt(pos)).isValid():
@@ -106,25 +103,17 @@ class FramePropsViewMixin:
             menu.addAction(preview_action)
             menu.addSeparator()
 
-        key_label = "Name" if isinstance(self, FramePropsTreeView) else "Key"
-
-        copy_value_action = QAction("Copy Value", self)
-        copy_value_action.triggered.connect(lambda: self._copy_to_clipboard(data.value, "value"))
-        menu.addAction(copy_value_action)
-
-        copy_key_action = QAction(f"Copy {key_label}", self)
-        copy_key_action.triggered.connect(lambda: self._copy_to_clipboard(data.key, "key"))
+        copy_key_action = QAction("Copy Key", self)
+        copy_key_action.triggered.connect(lambda: self._copy_to_clipboard(data.raw_key, "key"))
         menu.addAction(copy_key_action)
 
-        copy_row_action = QAction(f"Copy as {key_label}=Value", self)
-        copy_row_action.triggered.connect(lambda: self._copy_to_clipboard(f"{data.key}={data.value}", "row"))
+        copy_row_action = QAction("Copy as Key=Value", self)
+        copy_row_action.triggered.connect(lambda: self._copy_to_clipboard(f"{data.raw_key}={data.raw_value}", "row"))
         menu.addAction(copy_row_action)
 
-        if isinstance(self, FramePropsTreeView):
-            menu.addSeparator()
-            copy_original_action = QAction("Copy Original Key", self)
-            copy_original_action.triggered.connect(lambda: self._copy_to_clipboard(str(data.raw_key), "original key"))
-            menu.addAction(copy_original_action)
+        copy_value_action = QAction("Copy Value", self)
+        copy_value_action.triggered.connect(lambda: self._copy_to_clipboard(data.raw_value, "value"))
+        menu.addAction(copy_value_action)
 
         menu.exec(self.viewport().mapToGlobal(pos))
 
@@ -193,43 +182,32 @@ class WordWrapDelegate(QStyledItemDelegate):
 
 
 class FramePropsModel(QStandardItemModel):
+    FORMATTED_COLUMN: ClassVar[int] = 2
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setHorizontalHeaderLabels(["Key", "Value"])
+        self.setHorizontalHeaderLabels(["Key", "Value", "Formatted"])
         self.category_items = dict[str, QStandardItem]()
 
         CategoryRegistry.register(VIDEO_CATEGORY, METRICS_CATEGORY, FIELD_CATEGORY)
         FormatterRegistry.register(VIDEO_FORMATTERS, METRICS_FORMATTERS, FIELD_FORMATTERS)
 
     def add_prop(self, key: str, value: Any, category: str | None = None) -> None:
-        formatted_key, formatted_value = FormatterRegistry.format_property(key, value)
+        raw_value_str = FormatterProperty.default_format(value)
+        formatted_value = FormatterRegistry.format_value(key, value) if FormatterRegistry.has_formatter(key) else ""
 
-        key_item = self._create_item(formatted_key, ITEM_TYPE_PROPERTY, key)
-        value_item = self._create_item(formatted_value, ITEM_TYPE_PROPERTY, value)
+        # Row: raw key + raw value + formatted value
+        key_item = self._create_item(key, ITEM_TYPE_PROPERTY, key)
+        value_item = self._create_item(raw_value_str, ITEM_TYPE_PROPERTY, value)
+        formatted_item = self._create_item(formatted_value, ITEM_TYPE_PROPERTY, None)
 
-        self._add_to_category(key_item, value_item, key, category)
-
-    def add_compound_prop(
-        self,
-        compound: CompoundFormatterProperty,
-        props: Mapping[str, Any],
-        category: str | None = None,
-    ) -> None:
-        if not any(key in props for key in compound.prop_keys):
-            return
-
-        formatted_value = compound.format_value(props)
-
-        first_key = compound.prop_keys[0]
-        key_item = self._create_item(compound.display_name, ITEM_TYPE_PROPERTY, compound.prop_keys)
-        value_item = self._create_item(formatted_value, ITEM_TYPE_PROPERTY, formatted_value)
-
-        self._add_to_category(key_item, value_item, first_key, category)
+        self._add_to_category(key_item, value_item, formatted_item, key, category)
 
     def _add_to_category(
         self,
         key_item: QStandardItem,
         value_item: QStandardItem,
+        formatted_item: QStandardItem,
         ref_key: str,
         category: str | None = None,
     ) -> None:
@@ -239,53 +217,35 @@ class FramePropsModel(QStandardItemModel):
         if category not in self.category_items:
             category_item = self._create_item(category, ITEM_TYPE_CATEGORY)
             empty_value = self._create_item("", ITEM_TYPE_CATEGORY)
-            self.appendRow([category_item, empty_value])
+            empty_formatted = self._create_item("", ITEM_TYPE_CATEGORY)
+            self.appendRow([category_item, empty_value, empty_formatted])
             self.category_items[category] = category_item
 
-        self.category_items[category].appendRow([key_item, value_item])
+        parent = self.category_items[category]
+        parent.appendRow([key_item, value_item, formatted_item])
 
     def load_props(self, props: Mapping[str, Any]) -> None:
         self.clear_props()
 
-        added_compounds = set[tuple[str, ...]]()
-
         # Group properties by category
         categories = defaultdict[str, list[str]](list)
         for key in props:
-            if not FormatterRegistry.is_consumed_by_compound(key):
-                categories[CategoryRegistry.get_category(key)].append(key)
+            categories[CategoryRegistry.get_category(key)].append(key)
 
-        # Track compound formatters by category
-        compound_categories = defaultdict[str, list[CompoundFormatterProperty]](list)
-        for compound in FormatterRegistry.compound_formatters:
-            compound_categories[CategoryRegistry.get_category(compound.prop_keys[0])].append(compound)
-
-        all_categories = categories.keys() | compound_categories.keys()
-
-        # Sort categories by order (highest first)
-        sorted_categories = sorted(all_categories, key=lambda c: CategoryRegistry.get_category_order(c), reverse=True)
+        # Sort categories by order (lowest first)
+        sorted_categories = sorted(categories, key=lambda c: CategoryRegistry.get_category_order(c))
 
         for category in sorted_categories:
-            items = list[tuple[int, str | CompoundFormatterProperty]]()
+            items = list[tuple[int, str]]()
 
             for key in categories.get(category, []):
                 order = FormatterRegistry.get_property_order(key)
                 items.append((order, key))
 
-            for compound in compound_categories.get(category, []):
-                if compound.prop_keys not in added_compounds:
-                    order = FormatterRegistry.get_property_order(compound.prop_keys[0])
-
-                    items.append((order, compound))
-                    added_compounds.add(compound.prop_keys)
-
             items.sort(key=lambda x: x[0], reverse=True)
 
             for _, item in items:
-                if isinstance(item, CompoundFormatterProperty):
-                    self.add_compound_prop(item, props, category)
-                else:
-                    self.add_prop(item, props[item], category)
+                self.add_prop(item, props[item], category)
 
     def clear_props(self) -> None:
         self.removeRows(0, self.rowCount())
@@ -325,6 +285,9 @@ class FramePropsTreeView(QTreeView, FramePropsViewMixin):
         header.setDefaultSectionSize(150)
         header.sectionResized.connect(self._on_section_resized)
 
+        # Hide the Formatted column by default
+        header.hideSection(FramePropsModel.FORMATTED_COLUMN)
+
         self.setSelectionBehavior(QTreeView.SelectionBehavior.SelectRows)
         self.setSelectionMode(QTreeView.SelectionMode.SingleSelection)
         self.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)
@@ -337,6 +300,12 @@ class FramePropsTreeView(QTreeView, FramePropsViewMixin):
         self.current_model.load_props(props)
         self.expandAll()
         self.resizeColumnToContents(0)
+
+    def set_show_formatted(self, show: bool) -> None:
+        if show:
+            self.header().showSection(FramePropsModel.FORMATTED_COLUMN)
+        else:
+            self.header().hideSection(FramePropsModel.FORMATTED_COLUMN)
 
     def _on_section_resized(self, logical_index: int, old_size: int, new_size: int) -> None:
         if logical_index == 1 and old_size != new_size:
@@ -455,18 +424,27 @@ class FramePropPreviewGraphicsView(BaseGraphicsView):
 
 
 class GlobalSettings(BaseModel):
-    pretty: Annotated[
+    categorize: Annotated[
         bool,
         Checkbox(
-            label="Pretty",
-            text="Enable pretty display by default",
-            tooltip="Enable the pretty display by default",
+            label="Categorize",
+            text="Enable categorized display by default",
+            tooltip="Enable the categorized display by default",
+        ),
+    ] = True
+    format: Annotated[
+        bool,
+        Checkbox(
+            label="Format",
+            text="Enable formatted display by default",
+            tooltip="Enable the formatted display by default",
         ),
     ] = True
 
 
 class LocalSettings(LocalSettingsModel):
-    pretty: bool | None = None
+    categorize: bool | None = None
+    format: bool | None = None
 
 
 class FramePropsPlugin(PluginBase[GlobalSettings, LocalSettings], IconReloadMixin):
@@ -483,15 +461,26 @@ class FramePropsPlugin(PluginBase[GlobalSettings, LocalSettings], IconReloadMixi
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(4)
 
-        self.toolbar = QToolBar(self)
-        self.toolbar.setMovable(False)
-        self.toolbar.setStyleSheet("QToolBar { border: none; background: transparent; spacing: 4px; }")
+        self.toolbar = QToolBar(self, movable=False)
 
-        self.pretty_toggle = AnimatedToggle(self)
-        self.pretty_toggle.setToolTip("Toggle between pretty and raw display")
+        toggle_container = QWidget(self)
+        toggle_layout = QVBoxLayout(toggle_container)
+        toggle_layout.setContentsMargins(0, 0, 0, 0)
+        toggle_layout.setSpacing(0)
+        toggle_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        self.toolbar.addWidget(QLabel("Pretty", self))
-        self.toolbar.addWidget(self.pretty_toggle)
+        self.categorize_toggle, cat_row = self._make_labeled_toggle(
+            "Categorize", "Toggle between categorize and raw display", toggle_container
+        )
+        toggle_layout.addWidget(cat_row)
+
+        self.formatted_toggle, fmt_row = self._make_labeled_toggle(
+            "Format", "Show formatted values in an additional row", toggle_container
+        )
+        self.formatted_toggle.setEnabled(False)  # Enabled only in categorize mode
+        toggle_layout.addWidget(fmt_row)
+
+        self.toolbar.addWidget(toggle_container)
 
         spacer = QWidget(self.toolbar)
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -537,19 +526,24 @@ class FramePropsPlugin(PluginBase[GlobalSettings, LocalSettings], IconReloadMixi
         self.stack = QStackedWidget(self.splitter)
 
         self.raw_table = FramePropsTableView(self.stack)
-        self.pretty_tree = FramePropsTreeView(self.stack)
+        self.categorize_tree = FramePropsTreeView(self.stack)
         self.raw_table.copyMessage.connect(self.status_message)
-        self.pretty_tree.copyMessage.connect(self.status_message)
+        self.categorize_tree.copyMessage.connect(self.status_message)
 
         self.raw_table.previewRequested.connect(self._show_preview)
-        self.pretty_tree.previewRequested.connect(self._show_preview)
+        self.categorize_tree.previewRequested.connect(self._show_preview)
 
         self.stack.addWidget(self.raw_table)
-        self.stack.addWidget(self.pretty_tree)
+        self.stack.addWidget(self.categorize_tree)
 
-        self.pretty_toggle.toggled.connect(self.stack.setCurrentIndex)
-        self.pretty_toggle.setChecked(fallback(self.settings.local_.pretty, self.settings.global_.pretty))
-        self.pretty_toggle.toggled.connect(lambda checked: self.update_local_settings(pretty=not not checked))  # noqa: SIM208
+        self.categorize_toggle.toggled.connect(self.stack.setCurrentIndex)
+        self.categorize_toggle.toggled.connect(self.formatted_toggle.setEnabled)
+        self.categorize_toggle.setChecked(fallback(self.settings.local_.categorize, self.settings.global_.categorize))
+        self.categorize_toggle.toggled.connect(lambda checked: self.update_local_settings(categorize=not not checked))  # noqa: SIM208
+
+        self.formatted_toggle.toggled.connect(self.categorize_tree.set_show_formatted)
+        self.formatted_toggle.setChecked(fallback(self.settings.local_.format, self.settings.global_.format))
+        self.formatted_toggle.toggled.connect(lambda checked: self.update_local_settings(format=not not checked))  # noqa: SIM208
 
         self.splitter.addWidget(self.stack)
 
@@ -558,8 +552,7 @@ class FramePropsPlugin(PluginBase[GlobalSettings, LocalSettings], IconReloadMixi
         preview_layout.setContentsMargins(0, 0, 0, 0)
         preview_layout.setSpacing(2)
 
-        preview_header = QToolBar(self.preview_container)
-        preview_header.setMovable(False)
+        preview_header = QToolBar(self.preview_container, movable=False)
 
         self.preview_label = QLabel("Preview", self.preview_container)
         preview_header.addWidget(self.preview_label)
@@ -641,7 +634,7 @@ class FramePropsPlugin(PluginBase[GlobalSettings, LocalSettings], IconReloadMixi
         self.refresh_preview(current_frame)
 
     def update_views(self, props: Mapping[str, Any]) -> None:
-        self.pretty_tree.update_props(props)
+        self.categorize_tree.update_props(props)
         self.raw_table.update_props(props)
 
     def update_nav_buttons(self) -> None:
@@ -669,6 +662,23 @@ class FramePropsPlugin(PluginBase[GlobalSettings, LocalSettings], IconReloadMixi
             self.api.statusMessage.emit(f"{self.display_name}: {msg_lines[0]}...")
         else:
             self.api.statusMessage.emit(f"{self.display_name}: {message}")
+
+    def _make_labeled_toggle(self, label_text: str, tooltip: str, container: QWidget) -> tuple[AnimatedToggle, QWidget]:
+        row = QWidget(container)
+        row.setFixedHeight(24)
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+
+        label = QLabel(label_text, row)
+        toggle = AnimatedToggle(row)
+        toggle.setToolTip(tooltip)
+
+        layout.addWidget(label)
+        layout.addWidget(toggle)
+
+        return toggle, row
 
     def _on_history_selected(self, index: int) -> None:
         if index < 0:

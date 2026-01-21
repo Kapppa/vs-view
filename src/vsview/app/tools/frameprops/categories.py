@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from jetpytools import Singleton, flatten, inject_self
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class CategoryMatcher:
     """Defines how to match properties to a category."""
 
@@ -21,7 +21,7 @@ class CategoryMatcher:
     """Priority for matching. Higher priority is checked first."""
 
     order: int = 0
-    """Display order in the tree view. Higher values appear first."""
+    """Display order in the tree view. Lower values appear first."""
 
     exact_matches: set[str] = field(default_factory=set)
     """Exact property keys that belong to this category."""
@@ -34,6 +34,7 @@ class CategoryMatcher:
 
     def matches(self, prop_key: str) -> bool:
         """Check if a property key matches this category."""
+
         if prop_key in self.exact_matches:
             return True
 
@@ -76,7 +77,7 @@ class CategoryRegistry(Singleton):
         for matcher in self._matchers:
             if matcher.name == category_name:
                 return matcher.order
-        return -1  # Unknown categories go last
+        return 999  # Unknown categories go last
 
 
 CategoryRegistry()
