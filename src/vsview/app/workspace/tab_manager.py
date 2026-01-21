@@ -4,6 +4,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from functools import partial
 from logging import getLogger
+from typing import Any
 
 from PySide6.QtCore import QSignalBlocker, Qt, Signal
 from PySide6.QtGui import QIcon, QImage, QPalette, QPixmap
@@ -42,11 +43,11 @@ class TabManager(QWidget, IconReloadMixin):
         self.sync_layout.setContentsMargins(4, 0, 4, 0)
         self.sync_layout.setSpacing(2)
 
-        icon_states = {
-            (QIcon.Mode.Normal, QIcon.State.Off): QPalette.ColorRole.ToolTipText,
-            (QIcon.Mode.Normal, QIcon.State.On): QPalette.ColorRole.Mid,
-            (QIcon.Mode.Disabled, QIcon.State.Off): QPalette.ColorRole.ToolTipBase,
-            (QIcon.Mode.Disabled, QIcon.State.On): QPalette.ColorRole.Dark,
+        icon_states: dict[Any, Any] = {
+            (QIcon.Mode.Normal, QIcon.State.Off): QPalette.ColorRole.ButtonText,
+            (QIcon.Mode.Normal, QIcon.State.On): QPalette.ColorRole.Base,
+            (QIcon.Mode.Disabled, QIcon.State.Off): (QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText),
+            (QIcon.Mode.Disabled, QIcon.State.On): (QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base),
         }
         self.sync_playhead_btn = self.make_tool_button(
             IconName.LINK,

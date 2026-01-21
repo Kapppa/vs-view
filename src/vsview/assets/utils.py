@@ -1,6 +1,6 @@
 """Asset utilities for vsview."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from contextlib import suppress
 from functools import cache
 from importlib import resources
@@ -180,7 +180,11 @@ class IconReloadMixin:
         icon_size: QSize = QSize(20, 20),
         color: QColor | None = None,
         color_role: QPalette.ColorRole = QPalette.ColorRole.ToolTipText,
-        icon_states: dict[tuple[QIcon.Mode, QIcon.State], QPalette.ColorRole] | None = None,
+        icon_states: Mapping[
+            tuple[QIcon.Mode, QIcon.State],
+            QPalette.ColorRole | tuple[QPalette.ColorGroup, QPalette.ColorRole],
+        ]
+        | None = None,
     ) -> QToolButton:
         """
         Create a tool button with an icon.
@@ -223,11 +227,12 @@ class IconReloadMixin:
             palette = btn.palette()
 
             if icon_states is not None:
-                # Full state-based icon with colors for each (Mode, State) combination
-                q_icon = IconReloadMixin.make_icon(
-                    {(mode, state): (icon, palette.color(role)) for (mode, state), role in icon_states.items()},
-                    size=icon_size,
-                )
+                state_icons = {}
+                for (mode, state), role in icon_states.items():
+                    c = palette.color(*role) if isinstance(role, tuple) else palette.color(role)
+                    state_icons[(mode, state)] = (icon, c)
+
+                q_icon = IconReloadMixin.make_icon(state_icons, size=icon_size)
             else:
                 # Simple single-color icon
                 btn_color = color if color is not None else palette.color(color_role)
