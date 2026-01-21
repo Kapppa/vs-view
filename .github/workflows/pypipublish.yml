@@ -1,0 +1,152 @@
+name: Publish
+on:
+  push:
+    tags:
+      - "*/v*"
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package to build"
+        required: true
+        type: choice
+        options:
+          - vsview
+          - vspackrgb
+          - split-planes
+          - fftspectrum
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  # Pure Python packages
+  python-package:
+    name: ${{ matrix.package }}
+
+    permissions:
+      contents: write
+      id-token: write
+
+    strategy:
+      matrix:
+        include:
+          - tag: vsview
+            package: vsview
+            path: .
+          - tag: split-planes
+            package: vsview-split-planes
+            path: src/plugins/split-planes
+          - tag: fftspectrum
+            package: vsview-fftspectrum
+            path: src/plugins/fftspectrum
+
+    uses: ./.github/workflows/publish-py-pkg.yml
+    with:
+      tag: ${{ matrix.tag }}
+      package: ${{ matrix.package }}
+      path: ${{ matrix.path }}
+      python-version: "3.14"
+    secrets:
+      WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+
+  # vspackrgb - Cython package, needs cross-platform wheel builds
+  vspackrgb_build:
+    name: Build vspackrgb wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.package == 'vspackrgb' ||
+      github.event_name == 'push' && startsWith(github.ref, 'refs/tags/vspackrgb/v')
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.3
+        with:
+          package-dir: src/vspackrgb
+          output-dir: wheelhouse
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v6
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  # Build source distribution for vspackrgb
+  vspackrgb_sdist:
+    name: Build vspackrgb sdist
+    runs-on: ubuntu-latest
+
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.package == 'vspackrgb' ||
+      github.event_name == 'push' && startsWith(github.ref, 'refs/tags/vspackrgb/v')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+
+      - name: Build sdist
+        working-directory: src/vspackrgb
+        run: uvx hatch build --target sdist
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v6
+        with:
+          name: sdist
+          path: src/vspackrgb/dist/*.tar.gz
+
+  # Publish vspackrgb after all builds complete
+  vspackrgb_publish:
+    name: Publish vspackrgb to PyPI
+    runs-on: ubuntu-latest
+    needs: [vspackrgb_build, vspackrgb_sdist]
+
+    environment:
+      name: pypi
+      url: https://pypi.org/p/vspackrgb
+
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: false
+
+      - name: Check the output
+        run: uvx twine check --strict dist/*
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Post webhook for failure
+        if: failure()
+        uses: Jaded-Encoding-Thaumaturgy/discord-failure-notifier@v1
+        with:
+          webhook-url: ${{ secrets.WEBHOOK_URL }}

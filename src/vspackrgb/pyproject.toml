@@ -14,6 +14,15 @@ dynamic = ["version"]
 description = "RGB packing for VapourSynth frames"
 readme = "README.md"
 license = { file = "LICENSE" }
+keywords = [
+    "vapoursynth",
+    "rgb",
+    "packing",
+    "cython",
+    "arm",
+    "arm64",
+    "aarch64",
+]
 requires-python = ">=3.12"
 classifiers = [
     "License :: OSI Approved :: MIT License",
@@ -21,7 +30,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-    "Operating System :: OS Independent",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
     "Typing :: Typed",
 ]
 dependencies = ["vapoursynth"]
@@ -75,6 +86,7 @@ build = "cp312-* cp313-* cp314-*"
 skip = "*-win32 *-manylinux_i686 *-musllinux_*"
 # Test would require vapoursynth
 test-skip = "*"
+before-build = "git clean -fdx src/vspackrgb"
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64"]
