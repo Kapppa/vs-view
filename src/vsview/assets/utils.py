@@ -67,7 +67,11 @@ class IconReloadMixin:
         icon_name: IconName,
         icon_size: QSize = QSize(20, 20),
         color_role: QPalette.ColorRole = QPalette.ColorRole.ToolTipText,
-        icon_states: dict[tuple[QIcon.Mode, QIcon.State], QPalette.ColorRole] | None = None,
+        icon_states: Mapping[
+            tuple[QIcon.Mode, QIcon.State],
+            QPalette.ColorRole | tuple[QPalette.ColorGroup, QPalette.ColorRole],
+        ]
+        | None = None,
     ) -> None:
         """
         Register a button for automatic icon reload when settings change.
@@ -99,7 +103,13 @@ class IconReloadMixin:
 
             if icon_states:
                 icon = self.make_icon(
-                    {(mode, state): (icon_name, palette.color(role)) for (mode, state), role in icon_states.items()},
+                    {
+                        (mode, state): (
+                            icon_name,
+                            palette.color(*role) if isinstance(role, tuple) else palette.color(role),
+                        )
+                        for (mode, state), role in icon_states.items()
+                    },
                     size=icon_size,
                 )
             else:
