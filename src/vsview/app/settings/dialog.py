@@ -344,7 +344,6 @@ class SettingsDialog(QDialog, IconReloadMixin):
                         IconName.ARROW_U_TOP_LEFT, f"Reset to default: {self._default_shortcuts.get(action_id, 'None')}"
                     )
                     reset_btn.clicked.connect(lambda checked=False, aid=action_id: self._reset_shortcut(aid))
-                    self.register_icon_button(reset_btn, IconName.ARROW_U_TOP_LEFT)
                     row_layout.addWidget(reset_btn)
 
                     conflict_label = QLabel(self)

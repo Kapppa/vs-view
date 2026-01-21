@@ -802,15 +802,6 @@ class PlaybackContainer(QWidget, IconReloadMixin):
 
         self._setup_context_menu()
 
-        # Register buttons for automatic icon hot-reload
-        self.register_icon_button(self.seek_n_back_btn, IconName.REWIND, self.ICON_SIZE, self.ICON_COLOR)
-        self.register_icon_button(self.seek_1_back_btn, IconName.SKIP_BACK, self.ICON_SIZE, self.ICON_COLOR)
-        self.register_icon_button(self.seek_1_fwd_btn, IconName.SKIP_FORWARD, self.ICON_SIZE, self.ICON_COLOR)
-        self.register_icon_button(self.seek_n_fwd_btn, IconName.FAST_FORWARD, self.ICON_SIZE, self.ICON_COLOR)
-        self.register_icon_button(
-            self.speed_reset_btn, IconName.ARROW_U_TOP_LEFT, QSize(16, 16), QPalette.ColorRole.ButtonText
-        )
-
         # Play/pause has different icons per state, use custom callback
         self.register_icon_callback(lambda: self.play_pause_btn.setIcon(self._make_play_pause_icon()))
 

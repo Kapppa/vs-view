@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Mapping
 from contextlib import suppress
-from functools import cache
+from functools import cache, partial
 from importlib import resources
 from logging import DEBUG, getLogger
 from pathlib import Path
@@ -24,15 +24,7 @@ class IconReloadMixin:
     """
     Mixin for QWidget subclasses with automatic icon hot-reload support.
 
-    Mix this with any QWidget subclass to get automatic icon updates when
-    global settings (icon provider/weight) change.
-
-    Registration methods:
-        - `register_icon_button()`: For standard buttons with icon reload
-        - `register_icon_callback()`: For custom reload logic
-
-    Buttons are tracked via WeakKeyDictionary and automatically cleaned up
-    when destroyed. No manual unregistration required.
+    Mix this with any QWidget subclass to get automatic icon updates when global settings (icon provider/weight) change.
 
     Example:
     ```python
@@ -40,8 +32,8 @@ class IconReloadMixin:
         def __init__(self, parent: QWidget | None = None) -> None:
             super().__init__(parent)
 
+            # Button is automatically registered for icon hot-reload
             self.btn = self.make_tool_button(IconName.LINK, "Link", self)
-            self.register_icon_button(self.btn, IconName.LINK)
     ```
     """
 
@@ -76,9 +68,6 @@ class IconReloadMixin:
         """
         Register a button for automatic icon reload when settings change.
 
-        Uses WeakKeyDictionary to allow buttons to be garbage collected without
-        explicit unregistration - entries are automatically removed when the
-        button is destroyed.
 
         Args:
             button: The QToolButton to update.
@@ -94,12 +83,13 @@ class IconReloadMixin:
                 }
         """
 
-        def reload() -> None:
+        def reload(btn: QToolButton) -> None:
             # Qt can delete C++ object while Python wrapper still exists
-            if not Shiboken.isValid(button):
+            if not Shiboken.isValid(btn):
+                del btn
                 return
 
-            palette = button.palette()
+            palette = btn.palette()
 
             if icon_states:
                 icon = self.make_icon(
@@ -114,9 +104,9 @@ class IconReloadMixin:
                 )
             else:
                 icon = self.make_icon((icon_name, palette.color(color_role)), size=icon_size)
-            button.setIcon(icon)
+            btn.setIcon(icon)
 
-        self._button_reloaders[button] = reload
+        self._button_reloaders[button] = partial(reload, button)
 
     def register_icon_callback(self, callback: Callable[[], None]) -> None:
         """
@@ -179,14 +169,15 @@ class IconReloadMixin:
 
         return icon
 
-    @staticmethod
     def make_tool_button(
+        self,
         icon: IconName | QIcon,
         tooltip: str,
         parent: QWidget | None = None,
         *,
         checkable: bool = False,
         checked: bool = False,
+        register_icon: bool = True,
         icon_size: QSize = QSize(20, 20),
         color: QColor | None = None,
         color_role: QPalette.ColorRole = QPalette.ColorRole.ToolTipText,
@@ -197,9 +188,7 @@ class IconReloadMixin:
         | None = None,
     ) -> QToolButton:
         """
-        Create a tool button with an icon.
-
-        Supports both simple icons and state-based icons with full QIcon.Mode/State control.
+        Create a tool button with an icon and automatically register it for hot-reload when the icon is an IconName.
 
         Args:
             icon: The icon to display (IconName for auto-creation, or QIcon for pre-made).
@@ -242,13 +231,16 @@ class IconReloadMixin:
                     c = palette.color(*role) if isinstance(role, tuple) else palette.color(role)
                     state_icons[(mode, state)] = (icon, c)
 
-                q_icon = IconReloadMixin.make_icon(state_icons, size=icon_size)
+                q_icon = self.make_icon(state_icons, size=icon_size)
             else:
                 # Simple single-color icon
                 btn_color = color if color is not None else palette.color(color_role)
-                q_icon = IconReloadMixin.make_icon((icon, btn_color), size=icon_size)
+                q_icon = self.make_icon((icon, btn_color), size=icon_size)
 
             btn.setIcon(q_icon)
+
+            if register_icon:
+                self.register_icon_button(btn, icon, icon_size, color_role, icon_states)
 
         btn.setIconSize(icon_size)
         btn.setAutoRaise(True)

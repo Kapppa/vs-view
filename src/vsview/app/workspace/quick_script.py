@@ -320,9 +320,6 @@ class CodeEditorDock(QDockWidget, IconReloadMixin):
 
         self.setWidget(container)
 
-        self.register_icon_button(self.run_btn, IconName.PLAY, self.ICON_SIZE, self.ICON_COLOR)
-        self.register_icon_button(self.save_btn, IconName.SAVE, self.ICON_SIZE, self.ICON_COLOR)
-
         self._apply_theme()
 
         self._settings_manager.signals.globalChanged.connect(self._apply_theme)

@@ -583,10 +583,6 @@ class FramePropsPlugin(PluginBase[GlobalSettings, LocalSettings], IconReloadMixi
 
         layout.addWidget(self.splitter)
 
-        self.register_icon_button(close_btn, IconName.X_CIRCLE, QSize(16, 16))
-        self.register_icon_button(self.prev_btn, IconName.ARROW_LEFT, QSize(24, 24), icon_states=nav_icon_states)
-        self.register_icon_button(self.next_btn, IconName.ARROW_RIGHT, QSize(24, 24), icon_states=nav_icon_states)
-
         self.api.register_on_destroy(close_btn.click)
 
     def on_current_voutput_changed(self, voutput: VideoOutputProxy, tab_index: int) -> None:

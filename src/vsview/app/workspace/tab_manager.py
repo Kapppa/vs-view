@@ -84,12 +84,6 @@ class TabManager(QWidget, IconReloadMixin):
         self.sync_zoom_btn.toggled.connect(self._on_sync_zoom_changed)
         self.autofit_btn.toggled.connect(self._on_global_autofit_changed)
 
-        # Register buttons for automatic icon hot-reload
-        self.register_icon_button(self.sync_playhead_btn, IconName.LINK, icon_states=icon_states)
-        self.register_icon_button(self.sync_zoom_btn, IconName.MAGNIFYING_GLASS, icon_states=icon_states)
-        self.register_icon_button(self.sync_scroll_btn, IconName.ARROWS_OUT_CARDINAL, icon_states=icon_states)
-        self.register_icon_button(self.autofit_btn, IconName.FRAME_CORNERS, icon_states=icon_states)
-
         self.sync_layout.addWidget(self.sync_playhead_btn)
         self.sync_layout.addWidget(self.sync_zoom_btn)
         self.sync_layout.addWidget(self.sync_scroll_btn)
