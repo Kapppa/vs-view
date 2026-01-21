@@ -8,6 +8,7 @@ import sys
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, Self, TypeVar
 
@@ -65,6 +66,11 @@ class PluginAPI(_PluginAPI):
     def current_frame(self) -> int:
         """Return the current frame number."""
         return self.__workspace.current_frame
+
+    @property
+    def current_time(self) -> timedelta:
+        """Return the current time."""
+        return self.__workspace._frame_to_time(self.current_frame)
 
     @property
     def current_tab_index(self) -> int:
