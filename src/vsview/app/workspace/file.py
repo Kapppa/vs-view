@@ -99,7 +99,6 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         SettingsManager.save_local(self.content, self.local_settings)
 
     def init_load(self, frame: int | None = None, tab_index: int | None = None) -> None:
-        # init tabs button
         self.tab_manager.sync_playhead_btn.setChecked(self.local_settings.synchronization.sync_playhead)
         self.tab_manager.sync_zoom_btn.setChecked(self.local_settings.synchronization.sync_zoom)
         self.tab_manager.sync_scroll_btn.setChecked(self.local_settings.synchronization.sync_scroll)

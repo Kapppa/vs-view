@@ -1,5 +1,7 @@
 """Plugin splitter widget for managing plugin panel visibility."""
 
+from collections.abc import Sequence
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSplitter, QTabBar, QTabWidget, QWidget
 
@@ -52,7 +54,11 @@ class PluginSplitter(QSplitter, IconReloadMixin):
         # Start with right panel collapsed
         self.setSizes([1, 0])
         self.splitterMoved.connect(self._on_splitter_moved)
-        self._right_panel_collapsed = True
+        self.right_panel_collapsed = True
+
+    def setSizes(self, sizes: Sequence[int]) -> None:
+        self.right_panel_collapsed = sizes[1] == 0
+        return super().setSizes(sizes)
 
     @property
     def is_right_panel_visible(self) -> bool:
@@ -81,10 +87,10 @@ class PluginSplitter(QSplitter, IconReloadMixin):
         right_panel_visible = self.sizes()[1] > 0
 
         # Only emit on transition from collapsed to visible
-        if right_panel_visible and self._right_panel_collapsed:
+        if right_panel_visible and self.right_panel_collapsed:
             self.rightPanelBecameVisible.emit()
 
-        self._right_panel_collapsed = not right_panel_visible
+        self.right_panel_collapsed = not right_panel_visible
 
     def _on_plugin_tab_changed(self, index: int) -> None:
         # Only emit if right panel is visible
