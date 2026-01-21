@@ -183,7 +183,7 @@ class AnimatedToggle(QCheckBox):
         self.stateChanged.connect(self._setup_animation)
 
     def sizeHint(self) -> QSize:
-        return QSize(58, 45)
+        return QSize(58, 30)
 
     def hitButton(self, pos: QPoint) -> bool:
         return self.contentsRect().contains(pos)
@@ -195,7 +195,7 @@ class AnimatedToggle(QCheckBox):
 
     def paintEvent(self, e: QPaintEvent) -> None:
         cont_rect = self.contentsRect()
-        handle_radius = round(0.24 * cont_rect.height())
+        handle_radius = round(0.40 * cont_rect.height())
         t = self.handle_position
 
         if self.isEnabled():
@@ -214,7 +214,7 @@ class AnimatedToggle(QCheckBox):
             p.setRenderHint(QPainter.RenderHint.Antialiasing)
             p.setPen(Qt.PenStyle.NoPen)
 
-            bar_rect = QRectF(0, 0, cont_rect.width() - handle_radius, 0.40 * cont_rect.height())
+            bar_rect = QRectF(0, 0, cont_rect.width() - handle_radius, 0.60 * cont_rect.height())
             bar_rect.moveCenter(cont_rect.center())
             rounding = bar_rect.height() / 2
 
