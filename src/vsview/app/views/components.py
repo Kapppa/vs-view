@@ -1,18 +1,7 @@
 from collections.abc import Sequence
 
-from PySide6.QtCore import (
-    QEasingCurve,
-    QPoint,
-    QPointF,
-    QRectF,
-    QSize,
-    Qt,
-    QTimer,
-    QVariantAnimation,
-    Signal,
-    Slot,
-)
-from PySide6.QtGui import QBrush, QColor, QPainter, QPaintEvent, QPalette, QPen, QShowEvent
+from PySide6.QtCore import QEasingCurve, QPoint, QPointF, QRectF, QSize, Qt, QTimer, QVariantAnimation, Signal, Slot
+from PySide6.QtGui import QBrush, QColor, QPainter, QPaintEvent, QPalette, QShowEvent
 from PySide6.QtWidgets import (
     QBoxLayout,
     QButtonGroup,
@@ -173,14 +162,15 @@ class AnimatedToggle(QCheckBox):
 
         palette = self.palette()
 
-        self.border_unchecked_color = palette.color(QPalette.ColorRole.Accent)
+        self.bar = palette.color(QPalette.ColorRole.Light)
+        self.bar_disabled = palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Light).darker()
+        self.bar_checked = palette.color(QPalette.ColorRole.Accent)
+        self.bar_checked_disabled = palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Accent)
 
-        self.bar_color = palette.color(QPalette.ColorRole.Base)
-        self.bar_checked_color = palette.color(QPalette.ColorRole.Accent)
-        self.bar_border_unchecked_color = palette.color(QPalette.ColorRole.Dark)
-
-        self.handle_color = palette.color(QPalette.ColorRole.Button)
-        self.handle_checked_color = palette.color(QPalette.ColorRole.Highlight)
+        self.handle = palette.color(QPalette.ColorRole.Midlight)
+        self.handle_disabled = palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Midlight).darker(225)
+        self.handle_checked = palette.color(QPalette.ColorRole.Highlight)
+        self.handle_checked_disabled = palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Accent).darker()
 
         self.setContentsMargins(8, 0, 8, 0)
         self.handle_position = 0.0
@@ -208,8 +198,12 @@ class AnimatedToggle(QCheckBox):
         handle_radius = round(0.24 * cont_rect.height())
         t = self.handle_position
 
-        bar_color = self._interpolate_color(self.bar_color, self.bar_checked_color, t)
-        handle_color = self._interpolate_color(self.handle_color, self.handle_checked_color, t)
+        if self.isEnabled():
+            bar = self._interpolate_color(self.bar, self.bar_checked, t)
+            handle = self._interpolate_color(self.handle, self.handle_checked, t)
+        else:
+            bar = self._interpolate_color(self.bar_disabled, self.bar_checked_disabled, t)
+            handle = self._interpolate_color(self.handle_disabled, self.handle_checked_disabled, t)
 
         # Subtle pulse effect: handle stretches slightly mid-animation
         pulse = 1.0 + 0.15 * (1.0 - abs(2.0 * t - 1.0))  # peaks at t=0.5
@@ -218,34 +212,20 @@ class AnimatedToggle(QCheckBox):
 
         with QPainter(self) as p:
             p.setRenderHint(QPainter.RenderHint.Antialiasing)
+            p.setPen(Qt.PenStyle.NoPen)
 
-            # Draw bar
-            if t < 1.0:
-                pen = QPen(self.bar_border_unchecked_color)
-                pen.setWidthF(1.0 - t)
-                p.setPen(pen)
-            else:
-                p.setPen(Qt.PenStyle.NoPen)
             bar_rect = QRectF(0, 0, cont_rect.width() - handle_radius, 0.40 * cont_rect.height())
             bar_rect.moveCenter(cont_rect.center())
             rounding = bar_rect.height() / 2
 
-            p.setBrush(QBrush(bar_color))
+            p.setBrush(QBrush(bar))
             p.drawRoundedRect(bar_rect, rounding, rounding)
 
             # Draw handle
             trail_length = cont_rect.width() - 2 * handle_radius
             x_pos = cont_rect.x() + handle_radius + trail_length * t
 
-            # Slight border when unchecked (fades out during animation)
-            if t < 1.0:
-                pen = QPen(self.border_unchecked_color)
-                pen.setWidthF(1.0 - t)  # Fade out the border
-                p.setPen(pen)
-            else:
-                p.setPen(Qt.PenStyle.NoPen)
-
-            p.setBrush(QBrush(handle_color))
+            p.setBrush(QBrush(handle))
             p.drawEllipse(QPointF(x_pos, bar_rect.center().y()), handle_width, handle_height)
 
     @Slot(int)
