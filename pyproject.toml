@@ -23,8 +23,8 @@ classifiers = [
 ]
 dependencies = [
     "vapoursynth>=69",
-    "vsjetengine>=0.3.0",
-    "vspackrgb>=0.1.0",
+    "vsjetengine>=1.0.0",
+    "vspackrgb>=1.0.0",
     "pyside6>=6.10.1",
     "jetpytools>=2.2.2",
     "pydantic>=2.0.0",
@@ -44,7 +44,11 @@ dev = [
     "cython>=3.0.0",
     "types-pygments>=2.19.0.20251121",
 ]
-plugins = ["vsview-split-planes", "vsview-fftspectrum"]
+plugins = [
+    "vsview-split-planes",
+    "vsview-fftspectrum",
+    "vsview-frameprops-more",
+]
 
 [project.scripts]
 vsview = "vsview.cli:app"
@@ -57,7 +61,6 @@ essential = ["vsview-split-planes"]
 "Source Code" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view"
 "Bug Tracker" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/issues"
 "Contact" = "https://discord.gg/XTpc6Fa9eB"
-
 
 [tool.hatch.build.targets.sdist]
 only-include = ["src/vsview"]
@@ -81,11 +84,11 @@ rmprefix = "vsview/v"
 members = ["src/vspackrgb", "src/plugins/*"]
 
 [tool.uv.sources]
-vsjetengine = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-engine", branch = "main" }
 vsjetpack = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack", branch = "main" }
 vspackrgb = { workspace = true }
 vsview-fftspectrum = { workspace = true }
 vsview-split-planes = { workspace = true }
+vsview-frameprops-more = { workspace = true }
 
 [tool.mypy]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/stubs"

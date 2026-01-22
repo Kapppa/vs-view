@@ -77,14 +77,14 @@ wheels = [
 
 [[package]]
 name = "jetpytools"
-version = "2.2.3"
+version = "2.2.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/aa/32/654e31946838e2efc36e06f45a8cfeaeac85badf201229bc6d415f1cd70c/jetpytools-2.2.3.tar.gz", hash = "sha256:0960ae1e6e78dec4ce231bc43848f6f2b607c7a3e744a3786c4a13078e76361b", size = 28161, upload-time = "2025-12-31T17:57:09.427Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ab/2d/d3da15857f177566370fe2188108c086cb53a6c325783438eb40dd46122f/jetpytools-2.2.4.tar.gz", hash = "sha256:2ff3552eb02725e60e1d43e7e6ddcc8c91acee6ec80cc7e2e2b8bcdaea476a92", size = 28190, upload-time = "2026-01-22T15:30:31.787Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/2b/7c4b83045c1070965d980afea8caabd0f2543a854b1bbedeab37f2083f95/jetpytools-2.2.3-py3-none-any.whl", hash = "sha256:696af9391cc40e6b9000555c156941f837a816cad1c29e9bd8d7fc340e829db3", size = 32293, upload-time = "2025-12-31T17:57:07.829Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/ff/42a21051515c5901cf393fc288f5b39242fab6a35345cfa5e389278b0234/jetpytools-2.2.4-py3-none-any.whl", hash = "sha256:3fa7d79a4cdd7775cecd8a032c7ec5befc33c8769c59fa10c7002f48badaf451", size = 32308, upload-time = "2026-01-22T15:30:30.573Z" },
 ]
 
 [[package]]
@@ -552,16 +552,20 @@ wheels = [
 
 [[package]]
 name = "vsjetengine"
-version = "0.3.0.dev71+g12bffd0"
-source = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-engine?branch=main#12bffd0806e76dae96e720e63d2a55985cc0b4a8" }
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "vapoursynth" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e9/bb/6d2ed33b67c1821359f35e358e309042231b5918e3fea9522127a31a38c1/vsjetengine-1.0.0.tar.gz", hash = "sha256:bd5c003ce33ec37904c1f1b604d8a55db493223a71118b288572f0283babb713", size = 35543, upload-time = "2026-01-22T02:54:49.497Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/01/0e/3f1134a54e51c91f79de97deb69066f669f18d4e4ac15167b5a16a281af6/vsjetengine-1.0.0-py3-none-any.whl", hash = "sha256:3dacc67b236657b6335ba85e8c7ba552b755db20670a4b09c88db8b60305ad4e", size = 32390, upload-time = "2026-01-22T02:54:47.975Z" },
 ]
 
 [[package]]
 name = "vsjetpack"
-version = "1.1.0.dev83+gcab0fec9"
-source = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack?branch=main#cab0fec907279c53ec7dd653d7284f1c155b2bca" }
+version = "1.1.0.dev91+g0622db43"
+source = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack?branch=main#0622db4334ed20c020ebc6d9891e60b11733aab9" }
 dependencies = [
     { name = "jetpytools" },
     { name = "numpy" },
@@ -655,7 +659,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.20.0" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'", specifier = ">=4.15.0" },
     { name = "vapoursynth", specifier = ">=69" },
-    { name = "vsjetengine", git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-engine?branch=main" },
+    { name = "vsjetengine", specifier = ">=1.0.0" },
     { name = "vspackrgb", editable = "src/vspackrgb" },
     { name = "vsview-split-planes", marker = "extra == 'essential'", editable = "src/plugins/split-planes" },
 ]
@@ -693,11 +697,15 @@ requires-dist = [
 name = "vsview-frameprops-more"
 source = { editable = "src/plugins/frameprops-more" }
 dependencies = [
+    { name = "vsjetpack" },
     { name = "vsview" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "vsview", editable = "." }]
+requires-dist = [
+    { name = "vsjetpack", git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack?branch=main" },
+    { name = "vsview", editable = "." },
+]
 
 [[package]]
 name = "vsview-split-planes"
