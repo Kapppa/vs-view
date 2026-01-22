@@ -34,4 +34,3 @@ These features are present in VSPreview and need to be brought over.
 ## Known Issues
 
 - Waking up VapourSynth during environment creation locks the main thread and can take a few seconds (Only a Windows issue?).
-- Target frame when switching tabs is based on the number and not the timestamp.

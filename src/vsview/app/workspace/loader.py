@@ -4,6 +4,7 @@ from collections.abc import Callable, Iterator
 from concurrent.futures import Future, wait
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from fractions import Fraction
 from functools import partial
 from logging import getLogger
 from pathlib import Path
@@ -623,12 +624,17 @@ class LoaderWorkspace[T](BaseWorkspace):
         with QSignalBlocker(self.tbar.playback_container.time_edit):
             self.tbar.playback_container.time_edit.setTime(time.to_qtime())
 
-    def _frame_to_time(self, frame: int) -> Time:
-        return Time(
-            seconds=frame * self.tbar.timeline.fps.denominator / self.tbar.timeline.fps.numerator
-            if self.tbar.timeline.fps.numerator > 0
-            else 0
-        )
+    def _frame_to_time(self, frame: int, fps: Fraction | None = None) -> Time:
+        if fps is None:
+            fps = self.tbar.timeline.fps
+
+        return Time(seconds=frame * fps.denominator / fps.numerator if fps.numerator > 0 else 0)
+
+    def _time_to_frame(self, time: Time, fps: Fraction | None = None) -> Frame:
+        if fps is None:
+            fps = self.tbar.timeline.fps
+
+        return Frame(cround(time.total_seconds() * fps.numerator / fps.denominator) if fps.denominator > 0 else 0)
 
     @run_in_loop(return_future=False)
     def set_loaded_page(self) -> None:
@@ -703,19 +709,28 @@ class LoaderWorkspace[T](BaseWorkspace):
                 self.api._on_current_voutput_changed()
 
     def _calculate_target_frame(self) -> int:
-        # Returns sync playhead frame if enabled, otherwise returns the
-        # last frame for this specific tab.
-        if self.tab_manager.is_sync_playhead_enabled and hasattr(self, "_current_frame"):
-            assert self.tab_manager.current_voutput is not None
-
-            total_frames = self.tab_manager.current_voutput.clip.num_frames
-            target_frame = min(self.current_frame, total_frames - 1)
-
-            logger.debug("Sync playhead enabled, targeting frame %d", target_frame)
+        if not self.tab_manager.is_sync_playhead_enabled:
+            logger.debug(
+                "Sync playhead disabled, using last frame %d",
+                (target_frame := self.tab_manager.current_view.last_frame),
+            )
             return target_frame
 
-        target_frame = self.tab_manager.current_view.last_frame
-        logger.debug("Sync playhead disabled, using last frame %d", target_frame)
+        assert self.tab_manager.current_voutput
+
+        src_fps = self.tab_manager.previous_view.output.clip.fps
+        tgt_fps = self.tab_manager.current_voutput.clip.fps
+
+        current_time = self._frame_to_time(self.current_frame, src_fps)
+        target_frame = self._time_to_frame(current_time, tgt_fps)
+
+        target_frame = clamp(target_frame, 0, self.tab_manager.current_voutput.clip.num_frames - 1)
+
+        logger.debug(
+            "Sync playhead enabled, targeting frame %d (from time %.3fs)",
+            target_frame,
+            current_time.total_seconds(),
+        )
         return target_frame
 
     @Slot(int)
