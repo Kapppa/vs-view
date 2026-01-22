@@ -37,6 +37,10 @@ You can also run it with a generic VapourSynth script:
 vsview script.vpy
 ```
 
+## Contributing
+
+Contributions are welcome! Please check the [Discord server](https://discord.gg/XTpc6Fa9eB) or open an issue to discuss planned features.
+
 ## Development
 
 This project uses `uv` for dependency management and workflow.
@@ -46,6 +50,6 @@ uv sync --all-extras --all-groups
 uv run vsview
 ```
 
-## Contributing
-
-Contributions are welcome! Please check the [Discord server](https://discord.gg/XTpc6Fa9eB) or open an issue to discuss planned features.
+If you are in a environment where you cannot compile C extensions,
+comment out the `vspackrgb = { workspace = true }` line in `pyproject.toml` before running `uv sync`
+to use the pre-compiled version from PyPI.
