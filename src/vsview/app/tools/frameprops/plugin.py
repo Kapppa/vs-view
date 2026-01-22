@@ -8,6 +8,7 @@ from contextlib import suppress
 from logging import getLogger
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, NamedTuple
 
+import pluggy
 import vapoursynth as vs
 from jetpytools import fallback
 from pydantic import BaseModel
@@ -46,6 +47,7 @@ from vsview.api import (
 )
 from vsview.app.plugins.api import VideoOutputProxy
 
+from . import specs
 from .builtins.field import FIELD_CATEGORY, FIELD_FORMATTERS
 from .builtins.metrics import METRICS_CATEGORY, METRICS_FORMATTERS
 from .builtins.video import VIDEO_CATEGORY, VIDEO_FORMATTERS
@@ -61,6 +63,10 @@ ITEM_TYPE_CATEGORY = "category"
 ITEM_TYPE_PROPERTY = "property"
 
 logger = getLogger(__name__)
+
+manager = pluggy.PluginManager("vsview.frameprops")
+manager.add_hookspecs(specs)
+manager.load_setuptools_entrypoints("vsview.frameprops")
 
 
 class RowData(NamedTuple):
@@ -189,8 +195,18 @@ class FramePropsModel(QStandardItemModel):
         self.setHorizontalHeaderLabels(["Key", "Value", "Formatted"])
         self.category_items = dict[str, QStandardItem]()
 
-        CategoryRegistry.register(VIDEO_CATEGORY, METRICS_CATEGORY, FIELD_CATEGORY)
-        FormatterRegistry.register(VIDEO_FORMATTERS, METRICS_FORMATTERS, FIELD_FORMATTERS)
+        CategoryRegistry.register(
+            VIDEO_CATEGORY,
+            METRICS_CATEGORY,
+            FIELD_CATEGORY,
+            manager.hook.vsview_frameprops_register_category_matchers(),
+        )
+        FormatterRegistry.register(
+            VIDEO_FORMATTERS,
+            METRICS_FORMATTERS,
+            FIELD_FORMATTERS,
+            manager.hook.vsview_frameprops_register_formatter_properties(),
+        )
 
     def add_prop(self, key: str, value: Any, category: str | None = None) -> None:
         raw_value_str = FormatterProperty.default_format(value)
