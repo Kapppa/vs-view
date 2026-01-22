@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable
 from copy import copy
 from logging import DEBUG, INFO, Formatter, LogRecord, captureWarnings, getLogger
@@ -40,6 +41,8 @@ def setup_logging(
     vsengine_level: int | None = INFO,
     capture_warnings: bool = True,
 ) -> None:
+    os.environ["NO_COLOR"] = "1"
+
     # FIXME: Change that to INFO later
     level = fallback(level, DEBUG)
 
