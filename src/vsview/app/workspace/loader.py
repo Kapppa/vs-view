@@ -667,6 +667,7 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         self._update_timeline_for_tab()
         target_frame = self._calculate_target_frame()
+        self.update_timeline_cursor(target_frame)
         self.current_tab_index = index
         self._emit_output_info()
 
