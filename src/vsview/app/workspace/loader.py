@@ -845,8 +845,13 @@ class LoaderWorkspace[T](BaseWorkspace):
         if self._playback.buffer and not self._playback.buffer.is_empty:
             try:
                 result = self._playback.buffer.get_next_frame()
-            except Exception:
-                logger.exception("Playback failed with the message:")
+            except Exception as e:
+                logger.error(
+                    "An error occured during the rendering of the frame %d with the message: (%s): %s",
+                    self.current_frame + 1,
+                    e.__class__.__name__,
+                    e,
+                )
                 self.clear_failed_load()
                 return
 
