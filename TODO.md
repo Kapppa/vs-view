@@ -15,7 +15,7 @@ These features are present in VSPreview and need to be brought over.
 
 ## Planned Plugins
 
-- [ ] Frame props
+- [x] Frame props
 - [ ] Slowpics
 - [ ] Native-res ([Repository](https://github.com/Jaded-Encoding-Thaumaturgy/native-res))
 - [ ] Histogram (NumPy based?)
