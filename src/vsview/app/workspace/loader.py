@@ -858,10 +858,6 @@ class LoaderWorkspace[T](BaseWorkspace):
             if result:
                 frame_n, frame, plugin_frames = result
 
-                if frame_n >= total_frames:
-                    self._toggle_playback()
-                    return
-
                 if self._playback.stop_at_frame is not None and frame_n >= self._playback.stop_at_frame:
                     self._toggle_playback()
                     return
@@ -871,14 +867,17 @@ class LoaderWorkspace[T](BaseWorkspace):
                 self.current_frame = frame_n
                 self.tab_manager.current_view.last_frame = frame_n
 
-                with self.env.use(), frame:
-                    image = self._packer.frame_to_qimage(frame)
+                try:
+                    with self.env.use(), frame:
+                        image = self._packer.frame_to_qimage(frame)
 
-                self.tab_manager.update_current_view(image)
-                self.update_timeline_cursor(frame_n)
+                    self.tab_manager.update_current_view(image)
+                    self.update_timeline_cursor(frame_n)
 
-                # Pass pre-fetched plugin frames to plugins (synchronized with main display)
-                self.api._on_current_frame_changed(frame_n, plugin_frames)
+                    self.api._on_current_frame_changed(frame_n, plugin_frames)
+                finally:
+                    for frame_to_close in plugin_frames.values():
+                        frame_to_close.close()
 
                 self._schedule_or_continue(frame_n + 1)
                 return
