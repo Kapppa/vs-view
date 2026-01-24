@@ -32,6 +32,12 @@ class IconName(StrEnum):
     SAVE = "floppy-disk"
     ARROW_LEFT = "arrow-left"
     ARROW_RIGHT = "arrow-right"
+    # Audio icons
+    VOLUME_HIGH = "speaker-high"
+    VOLUME_MID = "speaker-low"
+    VOLUME_LOW = "speaker-none"
+    VOLUME_OFF = "speaker-x"
+    VOLUME_MUTE = "speaker-slash"
 
 
 class IconProvider(ABC):
@@ -125,6 +131,11 @@ class MaterialProvider(IconProvider):
         IconName.X_CIRCLE: "close-circle",
         IconName.FILE_TEXT: "file-document",
         IconName.SAVE: "content-save",
+        IconName.VOLUME_HIGH: "volume-high",
+        IconName.VOLUME_MID: "volume-medium",
+        IconName.VOLUME_LOW: "volume-low",
+        IconName.VOLUME_OFF: "volume-mute",
+        IconName.VOLUME_MUTE: "volume-off",
     }
 
     @property
@@ -163,6 +174,11 @@ class LucideProvider(IconProvider):
         IconName.X_CIRCLE: "circle-x",
         IconName.FILE_VIDEO: "file-video-camera",
         IconName.SAVE: "save",
+        IconName.VOLUME_HIGH: "volume-2",
+        IconName.VOLUME_MID: "volume-1",
+        IconName.VOLUME_LOW: "volume",
+        IconName.VOLUME_OFF: "volume-x",
+        IconName.VOLUME_MUTE: "volume-off",
     }
 
     @property
