@@ -26,7 +26,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from vsengine.loops import get_loop
 from vsengine.policy import ManagedEnvironment
 from vsengine.vpy import ExecutionError, Script, load_code, load_script
 
@@ -444,10 +443,8 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.disable_reloading = True
         self.statusLoadingStarted.emit("Reloading Content...")
 
-        loop = get_loop()
-
         with self.tbar.disabled(), self.tab_manager.clear_voutputs_on_fail():
-            loop.from_thread(self.content_area.setDisabled, True)
+            self.loop.from_thread(self.content_area.setDisabled, True)
             self.tab_manager.disable_switch = True
             self._playback.wait_for_cleanup(0.25, stall_cb=lambda: self.statusLoadingStarted.emit("Clearing buffer..."))
 
@@ -494,7 +491,7 @@ class LoaderWorkspace[T](BaseWorkspace):
 
             saved_state.apply_frozen_state(self.tab_manager.current_view)
 
-            loop.from_thread(
+            self.loop.from_thread(
                 self.tab_manager._on_global_autofit_changed,
                 self.tab_manager.autofit_btn.isChecked(),
             ).result()

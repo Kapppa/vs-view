@@ -9,7 +9,6 @@ from typing import Any, ClassVar, NamedTuple
 from jetpytools import to_arr
 from PySide6.QtCore import QByteArray, Qt, QTimer
 from PySide6.QtWidgets import QFileDialog, QWidget
-from vsengine.loops import get_loop
 
 from ...api._helpers import output_metadata
 from ...assets import IconName
@@ -130,7 +129,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
     def load_content(self, content: Path, /, frame: int | None = None, tab_index: int | None = None) -> None:
         super().load_content(content, frame, tab_index).result()
 
-        get_loop().from_thread(
+        self.loop.from_thread(
             self._autosave_timer.start,
             (self.global_settings.autosave.minute * 60 + self.global_settings.autosave.second) * 1000,
         )
@@ -139,12 +138,11 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
     def reload_content(self) -> None:
         remaining_time = self._autosave_timer.remainingTime()
 
-        loop = get_loop()
-        loop.from_thread(self._autosave_timer.stop)
+        self.loop.from_thread(self._autosave_timer.stop)
 
         super().reload_content().result()
 
-        loop.from_thread(
+        self.loop.from_thread(
             self._autosave_timer.start,
             remaining_time
             if remaining_time > 0

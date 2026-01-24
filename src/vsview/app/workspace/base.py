@@ -1,11 +1,12 @@
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from PySide6.QtWidgets import QFrame, QMainWindow, QVBoxLayout, QWidget
 from vapoursynth import AudioNode, VideoOutputTuple
+from vsengine.loops import get_loop
 from vsengine.policy import ManagedEnvironment
 
 from ...assets import IconName
-from ...vsenv import clear_environment, create_environment
+from ...vsenv import QtEventLoop, clear_environment, create_environment
 from ..settings import SettingsManager
 from ..settings.models import GlobalSettings
 
@@ -30,6 +31,11 @@ class BaseWorkspace(QMainWindow):
         self.current_layout.setContentsMargins(0, 0, 0, 0)
 
         self._env: ManagedEnvironment | None = None
+
+    @property
+    def loop(self) -> QtEventLoop:
+        """Return the global event loop."""
+        return cast(QtEventLoop, get_loop())
 
     @property
     def env(self) -> ManagedEnvironment:
