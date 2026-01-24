@@ -82,7 +82,7 @@ def setup_logging(
     qt_level: int | None = None,
     capture_warnings: bool = True,
 ) -> None:
-    os.environ["NO_COLOR"] = "1"
+    os.environ["JETPYTOOLS_NO_COLOR"] = "1"
     qInstallMessageHandler(_qt_message_handler)
 
     # FIXME: Change that to INFO later
