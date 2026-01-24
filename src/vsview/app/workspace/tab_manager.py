@@ -208,6 +208,9 @@ class TabManager(QWidget, IconReloadMixin):
     def update_current_view(self, image: QImage, skip_adjustments: bool = False) -> None:
         """Update the view with a new rendered frame."""
 
+        if self.tabs.currentIndex() == -1:
+            return
+
         try:
             self.current_view.pixmap_item.setPixmap(
                 QPixmap.fromImage(image, Qt.ImageConversionFlag.NoFormatConversion),

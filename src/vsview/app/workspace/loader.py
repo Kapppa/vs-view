@@ -540,7 +540,7 @@ class LoaderWorkspace[T](BaseWorkspace):
             if f.exception():
                 logger.exception("Resize failed with the message:")
                 self.clear_failed_load()
-            else:
+            elif self.tab_manager.tabs.currentIndex() != -1:
                 self.current_frame = n
                 self.tab_manager.current_view.last_frame = n
 
@@ -910,7 +910,9 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         if (delay_ns := self._playback.next_frame_time_ns - perf_counter_ns()) > MIN_FRAME_DELAY_NS:
             self._playback.pending_frame = next_frame
-            get_loop().from_thread(self.tbar.playback_timer.start, cround(delay_ns / 1_000_000))
+            self.loop.from_thread(
+                lambda: self.tbar.playback_timer.start(cround(delay_ns / 1_000_000)) if self.tbar.is_playing else None
+            )
         elif sync:
             self.request_frame(next_frame, sync_on_complete)
         else:
