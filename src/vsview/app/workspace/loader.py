@@ -566,21 +566,22 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         self.disable_reloading = True
 
-        if self.tbar.is_playing:
-            with voutput.request_frame(n, self.env) as frame:
-                logger.debug("Frame %d rendered", n)
-                image = voutput.packer.frame_to_qimage(frame)
-
-            self.api._on_current_frame_changed(n, None)
-        else:
-            self.statusLoadingStarted.emit(f"Rendering frame {n}...")
-
-            with self.status_loading(f"Rendering frame {n}...", "Completed"):
-                with self.tbar.disabled(), voutput.request_frame(n, self.env) as frame:
+        with self.env.use():
+            if self.tbar.is_playing:
+                with voutput.prepared_clip.get_frame(n) as frame:
                     logger.debug("Frame %d rendered", n)
                     image = voutput.packer.frame_to_qimage(frame)
 
                 self.api._on_current_frame_changed(n, None)
+            else:
+                self.statusLoadingStarted.emit(f"Rendering frame {n}...")
+
+                with self.status_loading(f"Rendering frame {n}...", "Completed"):
+                    with self.tbar.disabled(), voutput.prepared_clip.get_frame(n) as frame:
+                        logger.debug("Frame %d rendered", n)
+                        image = self._packer.frame_to_qimage(frame)
+
+                    self.api._on_current_frame_changed(n, None)
 
         self.tab_manager.update_current_view(image, skip_adjustments=self.disable_reloading)
         self.update_timeline_cursor(n)
