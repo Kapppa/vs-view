@@ -50,6 +50,7 @@ uv sync --all-extras --all-groups
 uv run vsview
 ```
 
-If you are in a environment where you cannot compile C extensions,
-comment out the `vspackrgb = { workspace = true }` line in `pyproject.toml` before running `uv sync`
-to use the pre-compiled version from PyPI.
+If you are in an environment where you cannot compile C extensions,
+remove `"src/vspackrgb"` from `members` and comment out the `vspackrgb = { workspace = true }` line
+in `pyproject.toml` before running `uv sync` to use the pre-compiled version from PyPI.
+
