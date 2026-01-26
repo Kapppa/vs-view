@@ -312,15 +312,13 @@ class LoaderWorkspace[T](BaseWorkspace):
         return super().deleteLater()
 
     def clear_environment(self) -> None:
-        if self.cbs_on_destroy:
+        with self.env.use():
+            for cb in self.cbs_on_destroy:
+                self.loop.from_thread(cb)
 
-            @run_in_loop(return_future=False)
-            def destroy() -> None:
-                with self.env.use():
-                    for cb in self.cbs_on_destroy:
-                        cb()
+        for vo in self.tab_manager.voutputs.values():
+            vo.clear()
 
-            destroy()
         return super().clear_environment()
 
     @contextmanager
