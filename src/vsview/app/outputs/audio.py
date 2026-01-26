@@ -130,7 +130,6 @@ class AudioOutput:
         """Clear VapourSynth resources."""
         if hasattr(self, "sink"):
             self.sink.stop()
-            del self.sink.output
             self.sink.deleteLater()
             del self.sink
 
@@ -174,9 +173,8 @@ class AudioOutput:
         self.qformat.setSampleRate(round(self.prepared_audio.sample_rate * speed))
         self.sink.stop()
         self.sink.deleteLater()
-        self.sink = AudioSink(self.qformat, self)
-
-        self.sink.setup()
+        self.sink = AudioSink(self.qformat)
+        self.sink.setup(SettingsManager.global_settings.playback.audio_buffer_size * self.bytes_per_frame, self.volume)
 
         if not self.sink.ready:
             logger.error(
@@ -257,9 +255,8 @@ class AudioOutput:
 
 
 class AudioSink(QAudioSink):
-    def __init__(self, format: QAudioFormat, output: AudioOutput) -> None:
+    def __init__(self, format: QAudioFormat) -> None:
         super().__init__(format)
-        self.output = output
         self.ready = False
         # Move the sink to the main thread so it can be controlled from LoaderWorkspace._stop_audio
         self.moveToThread(QApplication.instance().thread())  # type: ignore[union-attr]
@@ -288,9 +285,9 @@ class AudioSink(QAudioSink):
         self.ready = False
         super().reset()
 
-    def setup(self) -> None:
-        self.setBufferSize(SettingsManager.global_settings.playback.audio_buffer_size * self.output.bytes_per_frame)
-        self.setVolume(self.output.volume)
+    def setup(self, buffer_size: int, volume: float) -> None:
+        self.setBufferSize(buffer_size)
+        self.setVolume(volume)
 
         self._iodevice = self.start()
 
