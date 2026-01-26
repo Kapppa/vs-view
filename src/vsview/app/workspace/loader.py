@@ -126,6 +126,15 @@ class PlaybackState(QObject):
             self._audio_cleanup_future = self.audio_buffer.invalidate()
             self.audio_buffer = None
 
+    def reset_audio(self) -> None:
+        self.next_audio_frame_time_ns = 0
+        self.audio_frame_interval_ns = 0
+        self.audio_timer.stop()
+
+        if self.audio_buffer:
+            self._audio_cleanup_future = self.audio_buffer.invalidate()
+            self.audio_buffer = None
+
     def wait_for_cleanup(self, timeout: float | None = None, stall_cb: Callable[[], None] | None = None) -> None:
         futures = list[Future[None]]()
 
@@ -1164,9 +1173,7 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         aoutput.sink.reset()
 
-        if self.playback.audio_buffer:
-            self.playback.audio_buffer.invalidate()
-            self.playback.audio_buffer = None
+        self.playback.reset_audio()
 
     def _on_volume_changed(self, volume: float) -> None:
         if aoutput := self.current_aoutput:
