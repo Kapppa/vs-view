@@ -252,7 +252,6 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.tbar.playback_container.seek_n_fwd_btn.clicked.connect(lambda: self._seek_n_frames(1))
 
         # Seek step context menu signals
-        self.tbar.playback_container.seekStepReset.connect(self._on_seek_step_reset)
         self.tbar.playback_container.settingsChanged.connect(self._on_playback_settings_changed)
         self.tbar.playback_container.playZone.connect(self._on_play_zone)
 
@@ -272,8 +271,8 @@ class LoaderWorkspace[T](BaseWorkspace):
         # Audio control signals
         self.tbar.playback_container.volumeChanged.connect(self._on_volume_changed)
         self.tbar.playback_container.muteChanged.connect(self._on_mute_changed)
+        self.tbar.playback_container.audioDelayChanged.connect(self._on_audio_delay_changed)
         self.tbar.playback_container.audio_output_combo.currentIndexChanged.connect(self._on_audio_output_changed)
-
         # Reloading state
         self.disable_reloading = True
 
@@ -448,7 +447,7 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         try:
             for i, output in items:
-                aoutputs.append(AudioOutput(output, i, metadata.get(i)))
+                aoutputs.append(AudioOutput(output, i, metadata.get(i), self.tbar.playback_container.audio_delay))
         except Exception:
             for aoutput in aoutputs:
                 aoutput.clear()
@@ -838,9 +837,6 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         self._start_playback(loop_range=loop_range, stop_at=stop_at)
 
-    def _on_seek_step_reset(self) -> None:
-        self.tbar.playback_container.settings.seek_step = self.global_settings.timeline.seek_step
-
     def _restart_playback(self) -> None:
         self._stop_playback()
         self.playback.is_playing = True
@@ -1186,6 +1182,14 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.current_audio_index = index
         if self.playback.is_playing:
             self._restart_playback()
+
+    def _on_audio_delay_changed(self, delay_s: float) -> None:
+        if self.playback.is_playing:
+            self._stop_playback()
+
+        with self.env.use():
+            for aoutput in self.aoutputs:
+                aoutput.prepared_audio = aoutput.get_prepared_audio(delay_s)
 
     def _copy_current_frame_to_clipboard(self) -> None:
         frame = self.tbar.playback_container.frame_edit.value()

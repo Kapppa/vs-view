@@ -574,6 +574,20 @@ class PlaybackSettings(BaseModel):
         ),
     ] = True
 
+    audio_delay: Annotated[
+        float,
+        DoubleSpin(
+            label="Audio Delay",
+            min=-10000,
+            max=10000,
+            suffix=" ms",
+            decimals=3,
+            tooltip="Delay the audio in milliseconds. Positive values delay audio, negative values advance it.",
+            to_ui=lambda v: v * 1000,
+            from_ui=lambda v: v / 1000,
+        ),
+    ] = 0.0
+
 
 class ViewSettings(BaseModel):
     """Settings for the GraphicsView components"""
@@ -751,6 +765,7 @@ class LocalPlaybackSettings(BaseModel):
     last_audio_index: int | None = None
     current_volume: float = 0.5
     muted: bool = False
+    audio_delay_raw: float | None = None
 
     @property
     def seek_step(self) -> int:
@@ -763,6 +778,20 @@ class LocalPlaybackSettings(BaseModel):
     @seek_step.setter
     def seek_step(self, value: int | None) -> None:
         self.seek_step_raw = value
+
+    @property
+    def audio_delay(self) -> float:
+        from .manager import SettingsManager
+
+        return (
+            self.audio_delay_raw
+            if self.audio_delay_raw is not None
+            else SettingsManager.global_settings.playback.audio_delay
+        )
+
+    @audio_delay.setter
+    def audio_delay(self, value: float | None) -> None:
+        self.audio_delay_raw = value
 
 
 class SynchronizationSettings(BaseModel):

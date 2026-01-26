@@ -87,8 +87,9 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.local_settings.playback.loop = self.tbar.playback_container.settings.loop
 
         self.local_settings.playback.last_audio_index = self.current_audio_index
-        self.local_settings.playback.current_volume = self.tbar.playback_container._volume
+        self.local_settings.playback.current_volume = self.tbar.playback_container.raw_volume
         self.local_settings.playback.muted = self.tbar.playback_container.is_muted
+        self.local_settings.playback.audio_delay = self.tbar.playback_container.audio_delay
 
         # Save layout state
         self.local_settings.layout.plugin_splitter_sizes = self.plugin_splitter.sizes()
@@ -111,6 +112,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
 
         self.tbar.playback_container.volume = self.local_settings.playback.current_volume
         self.tbar.playback_container.is_muted = self.local_settings.playback.muted
+        self.tbar.playback_container.audio_delay = self.local_settings.playback.audio_delay
         self.current_audio_index = self.local_settings.playback.last_audio_index
 
         if frame is None:
@@ -200,10 +202,6 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.local_settings.playback.seek_step = seek_step
 
         super()._on_playback_settings_changed(seek_step, speed, uncapped)
-
-    def _on_seek_step_reset(self) -> None:
-        self.local_settings.playback.seek_step = None
-        super()._on_seek_step_reset()
 
 
 class VideoFileWorkspace(GenericFileWorkspace):

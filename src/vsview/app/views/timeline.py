@@ -32,6 +32,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -764,11 +765,11 @@ class PlaybackContainer(QWidget, IconReloadMixin):
     ICON_SIZE = QSize(24, 24)
     ICON_COLOR = QPalette.ColorRole.ToolTipText
 
-    seekStepReset = Signal()
     settingsChanged = Signal(int, float, bool)  # seek_step, speed, uncapped
     playZone = Signal(int, bool)  # zone_frames, loop
     volumeChanged = Signal(float)  # volume 0.0-1.0
     muteChanged = Signal(bool)  # is_muted
+    audioDelayChanged = Signal(float)  # seconds
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -832,7 +833,8 @@ class PlaybackContainer(QWidget, IconReloadMixin):
         self.audio_controls.setEnabled(False)
 
         self._is_muted = False
-        self._volume = SettingsManager.global_settings.playback.default_volume / 100
+        self._volume = SettingsManager.global_settings.playback.default_volume
+        self._audio_delay = SettingsManager.global_settings.playback.audio_delay
         self._update_mute_icon()
 
         self._setup_context_menu()
@@ -884,8 +886,7 @@ class PlaybackContainer(QWidget, IconReloadMixin):
         seek_step_layout = QHBoxLayout(seek_step_widget)
         seek_step_layout.setContentsMargins(8, 4, 8, 4)
 
-        label = QLabel("Seek Step:", seek_step_widget)
-        seek_step_layout.addWidget(label)
+        seek_step_layout.addWidget(QLabel("Seek Step", seek_step_widget))
 
         self.seek_step_spinbox = QSpinBox(seek_step_widget)
         self.seek_step_spinbox.setMinimum(1)
@@ -897,8 +898,8 @@ class PlaybackContainer(QWidget, IconReloadMixin):
         seek_step_action.setDefaultWidget(seek_step_widget)
         self.context_menu.addAction(seek_step_action)
 
-        self.reset_to_global_action = self.context_menu.addAction("Reset to Global")
-        self.reset_to_global_action.triggered.connect(self._on_reset_seek_step)
+        self.reset_seek_step_to_global_action = self.context_menu.addAction("Reset to Global")
+        self.reset_seek_step_to_global_action.triggered.connect(self._on_reset_seek_step)
 
         self.context_menu.addSeparator()
 
@@ -997,16 +998,34 @@ class PlaybackContainer(QWidget, IconReloadMixin):
 
         self.context_menu.addSeparator()
 
-        audio_widget = QWidget(self.context_menu)
-        audio_layout = QFormLayout(audio_widget)
+        # Audio
+        self.audio_widget = QWidget(self.context_menu)
+        audio_layout = QFormLayout(self.audio_widget)
         audio_layout.setContentsMargins(6, 6, 6, 6)
 
-        self.audio_output_combo = QComboBox(audio_widget)
+        self.audio_output_combo = QComboBox(self.audio_widget)
         audio_layout.addRow("Audio Output", self.audio_output_combo)
 
+        self.audio_delay_combo = QDoubleSpinBox(
+            self.audio_widget,
+            suffix=" ms",
+            decimals=3,
+            minimum=-10000,
+            maximum=10000,
+            value=self.audio_delay * 1000,
+        )
+        self.audio_delay_combo.valueChanged.connect(self._on_audio_delay_changed)
+        audio_delay_layout = QHBoxLayout()
+        audio_delay_layout.addWidget(QLabel("Delay", self.audio_widget))
+        audio_delay_layout.addWidget(self.audio_delay_combo)
+        audio_layout.addRow(audio_delay_layout)
+
         audio_action = QWidgetAction(self.context_menu)
-        audio_action.setDefaultWidget(audio_widget)
+        audio_action.setDefaultWidget(self.audio_widget)
         self.context_menu.addAction(audio_action)
+
+        self.reset_audio_delay_to_global_action = self.context_menu.addAction("Reset to Global")
+        self.reset_audio_delay_to_global_action.triggered.connect(self._on_reset_audio_delay)
 
     def _update_mute_icon(self) -> None:
         if self._is_muted:
@@ -1028,28 +1047,6 @@ class PlaybackContainer(QWidget, IconReloadMixin):
 
         self.mute_btn.setIcon(self.make_icon((icon_name, self.palette().color(self.ICON_COLOR)), size=self.ICON_SIZE))
 
-    def _on_mute_clicked(self, checked: bool) -> None:
-        self._is_muted = checked
-        self._update_mute_icon()
-        self.muteChanged.emit(self._is_muted)
-
-    def _on_volume_changed(self, value: int) -> None:
-        self._volume = value / 1000.0
-        volume_text = f"Volume: {self._volume * 100:.0f}%"
-        self.volume_slider.setToolTip(volume_text)
-
-        QToolTip.showText(QCursor.pos(), volume_text, self.volume_slider)
-
-        self._update_mute_icon()
-
-        # Unmute if volume is changed while muted
-        if self._is_muted and self._volume > 0:
-            self._is_muted = False
-            self.mute_btn.setChecked(False)
-            self.muteChanged.emit(False)
-
-        self.volumeChanged.emit(self._volume)
-
     @property
     def volume(self) -> float:
         return 0.0 if self._is_muted else self._volume
@@ -1064,6 +1061,10 @@ class PlaybackContainer(QWidget, IconReloadMixin):
         self._update_mute_icon()
 
     @property
+    def raw_volume(self) -> float:
+        return self._volume
+
+    @property
     def is_muted(self) -> bool:
         return self._is_muted
 
@@ -1075,6 +1076,19 @@ class PlaybackContainer(QWidget, IconReloadMixin):
             self.mute_btn.setChecked(value)
 
         self._update_mute_icon()
+
+    @property
+    def audio_delay(self) -> float:
+        return self._audio_delay
+
+    @audio_delay.setter
+    def audio_delay(self, value: float) -> None:
+        self._audio_delay = value
+
+        with QSignalBlocker(self.audio_delay_combo):
+            self.audio_delay_combo.setValue(value * 1000)
+
+        self.audioDelayChanged.emit(value)
 
     @property
     def fps(self) -> Fraction:
@@ -1112,30 +1126,52 @@ class PlaybackContainer(QWidget, IconReloadMixin):
         with QSignalBlocker(self.loop_checkbox):
             self.loop_checkbox.setChecked(self.settings.loop)
 
-        self.reset_to_global_action.setEnabled(
-            self.settings.seek_step != self._settings_manager.global_settings.timeline.seek_step
+        self.reset_seek_step_to_global_action.setEnabled(
+            self.settings.seek_step != SettingsManager.global_settings.timeline.seek_step
         )
+        self.reset_audio_delay_to_global_action.setEnabled(
+            self.audio_delay != SettingsManager.global_settings.playback.audio_delay
+        )
+
+        self.audio_widget.setEnabled(self.audio_output_combo.count() > 0)
+
         menu_pos = event.globalPos()
         menu_pos.setY(menu_pos.y() - self.context_menu.sizeHint().height())
-
-        self.audio_output_combo.setEnabled(self.audio_output_combo.count() > 0)
-
         self.context_menu.exec(menu_pos)
+
+    @run_in_loop
+    def set_audio_outputs(self, aoutputs: list[AudioOutput], index: int | None = None) -> None:
+        with QSignalBlocker(self.audio_output_combo):
+            self.audio_output_combo.clear()
+            self.audio_output_combo.addItems(
+                [
+                    f"{a.vs_index}: {a.vs_name if a.vs_name else f'Audio {a.vs_index}'} ({a.chanels_layout.pretty_name})"  # noqa: E501
+                    for a in aoutputs
+                ]
+            )
+
+        if len(aoutputs) > 0:
+            self.audio_controls.setEnabled(True)
+
+            if index is not None:
+                self.audio_output_combo.setCurrentIndex(index)
+
+            self.audioDelayChanged.emit(self.audio_delay)
 
     def _on_seek_step_changed(self, value: int) -> None:
         self.settings.seek_step = value
-        self.reset_to_global_action.setEnabled(value != self._settings_manager.global_settings.timeline.seek_step)
+        self.reset_seek_step_to_global_action.setEnabled(value != SettingsManager.global_settings.timeline.seek_step)
         self._emit_settings()
 
     def _on_reset_seek_step(self) -> None:
-        self.seekStepReset.emit()
-
         # Update spinbox to show global value
-        global_value = self._settings_manager.global_settings.timeline.seek_step
-        self.settings.seek_step = global_value
+        global_seek = SettingsManager.global_settings.timeline.seek_step
+        self.settings.seek_step = global_seek
 
         with QSignalBlocker(self.seek_step_spinbox):
-            self.seek_step_spinbox.setValue(global_value)
+            self.seek_step_spinbox.setValue(global_seek)
+
+        self._emit_settings()
 
     def _slider_to_speed(self, slider_val: int) -> float:
         # Slider 0-50 -> 0.25 to 1.0 (steps: 0.25, 0.50, 0.75, 1.00)
@@ -1209,22 +1245,43 @@ class PlaybackContainer(QWidget, IconReloadMixin):
         self.playZone.emit(self.settings.zone_frames, self.settings.loop)
         self.context_menu.close()
 
-    @run_in_loop
-    def set_audio_outputs(self, aoutputs: list[AudioOutput], index: int | None = None) -> None:
-        with QSignalBlocker(self.audio_output_combo):
-            self.audio_output_combo.clear()
-            self.audio_output_combo.addItems(
-                [
-                    f"{a.vs_index}: {a.vs_name if a.vs_name else f'Audio {a.vs_index}'} ({a.chanels_layout.pretty_name})"  # noqa: E501
-                    for a in aoutputs
-                ]
-            )
+    def _on_mute_clicked(self, checked: bool) -> None:
+        self._is_muted = checked
+        self._update_mute_icon()
+        self.muteChanged.emit(self._is_muted)
 
-        if len(aoutputs) > 0:
-            self.audio_controls.setEnabled(True)
+    def _on_volume_changed(self, value: int) -> None:
+        self._volume = value / 1000.0
+        volume_text = f"Volume: {self._volume * 100:.0f}%"
+        self.volume_slider.setToolTip(volume_text)
 
-            if index is not None:
-                self.audio_output_combo.setCurrentIndex(index)
+        QToolTip.showText(QCursor.pos(), volume_text, self.volume_slider)
+
+        self._update_mute_icon()
+
+        # Unmute if volume is changed while muted
+        if self._is_muted and self._volume > 0:
+            self._is_muted = False
+            self.mute_btn.setChecked(False)
+            self.muteChanged.emit(False)
+
+        self.volumeChanged.emit(self._volume)
+
+    def _on_audio_delay_changed(self, value: float) -> None:
+        self._audio_delay = value / 1000
+        self.reset_audio_delay_to_global_action.setEnabled(
+            self._audio_delay != SettingsManager.global_settings.playback.audio_delay
+        )
+        self.audioDelayChanged.emit(self._audio_delay)
+
+    def _on_reset_audio_delay(self) -> None:
+        global_delay = SettingsManager.global_settings.playback.audio_delay
+        self._audio_delay = global_delay
+
+        with QSignalBlocker(self.audio_delay_combo):
+            self.audio_delay_combo.setValue(global_delay * 1000)
+
+        self.audioDelayChanged.emit(global_delay)
 
 
 class TimelineControlBar(QWidget):

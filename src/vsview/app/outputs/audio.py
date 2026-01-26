@@ -8,7 +8,7 @@ from logging import getLogger
 from typing import TYPE_CHECKING, Any
 
 import vapoursynth as vs
-from jetpytools import clamp, cround
+from jetpytools import clamp, cround, fallback
 from PySide6.QtCore import QIODevice
 from PySide6.QtMultimedia import QAudio, QAudioFormat, QAudioSink
 from PySide6.QtWidgets import QApplication
@@ -73,7 +73,13 @@ class AudioOutput:
     # https://github.com/vapoursynth/vapoursynth/blob/8cd1cba539bf70eea21dc242d43349603115632d/include/VapourSynth4.h#L36
     SAMPLES_PER_FRAME = 3072
 
-    def __init__(self, vs_output: vs.AudioNode, vs_index: int, metadata: AudioMetadata | None = None) -> None:
+    def __init__(
+        self,
+        vs_output: vs.AudioNode,
+        vs_index: int,
+        metadata: AudioMetadata | None = None,
+        delay: float | None = None,
+    ) -> None:
         self.vs_output = vs_output
         self.vs_index = vs_index
         self.vs_name = metadata.name if metadata else None
@@ -85,10 +91,7 @@ class AudioOutput:
         self.chanels_layout = PrettyChannelsLayout(tuple(self.vs_output.channels))
 
         # Playback node
-        if self.vs_output.num_channels > 2 and self.downmix:
-            self.prepared_audio = self.create_stereo_downmix()
-        else:
-            self.prepared_audio = self.vs_output
+        self.prepared_audio = self.get_prepared_audio(delay)
 
         if self.prepared_audio.sample_type == vs.FLOAT:
             self.array_type = "f"
@@ -107,7 +110,7 @@ class AudioOutput:
         self.qformat.setSampleRate(self.prepared_audio.sample_rate)
         self.qformat.setSampleFormat(sample_format)
 
-        self.sink = AudioSink(self.qformat, self)
+        self.sink = AudioSink(self.qformat)
 
     @property
     def fps(self) -> Fraction:
@@ -136,6 +139,22 @@ class AudioOutput:
         for name in ["prepared_audio", "vs_output"]:
             with suppress(AttributeError):
                 delattr(self, name)
+
+    def get_prepared_audio(self, delay_s: float | None = None) -> vs.AudioNode:
+        audio = self.create_stereo_downmix() if self.vs_output.num_channels > 2 and self.downmix else self.vs_output
+
+        # Apply audio delay
+        if (delay := fallback(delay_s, SettingsManager.global_settings.playback.audio_delay)) != 0:
+            delay_samples = round(delay * audio.sample_rate)
+            abs_delay = abs(delay_samples)
+            silence = audio.std.BlankAudio(length=abs_delay, keep=True)
+
+            if delay_samples > 0:
+                audio = (silence + audio)[: audio.num_samples]
+            elif delay_samples < 0:
+                audio = (audio[abs_delay:] + silence)[: audio.num_samples]
+
+        return audio
 
     def render_raw_audio_frame(self, frame: vs.AudioFrame) -> None:
         if not self.sink.ready:
