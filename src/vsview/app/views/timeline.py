@@ -930,8 +930,14 @@ class PlaybackContainer(QWidget, IconReloadMixin):
         self.uncap_checkbox = QCheckBox("Uncap FPS")
         self.uncap_checkbox.toggled.connect(self._on_uncap_changed)
 
+        uncap_row = QWidget(speed_widget)
+        uncap_row_layout = QHBoxLayout(uncap_row)
+        uncap_row_layout.setContentsMargins(0, 0, 0, 0)
+        uncap_row_layout.addStretch()
+        uncap_row_layout.addWidget(self.uncap_checkbox)
+
         speed_layout.addRow("Speed Limit", speed_row)
-        speed_layout.addRow("", self.uncap_checkbox)
+        speed_layout.addRow(uncap_row)
 
         speed_action = QWidgetAction(self.context_menu)
         speed_action.setDefaultWidget(speed_widget)
@@ -975,12 +981,13 @@ class PlaybackContainer(QWidget, IconReloadMixin):
         zone_controls_layout = QHBoxLayout(zone_controls_row)
         zone_controls_layout.setContentsMargins(0, 0, 0, 0)
         zone_controls_layout.setSpacing(4)
-        zone_controls_layout.addWidget(self.loop_checkbox)
         zone_controls_layout.addStretch()
         zone_controls_layout.addWidget(self.play_zone_btn)
+        zone_controls_layout.addStretch()
+        zone_controls_layout.addWidget(self.loop_checkbox)
 
         zone_layout.addRow("Zone Time/Frame", zone_edits_row)
-        zone_layout.addRow("", zone_controls_row)
+        zone_layout.addRow(zone_controls_row)
 
         zone_action = QWidgetAction(self.context_menu)
         zone_action.setDefaultWidget(zone_widget)
