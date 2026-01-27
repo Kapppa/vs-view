@@ -85,7 +85,6 @@ rmprefix = "vsview/v"
 members = ["src/vspackrgb", "src/plugins/*"]
 
 [tool.uv.sources]
-vsjetpack = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack", branch = "main" }
 vspackrgb = { workspace = true }
 vsview-fftspectrum = { workspace = true }
 vsview-split-planes = { workspace = true }

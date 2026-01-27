@@ -30,7 +30,6 @@ vsview_split_planes = "vsview_split_planes"
 
 [tool.uv.sources]
 vsview = { workspace = true }
-vsjetpack = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack", branch = "main" }
 
 [tool.hatch.version]
 source = "versioningit"
