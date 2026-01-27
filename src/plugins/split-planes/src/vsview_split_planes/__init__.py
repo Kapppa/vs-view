@@ -12,11 +12,11 @@ from vsview.api import (
     Dropdown,
     LocalSettingsModel,
     PluginAPI,
-    PluginBase,
     PluginGraphicsView,
     PluginSettings,
     SegmentedControl,
     Spin,
+    WidgetPluginBase,
     hookimpl,
 )
 
@@ -90,7 +90,7 @@ class LocalSettings(LocalSettingsModel):
     offset_chroma: float | Literal["min", "max"] | None = None
 
 
-class SplitPlanesPlugin(PluginBase[GlobalSettings, LocalSettings]):
+class SplitPlanesPlugin(WidgetPluginBase[GlobalSettings, LocalSettings]):
     identifier = "jet_vsview_split_planes"
     display_name = "Split Planes"
 
@@ -237,10 +237,10 @@ class SplitPlanesView(PluginGraphicsView):
 
 
 @hookimpl
-def vsview_register_toolpanel() -> type[PluginBase[Any, Any]]:
+def vsview_register_toolpanel() -> type[WidgetPluginBase[Any, Any]]:
     return SplitPlanesPlugin
 
 
 @hookimpl
-def vsview_register_tooldock() -> type[PluginBase[Any, Any]]:
+def vsview_register_tooldock() -> type[WidgetPluginBase[Any, Any]]:
     return SplitPlanesPlugin

@@ -42,7 +42,7 @@ from vsview.api import (
     IconReloadMixin,
     LocalSettingsModel,
     PluginAPI,
-    PluginBase,
+    WidgetPluginBase,
     run_in_loop,
 )
 from vsview.app.plugins.api import VideoOutputProxy
@@ -463,7 +463,7 @@ class LocalSettings(LocalSettingsModel):
     format: bool | None = None
 
 
-class FramePropsPlugin(PluginBase[GlobalSettings, LocalSettings], IconReloadMixin):
+class FramePropsPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconReloadMixin):
     identifier = "jet_vsview_frameprops"
     display_name = "Frame Props"
 

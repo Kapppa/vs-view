@@ -5,7 +5,16 @@ from PySide6.QtWidgets import QHBoxLayout, QWidget
 from vapoursynth import VideoNode
 from vstools import ColorRange, DitherType, depth, initialize_input, join, split, stack_planes
 
-from vsview.api import Checkbox, Dropdown, PluginAPI, PluginBase, PluginGraphicsView, PluginSettings, Spin, hookimpl
+from vsview.api import (
+    Checkbox,
+    Dropdown,
+    PluginAPI,
+    PluginGraphicsView,
+    PluginSettings,
+    Spin,
+    WidgetPluginBase,
+    hookimpl,
+)
 
 
 class GlobalSettings(BaseModel):
@@ -53,7 +62,7 @@ class GlobalSettings(BaseModel):
     ] = 2
 
 
-class FFTSpectrumPlugin(PluginBase[GlobalSettings]):
+class FFTSpectrumPlugin(WidgetPluginBase[GlobalSettings]):
     identifier = "jet_vsview_fftspectrum"
     display_name = "FFT Spectrum"
 
@@ -105,10 +114,10 @@ class FFTSpectrumView(PluginGraphicsView):
 
 
 @hookimpl
-def vsview_register_toolpanel() -> type[PluginBase[Any, Any]]:
+def vsview_register_toolpanel() -> type[WidgetPluginBase[Any, Any]]:
     return FFTSpectrumPlugin
 
 
 @hookimpl
-def vsview_register_tooldock() -> type[PluginBase[Any, Any]]:
+def vsview_register_tooldock() -> type[WidgetPluginBase[Any, Any]]:
     return FFTSpectrumPlugin

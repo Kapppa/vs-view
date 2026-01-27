@@ -1,12 +1,20 @@
-from .api import LocalSettingsModel, PluginAPI, PluginBase, PluginGraphicsView, PluginSettings, VideoOutputProxy
+from .api import (
+    LocalSettingsModel,
+    NodeProcessor,
+    PluginAPI,
+    PluginGraphicsView,
+    PluginSettings,
+    VideoOutputProxy,
+    WidgetPluginBase,
+)
 from .specs import hookimpl
 
 __all__ = [
     "LocalSettingsModel",
     "PluginAPI",
-    "PluginBase",
     "PluginGraphicsView",
     "PluginSettings",
     "VideoOutputProxy",
+    "WidgetPluginBase",
     "hookimpl",
 ]

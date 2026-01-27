@@ -3,10 +3,10 @@
 from ..app.plugins import (
     LocalSettingsModel,
     PluginAPI,
-    PluginBase,
     PluginGraphicsView,
     PluginSettings,
     VideoOutputProxy,
+    WidgetPluginBase,
     hookimpl,
 )
 from ..app.settings.models import Checkbox, DoubleSpin, Dropdown, PlainTextEdit, Spin, WidgetMetadata
@@ -27,13 +27,13 @@ __all__ = [
     "LocalSettingsModel",
     "PlainTextEdit",
     "PluginAPI",
-    "PluginBase",
     "PluginGraphicsView",
     "PluginSettings",
     "SegmentedControl",
     "Spin",
     "VideoOutputProxy",
     "WidgetMetadata",
+    "WidgetPluginBase",
     "hookimpl",
     "run_in_background",
     "run_in_loop",

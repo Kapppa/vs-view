@@ -29,7 +29,7 @@ from vsengine.vpy import ExecutionError, Script, load_code, load_script
 
 from ...vsenv import gc_collect, run_in_background, run_in_loop, unset_environment
 from ..outputs import AudioBuffer, AudioOutput, FrameBuffer, VideoOutput, get_packer
-from ..plugins.api import PluginAPI, PluginBase
+from ..plugins.api import PluginAPI, WidgetPluginBase
 from ..plugins.manager import PluginManager
 from ..settings import ActionID, ShortcutManager
 from ..views import OutputInfo, PluginSplitter
@@ -288,7 +288,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         # API & plugins
         self.api = PluginAPI(self)
         self.cbs_on_destroy = list[Callable[[], Any]]()
-        self.plugins = list[PluginBase]()
+        self.plugins = list[WidgetPluginBase]()
         self.docks = list[QDockWidget]()
         self.plugins_loaded = False
 

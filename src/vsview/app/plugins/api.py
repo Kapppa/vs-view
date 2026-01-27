@@ -199,17 +199,39 @@ class PluginSettings(Generic[TGlobalSettings, TLocalSettings]):
         return self._plugin.api._get_cached_settings(self._plugin, "local")
 
 
-class PluginBase(QWidget, Generic[TGlobalSettings, TLocalSettings], metaclass=_PluginBaseMeta):  # noqa: UP046
-    """Base class for all plugins."""
+class _PluginBase(Generic[TGlobalSettings, TLocalSettings], metaclass=_PluginBaseMeta):  # noqa: UP046
+    __plugin_base__ = True
 
     identifier: ClassVar[str]
-    """Unique identifier for the tool."""
+    """Unique identifier for the plugin."""
 
     display_name: ClassVar[str]
-    """Display name for the tool."""
+    """Display name for the plugin."""
+
+    def __init__(self, api: PluginAPI, /) -> None:
+        self.api = api
+
+    @property
+    def settings(self) -> PluginSettings[TGlobalSettings, TLocalSettings]:
+        """Get the settings wrapper for lazy, always-fresh access."""
+        return PluginSettings(self)
+
+    def update_global_settings(self, **updates: Any) -> None:
+        """Update specific global settings fields and trigger persistence."""
+        self.api._update_settings(self, "global", **updates)
+
+    def update_local_settings(self, **updates: Any) -> None:
+        """Update specific local settings fields and trigger persistence."""
+        self.api._update_settings(self, "local", **updates)
+
+
+class WidgetPluginBase(_PluginBase[TGlobalSettings, TLocalSettings], QWidget, metaclass=_PluginBaseMeta):
+    """Base class for all widget plugins."""
+
+    __plugin_base__ = True
 
     def __init__(self, parent: QWidget, api: PluginAPI) -> None:
-        super().__init__(parent)
+        QWidget.__init__(self, parent)
         self.api = api
 
     def showEvent(self, event: QShowEvent) -> None:

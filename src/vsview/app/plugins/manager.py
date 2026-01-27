@@ -4,16 +4,19 @@ from concurrent.futures import Future
 from importlib import import_module
 from logging import getLogger
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import pluggy
 from jetpytools import Singleton, inject_self
 from pydantic import BaseModel
 from PySide6.QtCore import QObject, Signal
+from vapoursynth import AudioNode, VideoNode
 
 from ...vsenv import run_in_background
 from . import specs
-from .api import PluginBase
+
+if TYPE_CHECKING:
+    from .api import NodeProcessor, WidgetPluginBase
 
 logger = getLogger(__name__)
 
@@ -30,11 +33,11 @@ class PluginManager(Singleton):
         self._load_future: Future[None] | None = None
 
     @inject_self.cached.property
-    def tooldocks(self) -> list[type[PluginBase]]:
+    def tooldocks(self) -> list[type[WidgetPluginBase]]:
         return self.manager.hook.vsview_register_tooldock()
 
     @inject_self.cached.property
-    def toolpanels(self) -> list[type[PluginBase]]:
+    def toolpanels(self) -> list[type[WidgetPluginBase]]:
         return self.manager.hook.vsview_register_toolpanel()
 
     @inject_self.property

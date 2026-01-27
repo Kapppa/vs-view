@@ -19,7 +19,7 @@ from vsview.vsenv.loop import run_in_loop
 if TYPE_CHECKING:
     from vsview.app.workspace.loader import LoaderWorkspace
 
-    from .api import PluginBase, PluginGraphicsView, VideoOutputProxy
+    from .api import PluginGraphicsView, VideoOutputProxy, WidgetPluginBase, _PluginBase
 
 logger = getLogger(__name__)
 
@@ -27,8 +27,8 @@ logger = getLogger(__name__)
 class _PluginSettingsStore:
     def __init__(self, workspace: LoaderWorkspace[Any]) -> None:
         self._workspace = workspace
-        self._global_cache: WeakKeyDictionary[PluginBase[Any, Any], BaseModel] = WeakKeyDictionary()
-        self._local_cache: WeakKeyDictionary[PluginBase[Any, Any], BaseModel] = WeakKeyDictionary()
+        self._global_cache: WeakKeyDictionary[_PluginBase[Any, Any], BaseModel] = WeakKeyDictionary()
+        self._local_cache: WeakKeyDictionary[_PluginBase[Any, Any], BaseModel] = WeakKeyDictionary()
 
     @property
     def file_path(self) -> Path | None:
@@ -36,7 +36,7 @@ class _PluginSettingsStore:
 
         return self._workspace.content if isinstance(self._workspace, GenericFileWorkspace) else None
 
-    def get(self, plugin: PluginBase[Any, Any], scope: str) -> BaseModel | None:
+    def get(self, plugin: _PluginBase[Any, Any], scope: str) -> BaseModel | None:
         cache = self._global_cache if scope == "global" else self._local_cache
 
         if plugin in cache:
@@ -64,7 +64,7 @@ class _PluginSettingsStore:
         cache[plugin] = settings
         return settings
 
-    def update(self, plugin: PluginBase[Any, Any], scope: str, **updates: Any) -> None:
+    def update(self, plugin: _PluginBase[Any, Any], scope: str, **updates: Any) -> None:
         # For local settings, we need to update the raw (unresolved) settings,
         # not the resolved version with global fallbacks merged in.
         if (settings := self._get_unresolved_settings(plugin, scope)) is None:
@@ -102,7 +102,7 @@ class _PluginSettingsStore:
         elif self.file_path is not None:
             SettingsManager.get_local_settings(self.file_path).plugins[plugin_id] = settings
 
-    def _get_unresolved_settings(self, plugin: PluginBase[Any, Any], scope: str) -> BaseModel | None:
+    def _get_unresolved_settings(self, plugin: _PluginBase[Any, Any], scope: str) -> BaseModel | None:
         model: type[BaseModel] | None = getattr(plugin, f"{scope}_settings_model")
 
         if model is None:
@@ -143,7 +143,7 @@ class _PluginAPI(QObject):
             self.__settings_store = _PluginSettingsStore(self.__workspace)
         return self.__settings_store
 
-    def _is_truly_visible(self, plugin: PluginBase[Any, Any]) -> bool:
+    def _is_truly_visible(self, plugin: WidgetPluginBase[Any, Any]) -> bool:
         # Check if this plugin is truly visible to the user.
 
         # This accounts for:
@@ -199,7 +199,7 @@ class _PluginAPI(QObject):
             if self._is_truly_visible(plugin):
                 self._init_plugin(plugin)
 
-    def _init_plugin(self, plugin: PluginBase[Any, Any]) -> None:
+    def _init_plugin(self, plugin: WidgetPluginBase[Any, Any]) -> None:
         # Initialize plugin for the current output and render initial frame if needed.
         from .api import PluginGraphicsView
 
@@ -224,20 +224,20 @@ class _PluginAPI(QObject):
             except Exception:
                 logger.exception("Failed to initialize view %r", view)
 
-    def _find_plugin_for_widget(self, widget: QWidget) -> PluginBase[Any, Any] | None:
-        from .api import PluginBase
+    def _find_plugin_for_widget(self, widget: QWidget) -> WidgetPluginBase[Any, Any] | None:
+        from .api import WidgetPluginBase
 
         current: QObject | None = widget.parent()
 
         while current is not None:
-            if isinstance(current, PluginBase):
+            if isinstance(current, WidgetPluginBase):
                 return current
             current = current.parent()
         logger.warning("Could not find plugin for widget %r", widget)
         return None
 
     def _init_view(
-        self, view: PluginGraphicsView, plugin: PluginBase[Any, Any] | None = None, refresh: bool = False
+        self, view: PluginGraphicsView, plugin: WidgetPluginBase[Any, Any] | None = None, refresh: bool = False
     ) -> None:
         if plugin is None and (plugin := self._find_plugin_for_widget(view)) is None:
             return
@@ -298,10 +298,10 @@ class _PluginAPI(QObject):
                     with self.__workspace.env.use(), view.outputs[view.current_tab].get_frame(n) as frame:
                         view.on_current_frame_changed(n, frame)
 
-    def _get_cached_settings(self, plugin: PluginBase[Any, Any], scope: str) -> Any:
+    def _get_cached_settings(self, plugin: _PluginBase[Any, Any], scope: str) -> Any:
         return self._settings_store.get(plugin, scope)
 
-    def _update_settings(self, plugin: PluginBase[Any, Any], scope: str, **updates: Any) -> None:
+    def _update_settings(self, plugin: _PluginBase[Any, Any], scope: str, **updates: Any) -> None:
         self._settings_store.update(plugin, scope, **updates)
 
     @run_in_loop(return_future=False)
@@ -339,27 +339,35 @@ class _PluginBaseMeta(ObjectType):
     ) -> MetaSelf:
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
 
-        if name == "PluginBase":
+        # Skip processing for base classes that set __plugin_base__ = True
+        if namespace.get("__plugin_base__", False):
             return cls
 
-        # PluginBase is now defined so it's safe to import it
-        from .api import PluginBase
+        # WidgetPluginBase and NodeProcessor are now defined so it's safe to import them
+        from .api import WidgetPluginBase
 
         for base in get_original_bases(cls):
-            if (origin := get_origin(base)) and issubclass(origin, PluginBase):
-                args = get_args(base)
+            if not (origin := get_origin(base)):
+                continue
 
-                for n, arg in zip_longest(["global", "local"], args, fillvalue=None):
-                    if arg is None or not isinstance(arg, type):
-                        setattr(cls, f"{n}_settings_model", None)
-                        continue
+            args = get_args(base)
 
-                    origin = get_origin(arg)
-                    is_basemodel = (origin is None and issubclass(arg, BaseModel)) or (
-                        origin is not None and issubclass(origin, BaseModel)
-                    )
-                    setattr(cls, f"{n}_settings_model", arg if is_basemodel else None)
-                break
+            if issubclass(origin, WidgetPluginBase):
+                scope = ["global", "local"]
+            else:
+                continue
+
+            for n, arg in zip_longest(scope, args, fillvalue=None):
+                if arg is None or not isinstance(arg, type):
+                    setattr(cls, f"{n}_settings_model", None)
+                    continue
+
+                origin = get_origin(arg)
+                is_basemodel = (origin is None and issubclass(arg, BaseModel)) or (
+                    origin is not None and issubclass(origin, BaseModel)
+                )
+                setattr(cls, f"{n}_settings_model", arg if is_basemodel else None)
+            break
         else:
             cls.global_settings_model, cls.local_settings_model = None, None
 
