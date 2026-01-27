@@ -1119,6 +1119,14 @@ class AudioNode(RawNode):
     ) -> Iterator[AudioFrame]: ...
 
 # <plugins/bound/AudioNode>
+# <attribute/AudioNode_bound/ares>
+    ares: Final[_ares._AudioNode_bound.Plugin]
+    """audio sample rate and sample type converter"""
+# </attribute/AudioNode_bound/ares>
+# <attribute/AudioNode_bound/atools>
+    atools: Final[_atools._AudioNode_bound.Plugin]
+    """basic audio functions"""
+# </attribute/AudioNode_bound/atools>
 # <attribute/AudioNode_bound/std>
     std: Final[_std._AudioNode_bound.Plugin]
     """VapourSynth Core Functions"""
@@ -1170,6 +1178,14 @@ class Core:
     def version_number(self) -> int: ...
 
 # <plugins/bound/Core>
+# <attribute/Core_bound/ares>
+    ares: Final[_ares._Core_bound.Plugin]
+    """audio sample rate and sample type converter"""
+# </attribute/Core_bound/ares>
+# <attribute/Core_bound/atools>
+    atools: Final[_atools._Core_bound.Plugin]
+    """basic audio functions"""
+# </attribute/Core_bound/atools>
 # <attribute/Core_bound/bs>
     bs: Final[_bs._Core_bound.Plugin]
     """Best Source 2"""
@@ -1201,6 +1217,70 @@ class _CoreProxy(Core):
 core: _CoreProxy
 
 # <plugins/implementations>
+# <implementation/ares>
+class _ares:
+    class _Core_bound:
+        class Plugin(_VSPlugin):
+            @_Wrapper.Function
+            def Resample(self, clip: AudioNode, sample_rate: _IntLike | None = None, sample_type: _AnyStr | None = None, quality: _AnyStr | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+
+    class _AudioNode_bound:
+        class Plugin(_VSPlugin):
+            @_Wrapper.Function
+            def Resample(self, sample_rate: _IntLike | None = None, sample_type: _AnyStr | None = None, quality: _AnyStr | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+
+# </implementation/ares>
+
+# <implementation/atools>
+class _atools:
+    class _Core_bound:
+        class Plugin(_VSPlugin):
+            @_Wrapper.Function
+            def Convert(self, clip: AudioNode, sample_type: _AnyStr, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def CrossFade(self, clip1: AudioNode, clip2: AudioNode, samples: _IntLike | None = None, seconds: _FloatLike | None = None, type: _AnyStr | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def Delay(self, clip: AudioNode, samples: _IntLike | None = None, seconds: _FloatLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def FadeIn(self, clip: AudioNode, samples: _IntLike | None = None, seconds: _FloatLike | None = None, start_sample: _IntLike | None = None, start_second: _FloatLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, type: _AnyStr | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def FadeOut(self, clip: AudioNode, samples: _IntLike | None = None, seconds: _FloatLike | None = None, end_sample: _IntLike | None = None, end_second: _FloatLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, type: _AnyStr | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def FindPeak(self, clip: AudioNode, normalize: _IntLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None) -> _FloatLike: ...
+            @_Wrapper.Function
+            def Mix(self, clip1: AudioNode, clip2: AudioNode, clip2_offset_samples: _IntLike | None = None, clip2_offset_seconds: _FloatLike | None = None, clip1_gain: _FloatLike | None = None, clip2_gain: _FloatLike | None = None, relative_gain: _IntLike | None = None, fadein_samples: _IntLike | None = None, fadein_seconds: _FloatLike | None = None, fadeout_samples: _IntLike | None = None, fadeout_seconds: _FloatLike | None = None, fade_type: _AnyStr | None = None, extend_start: _IntLike | None = None, extend_end: _IntLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def Normalize(self, clip: AudioNode, peak: _FloatLike | None = None, lower_only: _IntLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def SetSamples(self, clip: AudioNode, sample: _FloatLike, start_sample: _IntLike | None = None, end_sample: _IntLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def SineTone(self, clip: AudioNode | None = None, samples: _IntLike | None = None, seconds: _FloatLike | None = None, sample_rate: _IntLike | None = None, sample_type: _AnyStr | None = None, freq: _FloatLike | None = None, amp: _FloatLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+
+    class _AudioNode_bound:
+        class Plugin(_VSPlugin):
+            @_Wrapper.Function
+            def Convert(self, sample_type: _AnyStr, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def CrossFade(self, clip2: AudioNode, samples: _IntLike | None = None, seconds: _FloatLike | None = None, type: _AnyStr | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def Delay(self, samples: _IntLike | None = None, seconds: _FloatLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def FadeIn(self, samples: _IntLike | None = None, seconds: _FloatLike | None = None, start_sample: _IntLike | None = None, start_second: _FloatLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, type: _AnyStr | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def FadeOut(self, samples: _IntLike | None = None, seconds: _FloatLike | None = None, end_sample: _IntLike | None = None, end_second: _FloatLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, type: _AnyStr | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def FindPeak(self, normalize: _IntLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None) -> _FloatLike: ...
+            @_Wrapper.Function
+            def Mix(self, clip2: AudioNode, clip2_offset_samples: _IntLike | None = None, clip2_offset_seconds: _FloatLike | None = None, clip1_gain: _FloatLike | None = None, clip2_gain: _FloatLike | None = None, relative_gain: _IntLike | None = None, fadein_samples: _IntLike | None = None, fadein_seconds: _FloatLike | None = None, fadeout_samples: _IntLike | None = None, fadeout_seconds: _FloatLike | None = None, fade_type: _AnyStr | None = None, extend_start: _IntLike | None = None, extend_end: _IntLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def Normalize(self, peak: _FloatLike | None = None, lower_only: _IntLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def SetSamples(self, sample: _FloatLike, start_sample: _IntLike | None = None, end_sample: _IntLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+            @_Wrapper.Function
+            def SineTone(self, samples: _IntLike | None = None, seconds: _FloatLike | None = None, sample_rate: _IntLike | None = None, sample_type: _AnyStr | None = None, freq: _FloatLike | None = None, amp: _FloatLike | None = None, channels: _IntLike | _SequenceLike[_IntLike] | None = None, overflow: _AnyStr | None = None, overflow_log: _AnyStr | None = None) -> AudioNode: ...
+
+# </implementation/atools>
+
 # <implementation/bs>
 _ReturnDict_bs_TrackInfo = TypedDict("_ReturnDict_bs_TrackInfo", {"mediatype": int, "mediatypestr": _AnyStr, "codec": int, "codecstr": _AnyStr, "disposition": int, "dispositionstr": _AnyStr})
 
