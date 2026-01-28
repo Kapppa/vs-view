@@ -20,7 +20,7 @@ classifiers = [
 ]
 dependencies = ["vsview", "vsjetpack>=1.0.0"]
 
-[project.entry-points."vsview.frameprops"]
+[project.entry-points."vsview.extended"]
 vsview_frameprops_more = "vsview_frameprops_more"
 
 [project.urls]
