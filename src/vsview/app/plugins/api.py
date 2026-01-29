@@ -128,6 +128,20 @@ class PluginAPI(_PluginAPI):
         """Return the packer used by the workspace."""
         return self.__workspace._packer
 
+    def get_local_storage(self, plugin: _PluginBase[Any, Any]) -> Path | None:
+        """
+        Return a path to a local storage directory for the given plugin,
+        or None if the current workspace has no file path.
+        """
+        if not self.file_path:
+            return None
+
+        settings_path = SettingsManager.local_settings_path(self.file_path)
+        local_storage = settings_path.with_suffix("").with_stem(settings_path.stem.upper()) / plugin.identifier
+        local_storage.mkdir(parents=True, exist_ok=True)
+
+        return local_storage
+
     def register_on_destroy(self, cb: Callable[[], Any]) -> None:
         """
         Register a callback to be called before the workspace begins a reload or when the workspace is destroyed.
