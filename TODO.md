@@ -28,7 +28,7 @@ These features are present in VSPreview and need to be brought over.
 - [x] Relax VS minimum version
 - [x] View Menu: Toggle visibility for toolpanels/tooldocks
 - [ ] Theming: Add option for loading external QSS themes
-- [ ] Allow plugins to have configurable shortcuts.
+- [x] Allow plugins to have configurable shortcuts.
 - [x] Allow arbitrary hooks as plugin such as custom chroma resizers.
 
 ## Known Issues
