@@ -20,6 +20,7 @@ from PySide6.QtGui import QPixmap, QShowEvent
 from PySide6.QtWidgets import QWidget
 
 from vsview.app.outputs import Packer
+from vsview.app.settings import SettingsManager
 from vsview.app.views.video import BaseGraphicsView
 from vsview.vsenv.loop import run_in_loop
 
