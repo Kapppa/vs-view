@@ -18,6 +18,12 @@
 
 ## Installation
 
+## Installation
+
+```bash
+pip install vsview
+```
+
 ### Prerequisites
 
 - **Python**: `>=3.12`
