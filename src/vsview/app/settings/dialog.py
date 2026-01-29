@@ -191,11 +191,13 @@ class SettingsDialog(QDialog, IconReloadMixin):
     @classproperty.cached
     @classmethod
     def global_settings_registry(cls) -> list[SettingEntry]:
+        """Registry of global settings extracted from GlobalSettings."""
         return extract_settings(GlobalSettings)
 
     @classproperty.cached
     @classmethod
     def local_settings_registry(cls) -> list[SettingEntry]:
+        """Registry of local settings extracted from LocalSettings."""
         return extract_settings(LocalSettings)
 
     def _setup_ui(self) -> None:
@@ -221,12 +223,13 @@ class SettingsDialog(QDialog, IconReloadMixin):
             self.tab_widget.setTabEnabled(1, False)
             self.tab_widget.setTabToolTip(1, "Load a script to configure local settings")
 
+        # Can't set the parent on this one
         button_layout = QHBoxLayout()
         button_layout.setContentsMargins(12, 0, 12, 0)
         button_layout.addStretch()
-
         button_layout.addStretch()
 
+        # Manually create button box to control order
         self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel, self)
         apply_btn = self.button_box.addButton("Apply", QDialogButtonBox.ButtonRole.ActionRole)
         apply_btn.clicked.connect(self._on_apply)
@@ -283,8 +286,7 @@ class SettingsDialog(QDialog, IconReloadMixin):
             logger.warning("Icon provider or weight combo not found")
             return
 
-        provider_id = provider_combo.currentData()
-        if not provider_id:
+        if not (provider_id := provider_combo.currentData()):
             logger.warning("Icon provider not selected")
             return
 
