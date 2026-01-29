@@ -111,6 +111,15 @@ class ShortcutManager(Singleton):
         shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         shortcut.activated.connect(callback)
 
+        # Add ambiguity detection for runtime conflicts
+        shortcut.activatedAmbiguously.connect(
+            lambda: logger.warning(
+                "Ambiguous shortcut '%s' triggered. Action: %s",
+                shortcut.key().toString(),
+                self._definitions[action_id].label if action_id in self._definitions else action_id,
+            )
+        )
+
         self._shortcuts.setdefault(action_id, WeakSet()).add(shortcut)
         self._update_shortcut(action_id, shortcut)
 
@@ -154,3 +163,23 @@ class ShortcutManager(Singleton):
                 self._update_shortcut(aid, shortcut)
 
         logger.info("Shortcuts hot-reloaded")
+        self._check_conflicts()
+
+    @inject_self
+    def _check_conflicts(self) -> None:
+        key_map = dict[str, list[str]]()
+
+        for action_id in self._definitions:
+            if not (key := self.get_key(action_id)):
+                continue
+
+            key_map.setdefault(key, []).append(action_id)
+
+        for key, action_ids in key_map.items():
+            if len(action_ids) > 1:
+                labels = [self._definitions[aid].label if aid in self._definitions else aid for aid in action_ids]
+                logger.warning(
+                    "Shortcut conflict detected: key '%s' is assigned to multiple actions: %s",
+                    key,
+                    ", ".join(labels),
+                )
