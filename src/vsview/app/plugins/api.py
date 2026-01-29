@@ -5,7 +5,7 @@ Plugin API for VSView.
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import timedelta
@@ -15,12 +15,13 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, Self, TypeVar
 import vapoursynth as vs
 from jetpytools import fallback
 from pydantic import BaseModel
-from PySide6.QtCore import Signal
-from PySide6.QtGui import QPixmap, QShowEvent
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QAction, QPixmap, QShortcut, QShowEvent
 from PySide6.QtWidgets import QWidget
 
 from vsview.app.outputs import Packer
-from vsview.app.settings import SettingsManager
+from vsview.app.settings import SettingsManager, ShortcutManager
+from vsview.app.settings.models import ActionDefinition
 from vsview.app.views.video import BaseGraphicsView
 from vsview.vsenv.loop import run_in_loop
 
@@ -158,6 +159,30 @@ class PluginAPI(_PluginAPI):
         with self.__workspace.env.use():
             yield
 
+    def register_action(self, action_id: str, action: QAction) -> None:
+        """
+        Register a QAction for shortcut management.
+
+        Args:
+            action_id: The namespaced identifier (e.g., "my_plugin.do_thing").
+            action: The QAction to manage.
+        """
+        ShortcutManager.register_action(action_id, action)
+
+    def register_shortcut(self, action_id: str, callback: Callable[[], Any], context: QWidget) -> QShortcut:
+        """
+        Create and register a QShortcut for shortcut management.
+
+        Args:
+            action_id: The namespaced identifier (e.g., "my_plugin.do_thing").
+            callback: The function to call when the shortcut is activated.
+            context: The parent widget that determines shortcut scope.
+
+        Returns:
+            The created QShortcut instance.
+        """
+        return ShortcutManager.register_shortcut(action_id, callback, context)
+
 
 class LocalSettingsModel(BaseModel):
     """
@@ -225,6 +250,13 @@ class _PluginBase(Generic[TGlobalSettings, TLocalSettings], metaclass=_PluginBas
     display_name: ClassVar[str]
     """Display name for the plugin."""
 
+    shortcuts: ClassVar[Sequence[ActionDefinition]] = ()
+    """
+    Keyboard shortcuts for this plugin.
+
+    Each ActionDefinition ID must start with "{identifier}." prefix.
+    """
+
     def __init__(self, api: PluginAPI, /) -> None:
         self.api = api
 
@@ -250,6 +282,7 @@ class WidgetPluginBase(_PluginBase[TGlobalSettings, TLocalSettings], QWidget, me
     def __init__(self, parent: QWidget, api: PluginAPI) -> None:
         QWidget.__init__(self, parent)
         self.api = api
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)

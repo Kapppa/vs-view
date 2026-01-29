@@ -48,8 +48,8 @@ class PluginManager(Singleton):
     def audio_processor(self) -> type[NodeProcessor[AudioNode]] | None:
         return self.manager.hook.vsview_get_audio_processor()
 
-    @property
-    def _all_plugins(self) -> list[type[WidgetPluginBase | NodeProcessor[Any]]]:
+    @inject_self.property
+    def all_plugins(self) -> list[type[WidgetPluginBase | NodeProcessor[Any]]]:
         all_plugins: list[Any] = [*self.tooldocks, *self.toolpanels]
 
         if vp := self.video_processor:
@@ -96,11 +96,38 @@ class PluginManager(Singleton):
         logger.debug("Loading entrypoints...")
         n = self.manager.load_setuptools_entrypoints("vsview")
 
-        self._signals.pluginsLoaded.emit()
+        self._register_shortcuts()
+        self._construct_settings_registry()
 
         logger.debug("Loaded %d third party plugins", n)
+        self._signals.pluginsLoaded.emit()
 
-        self._construct_settings_registry()
+    def _register_shortcuts(self) -> None:
+        from ..settings.shortcuts import ShortcutManager
+
+        for plugin in self.all_plugins:
+            if not (shortcuts := getattr(plugin, "shortcuts", ())):
+                continue
+
+            expected_prefix = f"{plugin.identifier}."
+            valid_definitions = []
+
+            for definition in shortcuts:
+                if not definition.startswith(expected_prefix):
+                    logger.warning(
+                        "Plugin %r has shortcut %r without proper namespace prefix. "
+                        "Expected prefix: %r. Shortcut will be ignored.",
+                        plugin.identifier,
+                        str(definition),
+                        expected_prefix,
+                    )
+                    continue
+                valid_definitions.append(definition)
+
+            if valid_definitions:
+                ShortcutManager.register_definitions(valid_definitions)
+
+        ShortcutManager._check_conflicts()
 
     def _construct_settings_registry(self) -> None:
         from ..settings.dialog import SettingsDialog
@@ -117,7 +144,7 @@ class PluginManager(Singleton):
         global_entries = list[SettingEntry]()
         local_entries = list[SettingEntry]()
 
-        for plugin in self._all_plugins:
+        for plugin in self.all_plugins:
             global_model = plugin.global_settings_model
             local_model = plugin.local_settings_model
             identifier = plugin.identifier
@@ -131,7 +158,7 @@ class PluginManager(Singleton):
             global_entries.extend(extract_plugin_settings(global_model, identifier, section))
             local_entries.extend(extract_plugin_settings(local_model, identifier, section))
 
-            self.populate_default_settings("global")
+        self.populate_default_settings("global")
 
         # Extend dialog registries
         SettingsDialog.global_settings_registry.extend(global_entries)
@@ -151,7 +178,7 @@ class PluginManager(Singleton):
 
         model_attr = f"{scope}_settings_model"
 
-        for plugin in self._all_plugins:
+        for plugin in self.all_plugins:
             if (model := getattr(plugin, model_attr)) is None:
                 continue
 

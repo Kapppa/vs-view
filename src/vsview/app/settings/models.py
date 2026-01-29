@@ -337,18 +337,31 @@ def extract_settings(model: type[BaseModel], prefix: str = "", section: str | No
 
 
 # -----------------------------------------------------------------------------------
-class ActionID(StrEnum):
+class ActionDefinition(str):
     """
-    Identifiers for keyboard shortcut actions.
-
-    Each action includes:
-    - value: The unique action identifier string
-    - label: Human-readable display label
-    - default_key: Default key sequence (can be empty)
+    Unified definition and identifier for a shortcut action.
     """
 
     label: str
+    """Human-readable display label"""
+
     default_key: str
+    """Default key sequence (can be empty)"""
+
+    def __new__(cls, id: str, label: str, default_key: str = "") -> Self:
+        self = super().__new__(cls, id)
+        self.label = label
+        self.default_key = default_key
+        return self
+
+    def __repr__(self) -> str:
+        return f"ActionDefinition({super().__repr__()}, label={self.label!r}, default_key={self.default_key!r})"
+
+
+class ActionID(StrEnum):
+    """Identifiers for keyboard shortcut actions."""
+
+    definition: ActionDefinition
 
     # Menu actions
     LOAD_SCRIPT = "menu.new.load_script", "Load Script", "Ctrl+O"
@@ -395,17 +408,16 @@ class ActionID(StrEnum):
     SWITCH_TAB_9 = "workspace.loader.tab.switch_9", "Switch to Output 9", "0"
 
     def __new__(cls, value: str, label: str, default_key: str = "") -> Self:
-        self = str.__new__(cls, value)
-        self._value_ = value
-        self.label = label
-        self.default_key = default_key
-        return self
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj.definition = ActionDefinition(value, label, default_key)
+        return obj
 
 
 class ShortcutConfig(BaseModel):
     """Configuration for a single keyboard shortcut."""
 
-    action_id: ActionID
+    action_id: str
     key_sequence: str
 
     @field_validator("key_sequence")
@@ -712,7 +724,7 @@ class GlobalSettings(BaseSettings):
 
     shortcuts: list[ShortcutConfig] = Field(
         default_factory=lambda: [
-            ShortcutConfig(action_id=action, key_sequence=action.default_key) for action in ActionID
+            ShortcutConfig(action_id=action, key_sequence=action.definition.default_key) for action in ActionID
         ]
     )
 
@@ -754,7 +766,7 @@ class GlobalSettings(BaseSettings):
     window_geometry: WindowGeometry = WindowGeometry()
     view_tools: ViewTools = ViewTools()
 
-    def get_key(self, action_id: ActionID) -> str:
+    def get_key(self, action_id: str) -> str:
         """Get the key sequence for a specific action."""
         return next((s.key_sequence for s in self.shortcuts if s.action_id == action_id), "")
 

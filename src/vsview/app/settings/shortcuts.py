@@ -1,6 +1,6 @@
 """Shortcut manager for hot-reloadable keyboard shortcuts."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from logging import getLogger
 from typing import Any
 from weakref import WeakSet
@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QWidget
 from shiboken6 import Shiboken
 
 from .manager import SettingsManager
-from .models import ActionID
+from .models import ActionDefinition, ActionID, ShortcutConfig
 
 logger = getLogger(__name__)
 
@@ -27,48 +27,80 @@ class ShortcutManager(Singleton):
     Usage:
         ```python
         # For menu actions (QAction already exists)
-        shortcut_manager.register_action(ActionID.LOAD_SCRIPT, my_action)
+        ShortcutManager.register_action(ActionID.LOAD_SCRIPT, my_action)
 
         # For standalone shortcuts (creates QShortcut)
-        shortcut = shortcut_manager.register_shortcut(ActionID.PLAY_PAUSE, callback, parent_widget)
+        shortcut = ShortcutManager.register_shortcut(ActionID.PLAY_PAUSE, callback, parent_widget)
         ```
     """
 
     def __init__(self) -> None:
-        self._settings_manager = SettingsManager()
-
         # Storage for registered shortcuts
-        self._actions = {aid: WeakSet[QAction]() for aid in ActionID}
-        self._shortcuts = {aid: WeakSet[QShortcut]() for aid in ActionID}
+        self._actions = dict[str, WeakSet[QAction]]()
+        self._shortcuts = dict[str, WeakSet[QShortcut]]()
+        self._definitions = dict[str, ActionDefinition]()
+
+        # Pre-register all core actions
+        self.register_definitions(aid.definition for aid in ActionID)
 
         # Connect to settings change signal for hot reload
-        self._settings_manager.signals.globalChanged.connect(self._on_settings_changed)
+        SettingsManager.signals.globalChanged.connect(self._on_settings_changed)
 
         logger.debug("ShortcutManager initialized")
 
+    @inject_self.property
+    def definitions(self) -> dict[str, ActionDefinition]:
+        """Get all registered action definitions."""
+        return self._definitions
+
     @inject_self
-    def register_action(self, action_id: ActionID, action: QAction) -> None:
+    def register_definitions(self, definitions: Iterable[ActionDefinition]) -> None:
+        """
+        Register new action definitions (usually from plugins).
+
+        This ensures that the actions are known and have default values in settings
+        if not already customized by the user.
+
+        Args:
+            definitions: The action definitions to register.
+        """
+        existing_ids = {s.action_id for s in SettingsManager.global_settings.shortcuts}
+
+        for definition in definitions:
+            if definition not in self._actions:
+                self._actions[definition] = WeakSet()
+                self._shortcuts[definition] = WeakSet()
+
+            self._definitions[definition] = definition
+
+            if definition not in existing_ids:
+                SettingsManager.global_settings.shortcuts.append(
+                    ShortcutConfig(action_id=definition, key_sequence=definition.default_key)
+                )
+
+    @inject_self
+    def register_action(self, action_id: str, action: QAction) -> None:
         """
         Register a QAction for shortcut management.
 
         Args:
-            action_id: The ActionID for this shortcut.
+            action_id: The identifier for this shortcut.
             action: The QAction to manage.
         """
         action.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
 
-        self._actions[action_id].add(action)
+        self._actions.setdefault(action_id, WeakSet()).add(action)
         self._update_action(action_id, action)
 
         logger.debug("Registered action for %s: %r", action_id, action.text())
 
     @inject_self
-    def register_shortcut(self, action_id: ActionID, callback: Callable[[], Any], context: QWidget) -> QShortcut:
+    def register_shortcut(self, action_id: str, callback: Callable[[], Any], context: QWidget) -> QShortcut:
         """
         Create and register a QShortcut for shortcut management.
 
         Args:
-            action_id: The ActionID for this shortcut.
+            action_id: The identifier for this shortcut.
             callback: The function to call when the shortcut is activated.
             context: The parent widget that determines shortcut scope.
 
@@ -79,30 +111,33 @@ class ShortcutManager(Singleton):
         shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         shortcut.activated.connect(callback)
 
-        self._shortcuts[action_id].add(shortcut)
+        self._shortcuts.setdefault(action_id, WeakSet()).add(shortcut)
         self._update_shortcut(action_id, shortcut)
 
         logger.debug("Registered shortcut for %s in context %r", action_id, context.__class__.__name__)
         return shortcut
 
     @inject_self
-    def unregister_shortcut(self, action_id: ActionID, shortcut: QShortcut) -> None:
+    def unregister_shortcut(self, action_id: str, shortcut: QShortcut) -> None:
         """Unregister a previously registered shortcut."""
-        self._shortcuts[action_id].discard(shortcut)
-        logger.debug("Unregistered shortcut for %s", action_id)
+        if action_id in self._shortcuts:
+            self._shortcuts[action_id].discard(shortcut)
+            logger.debug("Unregistered shortcut for %s", action_id)
+        else:
+            logger.warning("Cannot unregister shortcut: action ID %r is not registered", action_id)
 
     @inject_self
-    def get_key(self, action_id: ActionID) -> str:
+    def get_key(self, action_id: str) -> str:
         """Get the current key sequence for an action from settings."""
-        return self._settings_manager.global_settings.get_key(action_id)
+        return SettingsManager.global_settings.get_key(action_id)
 
-    def _update_action(self, action_id: ActionID, action: QAction) -> None:
+    def _update_action(self, action_id: str, action: QAction) -> None:
         if Shiboken.isValid(action):
             action.setShortcut(self.get_key(action_id))
         else:
             del action
 
-    def _update_shortcut(self, action_id: ActionID, shortcut: QShortcut) -> None:
+    def _update_shortcut(self, action_id: str, shortcut: QShortcut) -> None:
         if Shiboken.isValid(shortcut):
             shortcut.setKey(QKeySequence(self.get_key(action_id)))
         else:
@@ -111,11 +146,11 @@ class ShortcutManager(Singleton):
     def _on_settings_changed(self) -> None:
         logger.info("Hot-reloading shortcuts...")
 
-        for action_id in ActionID:
-            for action in self._actions[action_id]:
-                self._update_action(action_id, action)
+        for aid in self._definitions:
+            for action in self._actions.get(aid, ()):
+                self._update_action(aid, action)
 
-            for shortcut in self._shortcuts[action_id]:
-                self._update_shortcut(action_id, shortcut)
+            for shortcut in self._shortcuts.get(aid, ()):
+                self._update_shortcut(aid, shortcut)
 
         logger.info("Shortcuts hot-reloaded")

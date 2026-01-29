@@ -24,15 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from ...assets import ICON_PROVIDERS, IconName, IconReloadMixin
-from .models import (
-    DEFAULT_GLOBAL_SETTINGS,
-    ActionID,
-    GlobalSettings,
-    LocalSettings,
-    SettingEntry,
-    ShortcutConfig,
-    extract_settings,
-)
+from .models import GlobalSettings, LocalSettings, SettingEntry, ShortcutConfig, extract_settings
 
 # Style for shortcut editors with conflicts
 # Must target internal QLineEdit since QKeySequenceEdit is a compound widget
@@ -161,10 +153,10 @@ class SettingsTab(QScrollArea):
 class ShortcutWidgets:
     """UI widgets and state for shortcut configuration."""
 
-    editors: dict[ActionID, QKeySequenceEdit] = field(default_factory=dict)
-    reset_buttons: dict[ActionID, QToolButton] = field(default_factory=dict)
-    conflict_labels: dict[ActionID, QLabel] = field(default_factory=dict)
-    original_shortcuts: dict[ActionID, str] = field(default_factory=dict)
+    editors: dict[str, QKeySequenceEdit] = field(default_factory=dict)
+    reset_buttons: dict[str, QToolButton] = field(default_factory=dict)
+    conflict_labels: dict[str, QLabel] = field(default_factory=dict)
+    original_shortcuts: dict[str, str] = field(default_factory=dict)
 
 
 class SettingsDialog(QDialog, IconReloadMixin):
@@ -310,14 +302,26 @@ class SettingsDialog(QDialog, IconReloadMixin):
             weight_combo.setCurrentIndex(weight_combo.findData(provider.default_weight))
 
     def _create_shortcuts_tab(self) -> SettingsTab:
+        from ..plugins.manager import PluginManager
+        from .shortcuts import ShortcutManager
+
         self._shortcut_widgets = ShortcutWidgets()
 
-        grouped_actions = dict[str, list[ActionID]]()
+        plugin_display_names = {plugin.identifier: plugin.display_name for plugin in PluginManager.all_plugins}
 
-        for action_id in ActionID:
-            # Extract first component from action value (e.g., "workspace" from "workspace.loader.view.reload")
-            first_component = action_id.value.split(".")[0].title()
-            grouped_actions.setdefault(first_component, []).append(action_id)
+        grouped_actions = dict[str, list[str]]()
+
+        for aid, definition in ShortcutManager.definitions.items():
+            # Extract first component from action ID (e.g., "workspace" from "workspace.loader.view.reload")
+            first_component = aid.split(".")[0]
+
+            # Check if this is a plugin shortcut
+            if first_component in plugin_display_names:
+                group_name = f"Plugin - {plugin_display_names[first_component]}"
+            else:
+                group_name = first_component.title()
+
+            grouped_actions.setdefault(group_name, []).append(aid)
 
         with SettingsTab("Shortcuts", self) as tab:
             # Create a section for each group
@@ -326,24 +330,29 @@ class SettingsDialog(QDialog, IconReloadMixin):
                 form = shortcuts_section.add_form_layout()
 
                 # Create an editor for each shortcut action in this group
-                for action_id in actions:
-                    current_key = self._settings_manager.global_settings.get_key(action_id)
-                    self._shortcut_widgets.original_shortcuts[action_id] = current_key
+                for aid in actions:
+                    definition = ShortcutManager.definitions[aid]
+                    current_key = self._settings_manager.global_settings.get_key(aid)
+                    self._shortcut_widgets.original_shortcuts[aid] = current_key
 
                     row_widget = QWidget(self)
                     row_layout = QHBoxLayout(row_widget)
                     row_layout.setContentsMargins(0, 0, 0, 0)
                     row_layout.setSpacing(4)
 
-                    editor = QKeySequenceEdit(self, keySequence=QKeySequence(current_key), clearButtonEnabled=True)
-                    editor.setMaximumSequenceLength(1)
+                    editor = QKeySequenceEdit(
+                        self,
+                        keySequence=QKeySequence(current_key),
+                        clearButtonEnabled=True,
+                        maximumSequenceLength=1,
+                    )
                     editor.keySequenceChanged.connect(self._on_shortcut_changed)
                     row_layout.addWidget(editor)
 
                     reset_btn = self.make_tool_button(
-                        IconName.ARROW_U_TOP_LEFT, f"Reset to default: {self._default_shortcuts.get(action_id, 'None')}"
+                        IconName.ARROW_U_TOP_LEFT, f"Reset to default: {definition.default_key or 'None'}"
                     )
-                    reset_btn.clicked.connect(lambda checked=False, aid=action_id: self._reset_shortcut(aid))
+                    reset_btn.clicked.connect(lambda checked=False, aid=aid: self._reset_shortcut(aid))
                     row_layout.addWidget(reset_btn)
 
                     conflict_label = QLabel(self)
@@ -353,10 +362,10 @@ class SettingsDialog(QDialog, IconReloadMixin):
 
                     row_layout.addStretch()
 
-                    self._shortcut_widgets.editors[action_id] = editor
-                    self._shortcut_widgets.reset_buttons[action_id] = reset_btn
-                    self._shortcut_widgets.conflict_labels[action_id] = conflict_label
-                    form.addRow(f"{action_id.label}:", row_widget)
+                    self._shortcut_widgets.editors[aid] = editor
+                    self._shortcut_widgets.reset_buttons[aid] = reset_btn
+                    self._shortcut_widgets.conflict_labels[aid] = conflict_label
+                    form.addRow(f"{definition.label}:", row_widget)
 
                 tab.add_section(shortcuts_section)
 
@@ -424,11 +433,8 @@ class SettingsDialog(QDialog, IconReloadMixin):
     def _get_global_settings_from_ui(self) -> GlobalSettings:
         # Build shortcuts from UI editors
         shortcuts = [
-            ShortcutConfig(
-                action_id=action_id,
-                key_sequence=self._shortcut_widgets.editors[action_id].keySequence().toString(),
-            )
-            for action_id in ActionID
+            ShortcutConfig(action_id=aid, key_sequence=self._shortcut_widgets.editors[aid].keySequence().toString())
+            for aid in self._shortcut_widgets.editors
         ]
 
         # Use existing settings as base to preserve hidden fields
@@ -470,21 +476,23 @@ class SettingsDialog(QDialog, IconReloadMixin):
         self.accept()
 
     def _on_shortcut_changed(self) -> None:
-        key_to_actions = dict[str, list[ActionID]]()
+        from .shortcuts import ShortcutManager
 
-        for action_id, editor in self._shortcut_widgets.editors.items():
+        key_to_actions = dict[str, list[str]]()
+
+        for aid, editor in self._shortcut_widgets.editors.items():
             key = editor.keySequence().toString()
             if key:
-                key_to_actions.setdefault(key, []).append(action_id)
+                key_to_actions.setdefault(key, []).append(aid)
 
         # Find conflicting keys (assigned to more than one action)
         conflicting_keys = {key for key, actions in key_to_actions.items() if len(actions) > 1}
 
         # Update each editor's conflict state
-        for action_id, editor in self._shortcut_widgets.editors.items():
+        for aid, editor in self._shortcut_widgets.editors.items():
             key = editor.keySequence().toString()
             has_conflict = key in conflicting_keys
-            conflict_label = self._shortcut_widgets.conflict_labels[action_id]
+            conflict_label = self._shortcut_widgets.conflict_labels[aid]
 
             conflict_label.setText("⚠" if has_conflict else "")
             conflict_label.setStyleSheet("color: #E74C3C; font-weight: bold;" if has_conflict else "")
@@ -492,13 +500,19 @@ class SettingsDialog(QDialog, IconReloadMixin):
 
             # Update tooltip to show what it conflicts with
             if has_conflict:
-                conflicting_with = [aid.label for aid in key_to_actions[key] if aid != action_id]
+                conflicting_with = [
+                    ShortcutManager.definitions[other_aid].label
+                    for other_aid in key_to_actions[key]
+                    if other_aid != aid
+                ]
                 conflict_label.setToolTip(f"Conflicts with: {', '.join(conflicting_with)}")
 
     @cachedproperty
-    def _default_shortcuts(self) -> dict[ActionID, str]:
-        return {s.action_id: s.key_sequence for s in DEFAULT_GLOBAL_SETTINGS.shortcuts}
+    def _default_shortcuts(self) -> dict[str, str]:
+        from .shortcuts import ShortcutManager
 
-    def _reset_shortcut(self, action_id: ActionID) -> None:
-        default_key = self._default_shortcuts.get(action_id, "")
-        self._shortcut_widgets.editors[action_id].setKeySequence(QKeySequence(default_key))
+        return {aid: d.default_key for aid, d in ShortcutManager.definitions.items()}
+
+    def _reset_shortcut(self, aid: str) -> None:
+        default_key = self._default_shortcuts.get(aid, "")
+        self._shortcut_widgets.editors[aid].setKeySequence(QKeySequence(default_key))
