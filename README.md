@@ -46,7 +46,7 @@ Contributions are welcome! Please check the [Discord server](https://discord.gg/
 This project uses `uv` for dependency management and workflow.
 
 ```bash
-uv sync --all-extras --all-groups
+uv sync --all-packages
 uv run vsview
 ```
 
