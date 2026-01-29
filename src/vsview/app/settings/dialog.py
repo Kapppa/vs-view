@@ -209,6 +209,9 @@ class SettingsDialog(QDialog, IconReloadMixin):
         self.local_tab = self._create_local_tab()
         self.shortcuts_tab = self._create_shortcuts_tab()
 
+        # Update shortcut conflicts
+        self._on_shortcut_changed()
+
         self.tab_widget.addTab(self.global_tab, "Global")
         self.tab_widget.addTab(self.local_tab, "Local")
         self.tab_widget.addTab(self.shortcuts_tab, "Shortcuts")
