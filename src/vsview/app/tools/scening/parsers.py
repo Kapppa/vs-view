@@ -83,7 +83,7 @@ class OGMParser(Parser):
 class MatroskaXMLParser(Parser):
     filter = Parser.FileFilter("Matroska XML Chapters", "xml")
 
-    def parse(self, path: Path, fps: Fraction) -> SceneRow:
+    def parse(self, path: Path, fps: Fraction) -> SceneRow | list[SceneRow]:
         import xml.etree.ElementTree as ET
 
         try:
@@ -92,10 +92,31 @@ class MatroskaXMLParser(Parser):
         except ET.ParseError:
             raise ValueError(f"Could not parse XML file: {path}")
 
+        editions = root.findall(".//EditionEntry")
+
+        # Fallback if no EditionEntry is found
+        if not editions:
+            return SceneRow(color=self.get_color(), name=path.stem, ranges=self._parse_atoms(root))
+
+        scenes = list[SceneRow]()
+        for i, edition in enumerate(editions, 1):
+            if not (ranges := self._parse_atoms(edition)):
+                continue
+
+            uid_node = edition.find("EditionUID")
+            uid_str = f" ({uid_node.text})" if uid_node is not None and uid_node.text else f" (Edition {i})"
+
+            # If only one edition, keep the simple name
+            name = path.stem if len(editions) == 1 else f"{path.stem}{uid_str}"
+            scenes.append(SceneRow(color=self.get_color(), name=name, ranges=ranges))
+
+        return scenes
+
+    def _parse_atoms(self, parent: Any) -> list[RangeTime]:
         ranges = list[RangeTime]()
 
-        # Find all ChapterAtom nodes, usually nested within EditionEntry
-        for atom in root.findall(".//ChapterAtom"):
+        # Find all ChapterAtom nodes
+        for atom in parent.findall(".//ChapterAtom"):
             time_node = atom.find("ChapterTimeStart")
 
             if time_node is None or time_node.text is None:
@@ -119,7 +140,7 @@ class MatroskaXMLParser(Parser):
             except ValueError:
                 continue
 
-        return SceneRow(color=self.get_color(), name=path.stem, ranges=ranges)
+        return ranges
 
 
 class XvidLogParser(Parser):
