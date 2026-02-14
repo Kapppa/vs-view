@@ -1,9 +1,14 @@
+import json
 import re
+from bisect import bisect_left
 from datetime import datetime, timedelta
 from fractions import Fraction
 from logging import getLogger
 from math import ceil
 from pathlib import Path
+from typing import Any
+
+from jetpytools import fallback
 
 from .api import Parser
 from .models import RangeFrame, RangeTime, SceneRow
@@ -157,12 +162,83 @@ class QPFileParser(Parser):
         return SceneRow(color=self.get_color(), name=path.stem, ranges=ranges)
 
 
+class WobblyParser(Parser):
+    filter = Parser.FileFilter("Wobbly File", "wob")
+
+    def parse(self, path: Path, fps: Fraction) -> SceneRow | list[SceneRow]:
+        try:
+            data: dict[str, Any] = json.loads(path.read_text("utf-8"))
+        except Exception as e:
+            raise ValueError(f"Could not parse Wobbly file: {path!s}") from e
+
+        decimations = sorted(data.get("decimated frames", []))
+        scenes = list[SceneRow]()
+
+        # Sections
+        if sections := data.get("sections"):
+            starts = list[int]()
+            labels = list[str]()
+
+            for s in sections:
+                if isinstance(s, int):
+                    starts.append(s)
+                    labels.append("")
+                elif isinstance(s, dict):
+                    starts.append(s.get("start", 0))
+
+                    preset = s.get("preset") or s.get("presets")
+                    if isinstance(preset, list):
+                        label = ", ".join(map(str, preset)) if preset else ""
+                    else:
+                        label = str(fallback(preset, ""))
+                    labels.append(label)
+
+            trim = data.get("trim", [[0, 0]])
+            last_end = trim[0][1] if trim and isinstance(trim, list) and isinstance(trim[0], list) else starts[-1]
+            ends = [*starts[1:], last_end]
+
+            ranges = list[RangeFrame]()
+            for start, end, label in zip(starts, ends, labels):
+                if decimations:
+                    start -= bisect_left(decimations, start)
+                    end -= bisect_left(decimations, end)
+
+                ranges.append(RangeFrame(start=start, end=end, label=label))
+
+            scenes.append(SceneRow(color=self.get_color(), name=f"{path.stem} (Sections)", ranges=ranges))
+
+        # Bookmarks
+        if bookmarks := data.get("user interface", {}).get("bookmarks"):
+            bookmark_ranges = list[RangeFrame]()
+
+            for b in bookmarks:
+                if not isinstance(b, dict) or "frame" not in b:
+                    continue
+
+                frame = int(b["frame"])
+                label = str(b.get("description", ""))
+
+                if decimations:
+                    frame -= bisect_left(decimations, frame)
+
+                bookmark_ranges.append(RangeFrame(start=frame, label=label))
+
+            if bookmark_ranges:
+                scenes.append(SceneRow(color=self.get_color(), name=f"{path.stem} (Bookmarks)", ranges=bookmark_ranges))
+
+        if not scenes:
+            raise ValueError(f"Could not find any sections nor bookmarks in Wobble file {path!s}")
+
+        return scenes
+
+
 internal_parsers: list[Parser] = [
     AssParser(),
     OGMParser(),
     MatroskaXMLParser(),
     XvidLogParser(),
     QPFileParser(),
+    WobblyParser(),
 ]
 
 # "Wobbly File (*.wob)": import_wobbly,
