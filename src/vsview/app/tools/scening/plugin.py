@@ -41,13 +41,14 @@ from vsview.api import (
 )
 
 from . import specs
-from .models import RangeFrame, RangeTime, SceneRow
+from .models import RangeFrame, RangeTime, SceneRow, UnifiedRange
 from .parsers import internal_parsers
+from .serializer import internal_serializers
 from .ui import Col, RangeCol, RangeTableDelegate, RangeTableModel, SceneTableDelegate, SceneTableModel
 from .utils import ColorGenerator, monkey_patch_parser
 
 if TYPE_CHECKING:
-    from .api import Parser
+    from .api import Parser, Serializer
 
 logger = getLogger(__name__)
 
@@ -60,10 +61,10 @@ manager = pluggy.PluginManager("vsview.scening")
 
 
 @cache
-def load_external_parsers() -> None:
+def load_plugins() -> None:
     manager.add_hookspecs(specs)
     n = manager.load_setuptools_entrypoints("vsview.scening")
-    logger.debug("Loaded %d external parsers", n)
+    logger.debug("Loaded %d plugins", n)
 
 
 class ShortcutDefinition(StrEnum):
@@ -144,6 +145,17 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         self.import_scene_btn.setText("Import scene...")
         self.import_scene_btn.clicked.connect(self.on_import_scene)
         toolbar.addWidget(self.import_scene_btn)
+
+        self.export_scene_btn = self.make_tool_button(
+            IconName.FILE_EXPORT,
+            "Export a scene to a supported format",
+            self.scenes_container,
+        )
+        self.export_scene_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.export_scene_btn.setText("Export scene...")
+        self.export_scene_btn.setDisabled(True)
+        self.export_scene_btn.clicked.connect(self.on_export_scene)
+        toolbar.addWidget(self.export_scene_btn)
 
         # Scenes model + delegate
         self.scenes_model = SceneTableModel(self.output_map, self.scenes_container)
@@ -361,7 +373,7 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         self.scenes_view.setCurrentIndex(idx)
 
     def on_import_scene(self) -> None:
-        load_external_parsers()
+        load_plugins()
 
         parsers: list[Parser] = internal_parsers + list(flatten(manager.hook.vsview_scening_register_parser()))
 
@@ -380,11 +392,9 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
 
         @run_in_loop
         def on_completed(f: Future[list[SceneRow]]) -> None:
-            if f.exception():
-                logger.exception("Error parsing file(s)")
-                return
-
-            self.scenes_model.add_scene(f.result())
+            if not f.exception():
+                self.scenes_model.add_scene(f.result())
+                self.api.statusMessage.emit(f"Importing {', '.join(files)} completed")
 
         fscenes.add_done_callback(on_completed)
 
@@ -406,6 +416,46 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
 
         return scenes
 
+    def on_export_scene(self) -> None:
+        load_plugins()
+
+        serializers: list[Serializer] = internal_serializers + list(
+            flatten(manager.hook.vsview_scening_register_serializer())
+        )
+
+        filters = {f"{p.filter.label} (*.{' *.'.join(to_arr(p.filter.suffix))})": p for p in serializers}
+        file, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Export scene file",
+            filter=";;".join(sorted(filters)),
+        )
+
+        if not file:
+            logger.info("Export aborted")
+            return
+
+        f = self.serialize_exported_scene(file, filters[selected_filter])
+
+        @run_in_loop
+        def on_completed(f: Future[None]) -> None:
+            if not f.exception():
+                self.api.statusMessage.emit(f"Exporting {file} completed")
+                return
+
+        f.add_done_callback(on_completed)
+
+    @run_in_background(name="SerializeExportedCcene")
+    def serialize_exported_scene(self, file: str, serializer: Serializer) -> None:
+        scene: SceneRow = self.scenes_view.selectionModel().selectedRows()[0].data(self.scenes_model.SceneRowRole)
+
+        v = self.api.current_voutput
+
+        try:
+            with Path(file).open("wb") as f:
+                serializer.serialize(f, (UnifiedRange(r, v.frame_to_time, v.time_to_frame) for r in scene.ranges))
+        except Exception:
+            logger.exception("Error exporting file: %s", file)
+
     def on_remove_scene_triggered(self) -> None:
         if not (selected_indexes := self.scenes_view.selectionModel().selectedRows()):
             return
@@ -417,6 +467,11 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
     def on_scene_selection_changed(self) -> None:
         if selected_indexes := self.scenes_view.selectionModel().selectedRows():
             self.range_container.setEnabled(True)
+            if len(selected_indexes) == 1:
+                self.export_scene_btn.setEnabled(True)
+            else:
+                self.export_scene_btn.setEnabled(False)
+
             all_scenes = list[SceneRow]()
 
             for index in selected_indexes:
@@ -435,6 +490,7 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
             )
         else:
             self.range_container.setDisabled(True)
+            self.export_scene_btn.setDisabled(True)
             self.range_start_action.setChecked(False)
 
             self.api.timeline.clear_notches(scene.notch_id for scene in self.settings.local_.scenes)

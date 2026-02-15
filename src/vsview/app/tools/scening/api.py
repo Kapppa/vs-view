@@ -53,3 +53,10 @@ class Parser(ABC):
 
         def get_color(self) -> QColor: ...
 
+
+class Serializer(ABC):
+    FileFilter: type[_FileFilter] = _FileFilter
+    filter: ClassVar[_FileFilter]
+
+    @abstractmethod
+    def serialize(self, io: BinaryIO, ranges: Iterable[UnifiedRange]) -> None: ...

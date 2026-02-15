@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from datetime import timedelta
-from typing import Annotated
+from typing import Annotated, final
 from uuid import UUID, uuid4
 
 from jetpytools import fallback
@@ -87,6 +88,37 @@ class RangeTime(AbstractRange[timedelta], UUIDModel):
             self.start = s
         if e is not None:
             self.end = e
+
+
+@final
+class UnifiedRange:
+    def __init__(
+        self,
+        r: RangeFrame | RangeTime,
+        frame_to_time: Callable[[int], Time],
+        time_to_frame: Callable[[timedelta], int],
+    ) -> None:
+        self._r = r
+        self._frame_to_time = frame_to_time
+        self._time_to_frame = time_to_frame
+        self.label = self._r.label
+
+    def as_frames(self) -> tuple[int, int]:
+        if isinstance(self._r, RangeFrame):
+            return self._r.to_tuple()
+
+        s, e = self._r.to_tuple()
+
+        return self._time_to_frame(s), self._time_to_frame(e)
+
+    def as_times(self) -> tuple[Time, Time]:
+        if isinstance(self._r, RangeTime):
+            s, e = self._r.to_tuple()
+            return Time(seconds=s.total_seconds()), Time(seconds=e.total_seconds())
+
+        s, e = self._r.to_tuple()
+
+        return self._frame_to_time(s), self._frame_to_time(e)
 
 
 class SceneRow(UUIDModel):
