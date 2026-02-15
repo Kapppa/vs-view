@@ -5,12 +5,11 @@ from datetime import datetime, timedelta
 from fractions import Fraction
 from logging import getLogger
 from math import ceil
-from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 from jetpytools import fallback
 
-from .api import Parser
+from .api import Parser, borrowed_text_wrapper
 from .models import RangeFrame, RangeTime, SceneRow
 
 logger = getLogger(__name__)
@@ -19,8 +18,9 @@ logger = getLogger(__name__)
 class AssParser(Parser):
     filter = Parser.FileFilter("Aegisub Advanced SSA subtitles", "ass")
 
-    def parse(self, path: Path, fps: Fraction) -> SceneRow:
-        text = path.read_text("utf-8-sig")
+    def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
+        with borrowed_text_wrapper(io, encoding="utf-8-sig") as wrapper:
+            text = wrapper.read()
 
         ranges = list[RangeFrame]()
 
@@ -52,13 +52,13 @@ class AssParser(Parser):
 
             ranges.append(RangeFrame(start=start_frame, end=end_frame, label=txt))
 
-        return SceneRow(color=self.get_color(), name=path.stem, ranges=ranges)
+        return SceneRow(color=self.get_color(), name=name, ranges=ranges)
 
 
 class OGMParser(Parser):
     filter = Parser.FileFilter("Ogg Media (OGM) Chapters", "txt")
 
-    def parse(self, path: Path, fps: Fraction) -> SceneRow:
+    def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
         pattern = re.compile(
             r"^\s*(CHAPTER\d+)\s*=\s*(\d+):(\d+):(\d+(?:\.\d+)?)\s*[\r\n]+"
             r"\s*\1NAME\s*=\s*(.*)",
@@ -67,36 +67,39 @@ class OGMParser(Parser):
 
         ranges = list[RangeTime]()
 
-        for match in pattern.finditer(path.read_text("utf-8")):
-            hours, minutes, seconds_str, name = match.group(2, 3, 4, 5)
+        with borrowed_text_wrapper(io) as wrapper:
+            text = wrapper.read()
+
+        for match in pattern.finditer(text):
+            hours, minutes, seconds_str, name_val = match.group(2, 3, 4, 5)
 
             ranges.append(
                 RangeTime(
                     start=timedelta(hours=int(hours), minutes=int(minutes), seconds=float(seconds_str)),
-                    label=name.strip(),
+                    label=name_val.strip(),
                 )
             )
 
-        return SceneRow(color=self.get_color(), name=path.stem, ranges=ranges)
+        return SceneRow(color=self.get_color(), name=name, ranges=ranges)
 
 
 class MatroskaXMLParser(Parser):
     filter = Parser.FileFilter("Matroska XML Chapters", "xml")
 
-    def parse(self, path: Path, fps: Fraction) -> SceneRow | list[SceneRow]:
+    def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow | list[SceneRow]:
         import xml.etree.ElementTree as ET
 
         try:
-            tree = ET.parse(path)
+            tree = ET.parse(io)
             root = tree.getroot()
         except ET.ParseError:
-            raise ValueError(f"Could not parse XML file: {path}")
+            raise ValueError(f"Could not parse XML file: {name}")
 
         editions = root.findall(".//EditionEntry")
 
         # Fallback if no EditionEntry is found
         if not editions:
-            return SceneRow(color=self.get_color(), name=path.stem, ranges=self._parse_atoms(root))
+            return SceneRow(color=self.get_color(), name=name, ranges=self._parse_atoms(root))
 
         scenes = list[SceneRow]()
         for i, edition in enumerate(editions, 1):
@@ -107,8 +110,8 @@ class MatroskaXMLParser(Parser):
             uid_str = f" ({uid_node.text})" if uid_node is not None and uid_node.text else f" (Edition {i})"
 
             # If only one edition, keep the simple name
-            name = path.stem if len(editions) == 1 else f"{path.stem}{uid_str}"
-            scenes.append(SceneRow(color=self.get_color(), name=name, ranges=ranges))
+            name_edition = name if len(editions) == 1 else f"{name}{uid_str}"
+            scenes.append(SceneRow(color=self.get_color(), name=name_edition, ranges=ranges))
 
         return scenes
 
@@ -129,14 +132,14 @@ class MatroskaXMLParser(Parser):
                 if len(parts) == 3:
                     start_dt = timedelta(hours=int(parts[0]), minutes=int(parts[1]), seconds=float(parts[2]))
 
-                    name = ""
+                    label = ""
                     if (display_node := atom.find("ChapterDisplay")) is not None:
                         name_node = display_node.find("ChapterString")
 
                         if name_node is not None and name_node.text:
-                            name = name_node.text
+                            label = name_node.text
 
-                    ranges.append(RangeTime(start=start_dt, label=name))
+                    ranges.append(RangeTime(start=start_dt, label=label))
             except ValueError:
                 continue
 
@@ -146,11 +149,12 @@ class MatroskaXMLParser(Parser):
 class XvidLogParser(Parser):
     filter = Parser.FileFilter("XviD Log", ["txt", "log"])
 
-    def parse(self, path: Path, fps: Fraction) -> SceneRow:
+    def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
         ranges = list[RangeFrame]()
         current_frame = 0
 
-        lines = path.read_text("utf-8")
+        with borrowed_text_wrapper(io, encoding="utf-8") as wrapper:
+            lines = wrapper.read()
 
         for line in lines.splitlines():
             line = line.strip()
@@ -163,16 +167,19 @@ class XvidLogParser(Parser):
 
             current_frame += 1
 
-        return SceneRow(color=self.get_color(), name=path.stem, ranges=ranges)
+        return SceneRow(color=self.get_color(), name=name, ranges=ranges)
 
 
 class QPFileParser(Parser):
     filter = Parser.FileFilter("QP File", ["qp", "txt"])
 
-    def parse(self, path: Path, fps: Fraction) -> SceneRow:
+    def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
         ranges = list[RangeFrame]()
 
-        for matched in re.finditer(r"^(\d+)\s+[IK]\s+(-?\d+)", path.read_text("utf-8"), re.MULTILINE):
+        with borrowed_text_wrapper(io, encoding="utf-8") as wrapper:
+            text = wrapper.read()
+
+        for matched in re.finditer(r"^(\d+)\s+[IK]\s+(-?\d+)", text, re.MULTILINE):
             try:
                 frame = int(matched.group(1))
             except ValueError:
@@ -180,17 +187,20 @@ class QPFileParser(Parser):
 
             ranges.append(RangeFrame(start=frame, label=str(matched.group(2))))
 
-        return SceneRow(color=self.get_color(), name=path.stem, ranges=ranges)
+        return SceneRow(color=self.get_color(), name=name, ranges=ranges)
 
 
 class WobblyParser(Parser):
     filter = Parser.FileFilter("Wobbly File", "wob")
 
-    def parse(self, path: Path, fps: Fraction) -> SceneRow | list[SceneRow]:
+    def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow | list[SceneRow]:
+        with borrowed_text_wrapper(io, encoding="utf-8") as wrapper:
+            text = wrapper.read()
+
         try:
-            data: dict[str, Any] = json.loads(path.read_text("utf-8"))
+            data: dict[str, Any] = json.loads(text)
         except Exception as e:
-            raise ValueError(f"Could not parse Wobbly file: {path!s}") from e
+            raise ValueError(f"Could not parse Wobbly file: {name}") from e
 
         decimations = sorted(data.get("decimated frames", []))
         scenes = list[SceneRow]()
@@ -226,7 +236,7 @@ class WobblyParser(Parser):
 
                 ranges.append(RangeFrame(start=start, end=end, label=label))
 
-            scenes.append(SceneRow(color=self.get_color(), name=f"{path.stem} (Sections)", ranges=ranges))
+            scenes.append(SceneRow(color=self.get_color(), name=f"{name} (Sections)", ranges=ranges))
 
         # Bookmarks
         if bookmarks := data.get("user interface", {}).get("bookmarks"):
@@ -245,10 +255,10 @@ class WobblyParser(Parser):
                 bookmark_ranges.append(RangeFrame(start=frame, label=label))
 
             if bookmark_ranges:
-                scenes.append(SceneRow(color=self.get_color(), name=f"{path.stem} (Bookmarks)", ranges=bookmark_ranges))
+                scenes.append(SceneRow(color=self.get_color(), name=f"{name} (Bookmarks)", ranges=bookmark_ranges))
 
         if not scenes:
-            raise ValueError(f"Could not find any sections nor bookmarks in Wobble file {path!s}")
+            raise ValueError(f"Could not find any sections nor bookmarks in Wobble file {name}")
 
         return scenes
 

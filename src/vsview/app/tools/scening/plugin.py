@@ -396,9 +396,11 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
 
         with monkey_patch_parser(parser, self._color_gen):
             for file in files:
+                pfile = Path(file)
                 try:
-                    parsed = parser.parse(Path(file), src_fps)
-                    scenes.extend([parsed] if isinstance(parsed, SceneRow) else parsed)
+                    with pfile.open("rb") as f:
+                        parsed = parser.parse(f, pfile.stem, src_fps)
+                        scenes.extend([parsed] if isinstance(parsed, SceneRow) else parsed)
                 except Exception:
                     logger.exception("Error parsing file: %s", file)
 

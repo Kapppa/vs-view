@@ -30,6 +30,11 @@ def _patch_parser(parser: Any) -> Any:
     return parser
 
 
+def parse(parser: Any, path: Path) -> Any:
+    with path.open("rb") as f:
+        return parser.parse(f, path.stem, FPS_24)
+
+
 @pytest.fixture
 def ass_p() -> AssParser:
     return _patch_parser(AssParser())
@@ -62,7 +67,7 @@ def wob_p() -> WobblyParser:
 
 class TestAssParser:
     def test_parse_logic(self, ass_p: AssParser) -> None:
-        result = ass_p.parse(FIXTURES / "test_ass.ass", FPS_24)
+        result = parse(ass_p, FIXTURES / "test_ass.ass")
         assert result.name == "test_ass"
         assert len(result.ranges) == 1072
         assert all(isinstance(r, RangeFrame) for r in result.ranges)
@@ -82,7 +87,7 @@ class TestOGMParser:
             "CHAPTER01=00:00:00.000\nCHAPTER01NAME=Intro\nCHAPTER02=01:23:45.678\nCHAPTER02NAME=Ending\n",
             encoding="utf-8",
         )
-        result = ogm_p.parse(f, FPS_24)
+        result = parse(ogm_p, f)
         assert len(result.ranges) == 2
         assert [(r.start, r.label) for r in result.ranges] == [
             (timedelta(0), "Intro"),
@@ -91,13 +96,13 @@ class TestOGMParser:
 
     def test_empty_file(self, ogm_p: OGMParser, tmp_path: Path) -> None:
         (f := tmp_path / "empty.txt").write_text("", encoding="utf-8")
-        result = ogm_p.parse(f, FPS_24)
+        result = parse(ogm_p, f)
         assert len(result.ranges) == 0
 
 
 class TestMatroskaXMLParser:
     def test_single_edition(self, xml_p: MatroskaXMLParser) -> None:
-        result = xml_p.parse(FIXTURES / "test_matroska_single.xml", FPS_24)
+        result = parse(xml_p, FIXTURES / "test_matroska_single.xml")
         assert isinstance(result, list)
         scene = result[0]
         assert scene.name == "test_matroska_single"
@@ -106,7 +111,7 @@ class TestMatroskaXMLParser:
         assert scene.ranges[-1].start == timedelta(minutes=23, seconds=34.998)
 
     def test_multi_edition(self, xml_p: MatroskaXMLParser) -> None:
-        scenes = xml_p.parse(FIXTURES / "test_matroska_multi.xml", FPS_24)
+        scenes = parse(xml_p, FIXTURES / "test_matroska_multi.xml")
         assert isinstance(scenes, list)
         assert len(scenes) == 2
         assert [s.name for s in scenes] == ["test_matroska_multi (1001)", "test_matroska_multi (2002)"]
@@ -123,20 +128,20 @@ class TestMatroskaXMLParser:
         (f := tmp_path / "test.xml").write_text(content, encoding="utf-8")
         if error:
             with pytest.raises(ValueError, match=error):
-                xml_p.parse(f, FPS_24)
+                parse(xml_p, f)
         else:
-            xml_p.parse(f, FPS_24)
+            parse(xml_p, f)
 
 
 class TestXvidLogParser:
     def test_parse_logic(self, xvid_p: XvidLogParser) -> None:
-        result = xvid_p.parse(FIXTURES / "test_xvidlog.txt", FPS_24)
+        result = parse(xvid_p, FIXTURES / "test_xvidlog.txt")
         assert result.ranges[0].start == 0
         assert len(result.ranges) > 5
 
     def test_parse_empty_xvid(self, xvid_p: XvidLogParser, tmp_path: Path) -> None:
         (f := tmp_path / "empty.txt").write_text("# XviD 2pass stat file\n# comment\n", encoding="utf-8")
-        result = xvid_p.parse(f, FPS_24)
+        result = parse(xvid_p, f)
         assert len(result.ranges) == 0
 
 
@@ -149,19 +154,19 @@ class TestQPFileParser:
         ],
     )
     def test_variations(self, qp_p: QPFileParser, filename: str, count: int, first_frame: int, label: str) -> None:
-        result = qp_p.parse(FIXTURES / filename, FPS_24)
+        result = parse(qp_p, FIXTURES / filename)
         assert len(result.ranges) == count
         assert (result.ranges[0].start, result.ranges[0].label) == (first_frame, label)
 
     def test_parse_empty_qp(self, qp_p: QPFileParser, tmp_path: Path) -> None:
         (f := tmp_path / "empty.qp").write_text("", encoding="utf-8")
-        result = qp_p.parse(f, FPS_24)
+        result = parse(qp_p, f)
         assert len(result.ranges) == 0
 
 
 class TestWobblyParser:
     def test_parse_fixture(self, wob_p: WobblyParser) -> None:
-        results = wob_p.parse(FIXTURES / "test_wobbly.wob", FPS_24)
+        results = parse(wob_p, FIXTURES / "test_wobbly.wob")
         assert isinstance(results, list)
         assert len(results) == 2
 
@@ -181,7 +186,7 @@ class TestWobblyParser:
             "trim": [[0, 200]],
         }
         (f := tmp_path / "labels.wob").write_text(json.dumps(data))
-        res = wob_p.parse(f, FPS_24)
+        res = parse(wob_p, f)
         assert isinstance(res, list)
         [sections] = [s for s in res if "(Sections)" in s.name]
         assert [r.label for r in sections.ranges] == ["a, b", "c"]
@@ -189,7 +194,7 @@ class TestWobblyParser:
     def test_integer_format(self, wob_p: WobblyParser, tmp_path: Path) -> None:
         data = {"sections": [0, 50, 100], "trim": [[0, 150]]}
         (f := tmp_path / "int.wob").write_text(json.dumps(data))
-        res = wob_p.parse(f, FPS_24)
+        res = parse(wob_p, f)
         assert isinstance(res, list)
         [sections] = [s for s in res if "(Sections)" in s.name]
         assert len(sections.ranges) == 3
@@ -198,8 +203,8 @@ class TestWobblyParser:
     def test_errors(self, wob_p: WobblyParser, tmp_path: Path) -> None:
         (f := tmp_path / "bad.wob").write_text("invalid")
         with pytest.raises(ValueError, match="Could not parse Wobbly"):
-            wob_p.parse(f, FPS_24)
+            parse(wob_p, f)
 
         (f2 := tmp_path / "empty.wob").write_text("{}")
         with pytest.raises(ValueError, match="Could not find any sections"):
-            wob_p.parse(f2, FPS_24)
+            parse(wob_p, f2)
