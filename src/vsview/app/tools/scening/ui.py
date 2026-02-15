@@ -200,11 +200,15 @@ class SceneTableModel(AbstractTableModel):
             else None
         )
 
-    def add_scene(self, scene: SceneRow, emit_signal: bool = True) -> QModelIndex:
+    def add_scene(self, scene: SceneRow | Sequence[SceneRow], emit_signal: bool = True) -> QModelIndex:
+        scenes = [scene] if isinstance(scene, SceneRow) else list(scene)
         row = len(self.scenes)
 
-        with self.insert_rows(row):
-            self.scenes.append(scene)
+        if not scenes:
+            return QModelIndex()
+
+        with self.insert_rows(row, row + len(scenes) - 1):
+            self.scenes.extend(scenes)
 
         if emit_signal:
             self.scenesModified.emit()

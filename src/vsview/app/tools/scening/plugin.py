@@ -384,10 +384,7 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
                 logger.exception("Error parsing file(s)")
                 return
 
-            for scene in f.result():
-                self.scenes_model.add_scene(scene, emit_signal=False)
-
-            self._persist_scenes()
+            self.scenes_model.add_scene(f.result())
 
         fscenes.add_done_callback(on_completed)
 
