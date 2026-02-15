@@ -70,6 +70,9 @@ class OGMParser(Parser):
         with borrowed_text_wrapper(io) as wrapper:
             text = wrapper.read()
 
+        if not text:
+            raise ValueError("Empty file")
+
         for match in pattern.finditer(text):
             hours, minutes, seconds_str, name_val = match.group(2, 3, 4, 5)
 
