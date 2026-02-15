@@ -10,11 +10,13 @@ from typing import Any
 import pytest
 from PySide6.QtGui import QColor
 
-from vsview.app.tools.scening.models import RangeFrame
+from vsview.app.tools.scening.models import RangeFrame, RangeTime
 from vsview.app.tools.scening.parsers import (
     AssParser,
     MatroskaXMLParser,
     OGMParser,
+    PythonListFramesParser,
+    PythonListTimestampsParser,
     QPFileParser,
     WobblyParser,
     XvidLogParser,
@@ -65,6 +67,16 @@ def wob_p() -> WobblyParser:
     return _patch_parser(WobblyParser())
 
 
+@pytest.fixture
+def py_frames_p() -> PythonListFramesParser:
+    return _patch_parser(PythonListFramesParser())
+
+
+@pytest.fixture
+def py_ts_p() -> PythonListTimestampsParser:
+    return _patch_parser(PythonListTimestampsParser())
+
+
 class TestAssParser:
     def test_parse_logic(self, ass_p: AssParser) -> None:
         result = parse(ass_p, FIXTURES / "test_ass.ass")
@@ -96,8 +108,8 @@ class TestOGMParser:
 
     def test_empty_file(self, ogm_p: OGMParser, tmp_path: Path) -> None:
         (f := tmp_path / "empty.txt").write_text("", encoding="utf-8")
-        result = parse(ogm_p, f)
-        assert len(result.ranges) == 0
+        with pytest.raises(ValueError, match="Empty file"):
+            parse(ogm_p, f)
 
 
 class TestMatroskaXMLParser:
@@ -208,3 +220,38 @@ class TestWobblyParser:
         (f2 := tmp_path / "empty.wob").write_text("{}")
         with pytest.raises(ValueError, match="Could not find any sections"):
             parse(wob_p, f2)
+
+
+class TestPythonListFramesParser:
+    def test_parse_logic(self, py_frames_p: PythonListFramesParser, tmp_path: Path) -> None:
+        data = [30, (100, 200), (300, 400)]
+        (f := tmp_path / "test.txt").write_text(str(data))
+        result = parse(py_frames_p, f)
+
+        assert len(result.ranges) == 3
+        assert result.ranges[0].start == 30
+        assert (result.ranges[1].start, result.ranges[1].end) == (100, 200)
+        assert (result.ranges[2].start, result.ranges[2].end) == (300, 400)
+
+    def test_empty_file(self, py_frames_p: PythonListFramesParser, tmp_path: Path) -> None:
+        (f := tmp_path / "empty.txt").write_text("")
+        with pytest.raises(ValueError, match="Empty file"):
+            parse(py_frames_p, f)
+
+
+class TestPythonListTimestampsParser:
+    def test_parse_logic(self, py_ts_p: PythonListTimestampsParser, tmp_path: Path) -> None:
+        data = ["00:00:30.000000", ("00:01:00.000000", "00:02:00.000000")]
+        (f := tmp_path / "test.txt").write_text(str(data))
+        result = parse(py_ts_p, f)
+
+        assert len(result.ranges) == 2
+        assert isinstance(result.ranges[0], RangeTime)
+        assert result.ranges[0].start == timedelta(seconds=30)
+        assert result.ranges[1].start == timedelta(minutes=1)
+        assert result.ranges[1].end == timedelta(minutes=2)
+
+    def test_empty_file(self, py_frames_p: PythonListFramesParser, tmp_path: Path) -> None:
+        (f := tmp_path / "empty.txt").write_text("")
+        with pytest.raises(ValueError, match="Empty file"):
+            parse(py_frames_p, f)

@@ -1,3 +1,4 @@
+import ast
 import json
 import re
 from bisect import bisect_left
@@ -266,6 +267,64 @@ class WobblyParser(Parser):
         return scenes
 
 
+class PythonListFramesParser(Parser):
+    filter = Parser.FileFilter("Python List (Frames)", "txt")
+
+    def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
+        with borrowed_text_wrapper(io) as wrapper:
+            text = wrapper.read().strip()
+
+        if not text:
+            raise ValueError("Empty file")
+
+        try:
+            data = ast.literal_eval(text)
+        except Exception as e:
+            raise ValueError(f"Could not parse Python List (Frames) file: {name}") from e
+
+        ranges = list[RangeFrame]()
+
+        for item in data:
+            try:
+                ranges.append(RangeFrame.model_validate(item))
+            except Exception:
+                logger.warning("Skipping invalid item in %s: %s", name, item)
+
+        if not ranges:
+            raise ValueError("Empty file")
+
+        return SceneRow(color=self.get_color(), name=name, ranges=ranges)
+
+
+class PythonListTimestampsParser(Parser):
+    filter = Parser.FileFilter("Python List (Timestamps)", "txt")
+
+    def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
+        with borrowed_text_wrapper(io) as wrapper:
+            text = wrapper.read().strip()
+
+        if not text:
+            raise ValueError("Empty file")
+
+        try:
+            data = ast.literal_eval(text)
+        except Exception as e:
+            raise ValueError(f"Could not parse Python List (Timestamps) file: {name}") from e
+
+        ranges = list[RangeTime]()
+
+        for item in data:
+            try:
+                ranges.append(RangeTime.model_validate(item))
+            except Exception:
+                logger.warning("Error parsing item in %s: %s", name, item)
+
+        if not ranges:
+            raise ValueError("Empty file")
+
+        return SceneRow(color=self.get_color(), name=name, ranges=ranges)
+
+
 internal_parsers: list[Parser] = [
     AssParser(),
     OGMParser(),
@@ -273,6 +332,8 @@ internal_parsers: list[Parser] = [
     XvidLogParser(),
     QPFileParser(),
     WobblyParser(),
+    PythonListFramesParser(),
+    PythonListTimestampsParser(),
 ]
 
 # "Wobbly Sections (*.txt)"

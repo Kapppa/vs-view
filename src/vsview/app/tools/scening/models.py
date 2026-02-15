@@ -3,11 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from datetime import timedelta
-from typing import Annotated, final
+from typing import Annotated, Any, final
 from uuid import UUID, uuid4
 
 from jetpytools import fallback
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_serializer, model_validator
 from PySide6.QtGui import QColor
 
 from vsview.api import Time, VideoOutputProxy
@@ -44,6 +44,15 @@ class AbstractRange[T](ABC, UUIDModel):
 class RangeFrame(AbstractRange[int], UUIDModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _transform_input(cls, data: Any) -> Any:
+        if isinstance(data, int):
+            return {"start": data}
+        if isinstance(data, (list, tuple)) and len(data) >= 2:
+            return {"start": data[0], "end": data[1]}
+        return data
+
     def as_frames(self, v: VideoOutputProxy) -> tuple[int, int]:
         return self.start, (self.end if self.end is not None else self.start)
 
@@ -66,6 +75,21 @@ class RangeFrame(AbstractRange[int], UUIDModel):
 
 class RangeTime(AbstractRange[timedelta], UUIDModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _transform_input(cls, data: Any) -> Any:
+        def _to_td(ts: Any) -> timedelta:
+            if isinstance(ts, timedelta):
+                return ts
+            h, m, s = str(ts).split(":")
+            return timedelta(hours=int(h), minutes=int(m), seconds=float(s))
+
+        if isinstance(data, (str, timedelta)):
+            return {"start": _to_td(data)}
+        if isinstance(data, (list, tuple)) and len(data) >= 2:
+            return {"start": _to_td(data[0]), "end": _to_td(data[1])}
+        return data
 
     def as_frames(self, v: VideoOutputProxy) -> tuple[int, int]:
         s, e = self.as_times(v)

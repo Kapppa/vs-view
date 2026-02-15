@@ -18,6 +18,26 @@ class OGMSerializer(Serializer):
                 wrapper.write(f"CHAPTER{i:02}NAME={label}\n")
 
 
+class PythonListFramesSerializer(Serializer):
+    filter = Serializer.FileFilter("Python List (Frames)", "txt")
+
+    def serialize(self, io: BinaryIO, ranges: Iterable[UnifiedRange]) -> None:
+        with borrowed_text_wrapper(io) as wrapper:
+            wrapper.write(str([r.as_frames() for r in ranges]))
+
+
+class PythonListTimestampsSerializer(Serializer):
+    filter = Serializer.FileFilter("Python List (Timestamps)", "txt")
+
+    def serialize(self, io: BinaryIO, ranges: Iterable[UnifiedRange]) -> None:
+        with borrowed_text_wrapper(io) as wrapper:
+            wrapper.write(
+                str([tuple(ts.to_ts("{H:02d}:{M:02d}:{S:02d}.{ms:06d}") for ts in r.as_times()) for r in ranges])
+            )
+
+
 internal_serializers: list[Serializer] = [
     OGMSerializer(),
+    PythonListFramesSerializer(),
+    PythonListTimestampsSerializer(),
 ]
