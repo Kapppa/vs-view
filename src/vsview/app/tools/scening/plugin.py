@@ -114,6 +114,8 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         self.register_icon_callback(self.on_reload_icon)
         self.api.register_on_destroy(self.init_load.cache_clear)
 
+        self._update_action_labels()
+
     def setup_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -364,6 +366,7 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
     def on_reload_icon(self) -> None:
         cachedproperty.clear_cache(self.scenes_delegate)
         self.scenes_view.viewport().update()
+        self._update_action_labels()
 
     def on_new_scene(self) -> None:
         new_scene = SceneRow(color=next(self._color_gen), name=f"New Scene {str(next(self._counter)).zfill(2)}")
@@ -704,3 +707,12 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         rows = self.ranges_model.rowCount()
         width = self.ranges_view.verticalHeader().fontMetrics().horizontalAdvance(str(rows)) + 12
         self.ranges_view.verticalHeader().setFixedWidth(max(width, 24))
+
+    def _update_action_labels(self) -> None:
+        def set_text(action: QAction, action_id: str, base_text: str) -> None:
+            key = self.api.get_shortcut_label(action_id)
+            action.setIconText(f"{base_text} ({key})" if key else base_text)
+
+        set_text(self.range_start_action, ShortcutDefinition.TOGGLE_RANGE_START.definition, "Mark in")
+        set_text(self.range_end_action, ShortcutDefinition.TOGGLE_RANGE_END.definition, "Mark out")
+        set_text(self.add_range_action, ShortcutDefinition.VALIDATE_RANGE.definition, "Add range")
