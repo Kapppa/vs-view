@@ -187,7 +187,19 @@ class ShortcutManager(Singleton):
 
     def _update_action(self, action_id: str, action: QAction) -> None:
         if Shiboken.isValid(action):
-            action.setShortcut(self.get_key(action_id))
+            key = self.get_key(action_id)
+            action.setShortcut(key)
+
+            if not key:
+                return
+
+            native = QKeySequence(key).toString(QKeySequence.SequenceFormat.NativeText)
+
+            if (original := action.property("original_tooltip")) is None:
+                original = action.toolTip()
+                action.setProperty("original_tooltip", original)
+
+            action.setToolTip(f"{original} ({native})" if original else f"({native})")
         else:
             del action
 

@@ -25,6 +25,7 @@ from PySide6.QtGui import (
     QCursor,
     QImage,
     QKeyEvent,
+    QKeySequence,
     QMouseEvent,
     QPixmap,
     QRgba64,
@@ -453,6 +454,13 @@ class PluginAPI(_PluginAPI):
             The created QShortcut instance.
         """
         return ShortcutManager.register_shortcut(action_id, callback, parent, context=context)
+
+    def get_shortcut_label(self, action_id: str) -> str:
+        """
+        Return the current shortcut's native display string or an empty string if no shortcut is assigned.
+        """
+        key = ShortcutManager.get_key(action_id)
+        return QKeySequence(key).toString(QKeySequence.SequenceFormat.NativeText) if key else ""
 
 
 class LocalSettingsModel(BaseModel):
