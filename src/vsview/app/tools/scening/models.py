@@ -24,24 +24,79 @@ class UUIDModel(BaseModel):
 
 
 class AbstractRange[T](ABC, UUIDModel):
+    """
+    Base class for a scening range, which can be defined in frames or timestamps.
+
+    A range consists of a start point, an optional end point (defaults to start), and an optional label.
+    """
+
     start: T
+    """The start point of the range."""
     end: T | None = None
+    """The end point of the range. If None, the range represents a single point (start)."""
     label: str = ""
+    """An optional description for this range."""
 
     @abstractmethod
-    def as_frames(self, v: VideoOutputProxy) -> tuple[int, int]: ...
+    def as_frames(self, v: VideoOutputProxy) -> tuple[int, int]:
+        """
+        Convert the range to a tuple of (start_frame, end_frame).
+
+        Args:
+            v: The video output proxy used for conversion.
+
+        Returns:
+            tuple[int, int]: The start and end frames.
+        """
+        ...
+
     @abstractmethod
-    def as_times(self, v: VideoOutputProxy) -> tuple[Time, Time]: ...
+    def as_times(self, v: VideoOutputProxy) -> tuple[Time, Time]:
+        """
+        Convert the range to a tuple of (Time, Time).
+
+        Args:
+            v: The video output proxy used for conversion.
+
+        Returns:
+            tuple[Time, Time]: The start and end times.
+        """
+        ...
+
     @abstractmethod
-    def from_frames(self, s: int | None, e: int | None, v: VideoOutputProxy) -> None: ...
+    def from_frames(self, s: int | None, e: int | None, v: VideoOutputProxy) -> None:
+        """
+        Update the range boundaries from frame numbers.
+
+        Args:
+            s: The new start frame.
+            e: The new end frame.
+            v: The video output proxy used for conversion.
+        """
+        ...
+
     @abstractmethod
-    def from_times(self, s: timedelta | None, e: timedelta | None, v: VideoOutputProxy) -> None: ...
+    def from_times(self, s: timedelta | None, e: timedelta | None, v: VideoOutputProxy) -> None:
+        """
+        Update the range boundaries from timedelta objects.
+
+        Args:
+            s: The new start time.
+            e: The new end time.
+            v: The video output proxy used for conversion.
+        """
+        ...
 
     def to_tuple(self) -> tuple[T, T]:
+        """
+        Return a tuple of (start, end), where end defaults to start if None.
+        """
         return self.start, fallback(self.end, self.start)
 
 
 class RangeFrame(AbstractRange[int], UUIDModel):
+    """A range defined by frame numbers."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @model_validator(mode="before")
@@ -74,6 +129,8 @@ class RangeFrame(AbstractRange[int], UUIDModel):
 
 
 class RangeTime(AbstractRange[timedelta], UUIDModel):
+    """A range defined by timestamps (timedelta)."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @model_validator(mode="before")
@@ -116,6 +173,8 @@ class RangeTime(AbstractRange[timedelta], UUIDModel):
 
 @final
 class UnifiedRange:
+    """A helper wrapper providing a unified interface for frame and time-based ranges."""
+
     def __init__(
         self,
         r: RangeFrame | RangeTime,
@@ -128,6 +187,7 @@ class UnifiedRange:
         self.label = self._r.label
 
     def as_frames(self) -> tuple[int, int]:
+        """Convert the range to a tuple of (start_frame, end_frame)."""
         if isinstance(self._r, RangeFrame):
             return self._r.to_tuple()
 
@@ -136,6 +196,7 @@ class UnifiedRange:
         return self._time_to_frame(s), self._time_to_frame(e)
 
     def as_times(self) -> tuple[Time, Time]:
+        """Convert the range to a tuple of (Time, Time)."""
         if isinstance(self._r, RangeTime):
             s, e = self._r.to_tuple()
             return Time(seconds=s.total_seconds()), Time(seconds=e.total_seconds())
@@ -146,6 +207,8 @@ class UnifiedRange:
 
 
 class SceneRow(UUIDModel):
+    """Represents a collection of ranges grouped under a single name and color."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     color: Annotated[QColor, BeforeValidator(lambda v: v if isinstance(v, QColor) else QColor(v))]
