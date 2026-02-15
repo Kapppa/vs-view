@@ -262,6 +262,5 @@ internal_parsers: list[Parser] = [
     WobblyParser(),
 ]
 
-# "Wobbly File (*.wob)": import_wobbly,
 # "Wobbly Sections (*.txt)"
 # "VSEdit Bookmarks (*.bookmarks)"
