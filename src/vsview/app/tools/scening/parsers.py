@@ -2,7 +2,7 @@ import ast
 import json
 import re
 from bisect import bisect_left
-from datetime import datetime, timedelta
+from datetime import timedelta
 from fractions import Fraction
 from logging import getLogger
 from math import ceil
@@ -25,26 +25,14 @@ class AssParser(Parser):
 
         ranges = list[RangeFrame]()
 
-        for start_ts, end_ts, txt in re.findall(
-            r"^Dialogue:\s\d+,([^,]+),([^,]+),(?:[^,]*,){6}(.*)$",
-            text,
-            re.MULTILINE,
-        ):
-            start_dt = datetime.strptime(start_ts, "%H:%M:%S.%f")
-            end_dt = datetime.strptime(end_ts, "%H:%M:%S.%f")
+        for matched in re.finditer(r"^Dialogue:\s\d+,([^,]+),([^,]+),(?:[^,]*,){6}(.*)$", text, re.MULTILINE):
+            start_ts, end_ts, txt = matched.groups()
 
-            start_seconds = timedelta(
-                hours=start_dt.hour,
-                minutes=start_dt.minute,
-                seconds=start_dt.second,
-                microseconds=start_dt.microsecond,
-            ).total_seconds()
-            end_seconds = timedelta(
-                hours=end_dt.hour,
-                minutes=end_dt.minute,
-                seconds=end_dt.second,
-                microseconds=end_dt.microsecond,
-            ).total_seconds()
+            h, m, s = start_ts.split(":")
+            start_seconds = int(h) * 3600 + int(m) * 60 + float(s)
+
+            h, m, s = end_ts.split(":")
+            end_seconds = int(h) * 3600 + int(m) * 60 + float(s)
 
             # formula is from videotimestamps with a rounding method of "round"
             # https://github.com/moi15moi/VideoTimestamps/blob/9d8259a94d069d7f85d6ab502b6ded3bfb25145a/video_timestamps/fps_timestamps.py#L65-L85
