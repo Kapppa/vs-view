@@ -100,7 +100,3 @@ def show_error(error: ExecutionError, parent: QWidget, user_script_path: str | N
         layout.addItem(spacer, layout.rowCount(), 0, 1, layout.columnCount())
 
     msg.exec()
-
-    # Clear traceback references to avoid holding VS core objects
-    del tb, e
-    error.parent_error.__traceback__ = None

@@ -767,14 +767,14 @@ wheels = [
 
 [[package]]
 name = "vsjetengine"
-version = "1.0.0"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "vapoursynth" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e9/bb/6d2ed33b67c1821359f35e358e309042231b5918e3fea9522127a31a38c1/vsjetengine-1.0.0.tar.gz", hash = "sha256:bd5c003ce33ec37904c1f1b604d8a55db493223a71118b288572f0283babb713", size = 35543, upload-time = "2026-01-22T02:54:49.497Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8f/46/48df69732ccb663eef32572de54489a123fd466d3e544123b1a9b92d342a/vsjetengine-1.1.0.tar.gz", hash = "sha256:5464295595f18d499d4c9e28b78fbfc00993e7469b4259540dad552b24bad32a", size = 36442, upload-time = "2026-02-18T04:12:03.993Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/0e/3f1134a54e51c91f79de97deb69066f669f18d4e4ac15167b5a16a281af6/vsjetengine-1.0.0-py3-none-any.whl", hash = "sha256:3dacc67b236657b6335ba85e8c7ba552b755db20670a4b09c88db8b60305ad4e", size = 32390, upload-time = "2026-01-22T02:54:47.975Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/5a/775f6f68692e79f230b3532a4d73a53a9d94275b5b65f7c6581469b829d4/vsjetengine-1.1.0-py3-none-any.whl", hash = "sha256:4fa044a0dafc0caafc587c9389803dbf453be7f477a12bec18229501c5bf8869", size = 32505, upload-time = "2026-02-18T04:12:02.472Z" },
 ]
 
 [[package]]
@@ -889,7 +889,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.20.0" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'", specifier = ">=4.15.0" },
     { name = "vapoursynth", specifier = ">=69" },
-    { name = "vsjetengine", specifier = ">=1.0.0" },
+    { name = "vsjetengine", specifier = ">=1.1.0" },
     { name = "vspackrgb", editable = "src/vspackrgb" },
     { name = "vsview-frameprops-extended", marker = "extra == 'essential'", editable = "src/plugins/frameprops-extended" },
     { name = "vsview-split-planes", marker = "extra == 'essential'", editable = "src/plugins/split-planes" },

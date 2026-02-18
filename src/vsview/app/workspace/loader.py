@@ -280,11 +280,11 @@ class LoaderWorkspace[T](BaseWorkspace):
             self.env.switch()
             self.init_load(frame, tab_index)
 
-            try:
-                voutputs, aoutputs = self._get_outputs()
-            except Exception:
+            if not (outputs := self._get_outputs()):
                 self.clear_failed_load()
                 return
+
+            voutputs, aoutputs = outputs
 
         tabs = self.tab_manager.create_tabs(voutputs)
 
@@ -308,10 +308,7 @@ class LoaderWorkspace[T](BaseWorkspace):
             self.tab_manager.disable_switch = False
             self.playback.can_reload = True
 
-        # Handle potential error on frame rendering
-        try:
-            self._on_tab_changed(self.outputs_manager.current_video_index, cb_render=on_complete)
-        except Exception:
+        if not self._on_tab_changed(self.outputs_manager.current_video_index, cb_render=on_complete):
             logger.error("Failed to load content: %r", self.content)
             self.clear_failed_load()
             return
@@ -352,11 +349,13 @@ class LoaderWorkspace[T](BaseWorkspace):
             # 3. Load New Content
             with loader_lock:
                 self.env.switch()
-                try:
-                    voutputs, aoutputs = self._get_outputs()
-                except Exception:
-                    self.clear_failed_load()
-                    return
+                outputs = self._get_outputs()
+
+            if not outputs:
+                self.clear_failed_load()
+                return
+
+            voutputs, aoutputs = outputs
 
             # 4. Reconstruct UI
             tabs = self.tab_manager.create_tabs(voutputs, enabled=False)
@@ -386,17 +385,15 @@ class LoaderWorkspace[T](BaseWorkspace):
                 self.playback.can_reload = True
                 self.tab_manager.disable_switch = False
 
-            try:
-                self._on_tab_changed(
-                    self.tab_manager.tabs.currentIndex(),
-                    seamless=True,
-                    cb_render=on_complete,
-                    refresh_plugins=True,
-                )
-            except Exception:
+            if not self._on_tab_changed(
+                self.tab_manager.tabs.currentIndex(),
+                seamless=True,
+                cb_render=on_complete,
+                refresh_plugins=True,
+            ):
                 logger.error("Failed to reload content: %r", self.content)
                 self.clear_failed_load()
-                raise
+                raise RuntimeError("Reload failed") from None
 
             logger.info("Content reloaded successfully: %r", self.content)
 
@@ -492,29 +489,32 @@ class LoaderWorkspace[T](BaseWorkspace):
     def set_error_page(self) -> None:
         self.stack.setCurrentWidget(self.error_page)
 
-    def _get_outputs(self) -> tuple[list[VideoOutput], list[AudioOutput]]:
-        self.loader()
+    def _get_outputs(self) -> tuple[list[VideoOutput], list[AudioOutput]] | None:
+        try:
+            self.loader()
 
-        voutputs = self.outputs_manager.create_voutputs(
-            self.content,
-            self.video_outputs,
-            self.get_output_metadata(),
-            self.api,
-            last_frame=self.playback.state.current_frame,
-        )
+            voutputs = self.outputs_manager.create_voutputs(
+                self.content,
+                self.video_outputs,
+                self.get_output_metadata(),
+                self.api,
+                last_frame=self.playback.state.current_frame,
+            )
 
-        if not voutputs:
-            raise RuntimeError
+            if not voutputs:
+                raise RuntimeError
 
-        aoutputs = self.outputs_manager.create_aoutputs(
-            self.content,
-            self.audio_outputs,
-            self.get_output_metadata(),
-            self.api,
-            delay_s=self.tbar.playback_container.audio_delay,
-        )
+            aoutputs = self.outputs_manager.create_aoutputs(
+                self.content,
+                self.audio_outputs,
+                self.get_output_metadata(),
+                self.api,
+                delay_s=self.tbar.playback_container.audio_delay,
+            )
 
-        return voutputs, aoutputs
+            return voutputs, aoutputs
+        except Exception:
+            return None
 
     def _on_tab_changed(
         self,
@@ -522,13 +522,13 @@ class LoaderWorkspace[T](BaseWorkspace):
         seamless: bool = False,
         cb_render: Callable[[Future[None]], None] | None = None,
         refresh_plugins: bool = False,
-    ) -> None:
+    ) -> bool:
         self.playback.stop()
         self.outputs_manager.current_video_index = index
 
         if not self.outputs_manager.current_voutput:
             logger.debug("Invalid tab index %d, ignoring", index)
-            return
+            return True
 
         logger.debug("Switching to video output: clip=%r", self.outputs_manager.current_voutput.vs_output.clip)
 
@@ -559,10 +559,15 @@ class LoaderWorkspace[T](BaseWorkspace):
                         self.api._on_current_voutput_changed(refresh_plugins)
 
             logger.debug("Requesting frame %d", target_frame)
-            self.playback.request_frame(target_frame, on_complete)
+            try:
+                self.playback.request_frame(target_frame, on_complete)
+            except Exception:
+                return False
         else:
             with self.env.use():
                 self.api._on_current_voutput_changed(refresh_plugins)
+
+        return True
 
     def _calculate_target_frame(self) -> int:
         if not (voutput := self.outputs_manager.current_voutput):
