@@ -351,9 +351,9 @@ class LoaderWorkspace[T](BaseWorkspace):
                 self.env.switch()
                 outputs = self._get_outputs()
 
-            if not outputs:
-                self.clear_failed_load()
-                return
+                if not (outputs := self._get_outputs()):
+                    self.clear_failed_load()
+                    return
 
             voutputs, aoutputs = outputs
 
