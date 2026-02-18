@@ -1005,5 +1005,10 @@ class LocalSettings(BaseSettings):
     layout: LayoutSettings = LayoutSettings()
     plugins: dict[str, dict[str, Any] | BaseModel] = Field(default_factory=dict)
 
+    @field_validator("last_output_tab_index")
+    @classmethod
+    def validate_last_output_tab_index(cls, i: int) -> int:
+        return max(0, i)
+
 
 DEFAULT_LOCAL_SETTINGS = LocalSettings()

@@ -77,7 +77,6 @@ class TabViewWidget(QTabWidget):
         view = super().widget(index)
 
         if not isinstance(view, GraphicsView):
-            logger.debug("%s", view)
             raise ValueError("Current widget is not a GraphicsView")
 
         return view
