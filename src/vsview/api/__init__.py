@@ -1,6 +1,7 @@
 """API for vsview"""
 
 from ..app.plugins import (
+    AudioOutputProxy,
     GraphicsViewProxy,
     LocalSettingsModel,
     NodeProcessor,
@@ -11,7 +12,16 @@ from ..app.plugins import (
     WidgetPluginBase,
     hookimpl,
 )
-from ..app.settings.models import ActionDefinition, Checkbox, DoubleSpin, Dropdown, PlainTextEdit, Spin, WidgetMetadata
+from ..app.settings.models import (
+    ActionDefinition,
+    Checkbox,
+    DoubleSpin,
+    Dropdown,
+    PlainTextEdit,
+    Spin,
+    WidgetMetadata,
+    WidgetTimeEdit,
+)
 from ..app.views.components import Accordion, AnimatedToggle, SegmentedControl
 from ..app.views.timeline import Frame, FrameEdit, Time, TimeEdit
 from ..app.views.video import BaseGraphicsView
@@ -23,6 +33,7 @@ __all__ = [
     "Accordion",
     "ActionDefinition",
     "AnimatedToggle",
+    "AudioOutputProxy",
     "BaseGraphicsView",
     "Checkbox",
     "DoubleSpin",
@@ -45,6 +56,7 @@ __all__ = [
     "VideoOutputProxy",
     "WidgetMetadata",
     "WidgetPluginBase",
+    "WidgetTimeEdit",
     "hookimpl",
     "run_in_background",
     "run_in_loop",
