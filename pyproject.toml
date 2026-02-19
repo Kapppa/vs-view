@@ -43,6 +43,7 @@ dev = [
     "graphviz>=0.21",
     "cython>=3.0.0",
     "types-pygments>=2.19.0.20251121",
+    "hatchling",
 ]
 test = [
     "pytest>=9.0.0, <10.0.0",
@@ -70,9 +71,11 @@ essential = ["vsview-split-planes", "vsview-frameprops-extended"]
 "Bug Tracker" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/issues"
 "Contact" = "https://discord.gg/XTpc6Fa9eB"
 
+[tool.hatch.build.hooks.custom]
+path = "scripts/hatch_build_empty_global_settings.py"
+
 [tool.hatch.build.targets.sdist]
-only-include = ["src/vsview"]
-include = ["README.md", "LICENSE", "pyproject.toml"]
+only-include = ["src/vsview", "docs", "scripts", "stubs", ".gitmodules"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vsview"]
