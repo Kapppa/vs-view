@@ -353,9 +353,6 @@ link = "https://discord.com/invite/XTpc6Fa9eB"
 [project.extra]
 generator = false
 
-[project.extra.version]
-provider = "mike"
-
 # ----------------------------------------------------------------------------
 # Zensical supports mkdocstrings for API documentation
 # https://mkdocstrings.github.io/python/usage/

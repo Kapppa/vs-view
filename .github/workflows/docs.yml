@@ -1,4 +1,4 @@
-name: Documentation
+name: Doc
 
 on:
   push:
@@ -6,9 +6,6 @@ on:
       - main
     tags:
       - "vsview/v*"
-
-env:
-  UV_NO_SYNC: "1"
 
 permissions:
   contents: write
@@ -19,8 +16,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -34,25 +29,36 @@ jobs:
       - name: Patch VapourSynth inventory
         run: uv run python scripts/fix_vs_inv.py
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Determine version
         id: version
         run: |
           if [[ "$GITHUB_REF" == refs/tags/vsview/v* ]]; then
-            echo "name=${GITHUB_REF#refs/tags/vsview/}" >> "$GITHUB_OUTPUT"
-            echo "alias=" >> "$GITHUB_OUTPUT"
+            VERSION=${GITHUB_REF#refs/tags/vsview/}
+            echo "path=$VERSION" >> "$GITHUB_OUTPUT"
           else
-            echo "name=latest" >> "$GITHUB_OUTPUT"
-            echo "alias=" >> "$GITHUB_OUTPUT"
+            echo "path=latest" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Deploy docs
+      - name: Build docs
+        run: uv run zensical build --clean
+
+      - name: Create root redirect
         run: |
-          uv run mike deploy --push --update-aliases ${{ steps.version.outputs.name }}
-          if [[ "${{ steps.version.outputs.name }}" == "latest" ]]; then
-            uv run mike set-default --push latest
-          fi
+          mkdir -p _deploy
+          cp -r site/* _deploy/
+          mkdir -p _deploy/${{ steps.version.outputs.path }}
+          cp -r site/* _deploy/${{ steps.version.outputs.path }}/
+          cat > _deploy/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+            <head><meta http-equiv="refresh" content="0; url=latest/"></head>
+            <body><a href="latest/">Redirecting to latest...</a></body>
+          </html>
+          EOF
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: _deploy
+          branch: gh-pages
+          clean: false
