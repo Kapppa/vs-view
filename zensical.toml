@@ -372,7 +372,7 @@ inventories = [
 
 [project.plugins.mkdocstrings.handlers.python.options]
 # General
-preload_modules = ["vapoursynth"]
+allow_inspection = false
 show_source = true
 skip_local_inventory = false
 
