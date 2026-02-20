@@ -7,6 +7,9 @@ on:
     tags:
       - "vsview/v*"
 
+env:
+  UV_NO_SYNC: "1"
+
 permissions:
   contents: write
 
