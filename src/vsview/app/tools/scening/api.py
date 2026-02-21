@@ -113,6 +113,7 @@ class Serializer(ABC):
     file-like object in a specific format.
 
     To implement a serializer, create a subclass and:
+
     1. Define the `filter` class variable.
     2. Implement the `serialize` method.
     3. Register it using the `vsview_scening_register_serializer` hook.
