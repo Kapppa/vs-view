@@ -328,7 +328,7 @@ class SceneTableDelegate(QStyledItemDelegate):
         self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex
     ) -> None:
         pm = self.delete_pixmap
-        painter.drawPixmap(self._center_rect(option.rect, pm.width()).topLeft(), pm)
+        painter.drawPixmap(self._center_rect(option.rect, self.DELETE_ICON_SIZE.width()).topLeft(), pm)
 
     def editorEvent(
         self,

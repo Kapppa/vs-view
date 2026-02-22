@@ -311,6 +311,7 @@ class BaseGraphicsView(QGraphicsView):
         self.setScene(self.graphics_scene)
 
     def set_pixmap(self, pixmap: QPixmap) -> None:
+        pixmap.setDevicePixelRatio(self.devicePixelRatio())
         old_size = self.pixmap_item.pixmap().size()
         self.pixmap_item.setPixmap(pixmap)
 
