@@ -111,6 +111,7 @@ class BaseGraphicsView(QGraphicsView):
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, False)
 
         self.graphics_scene = QGraphicsScene(self)
 
