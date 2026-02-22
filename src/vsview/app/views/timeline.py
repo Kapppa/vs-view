@@ -620,6 +620,9 @@ class Timeline(QWidget):
     @cursor_x.setter
     def cursor_x(self, x: int | Frame | Time) -> None:
         """Sets the cursor value (can be int pixel, Frame, or Time), triggering a redraw."""
+        if self.mousepressed:
+            return
+
         self._cursor_val = x
         self.update()
 
