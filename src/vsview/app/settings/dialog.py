@@ -38,19 +38,6 @@ QWIDGETSIZE_MAX = 16777215
 logger = getLogger(__name__)
 
 
-class SettingsSection(Accordion):
-    def add_widget(self, widget: QWidget) -> None:
-        self.content_layout.addWidget(widget)
-
-    def add_form_layout(self) -> QFormLayout:
-        # This form has to be without parent, otherwise we're getting an error
-        form = QFormLayout()
-        form.setContentsMargins(0, 0, 0, 0)
-        form.setSpacing(8)
-        self.content_layout.addLayout(form)
-        return form
-
-
 class SettingsTab(QScrollArea):
     def __init__(self, tab_name: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -74,7 +61,7 @@ class SettingsTab(QScrollArea):
     def __exit__(self, *_: object) -> None:
         self.finalize()
 
-    def add_section(self, section: SettingsSection) -> None:
+    def add_section(self, section: Accordion) -> None:
         self.container_layout.addWidget(section)
 
     def finalize(self) -> None:
@@ -173,13 +160,13 @@ class SettingsDialog(QDialog, IconReloadMixin):
 
     def _create_global_tab(self) -> SettingsTab:
         # Build sections from registry
-        sections = dict[str, tuple[SettingsSection, QFormLayout]]()
+        sections = dict[str, tuple[Accordion, QFormLayout]]()
 
         with SettingsTab("Global", self) as tab:
             for entry in self.global_settings_registry:
                 # Get or create section
                 if entry.section not in sections:
-                    section = SettingsSection(entry.section, tab)
+                    section = Accordion(entry.section, tab)
                     form = section.add_form_layout()
                     sections[entry.section] = (section, form)
                     tab.add_section(section)
@@ -261,7 +248,7 @@ class SettingsDialog(QDialog, IconReloadMixin):
         with SettingsTab("Shortcuts", self) as tab:
             # Create a section for each group
             for group_name, actions in grouped_actions.items():
-                shortcuts_section = SettingsSection(group_name, tab)
+                shortcuts_section = Accordion(group_name, tab)
                 form = shortcuts_section.add_form_layout()
 
                 # Create an editor for each shortcut action in this group
@@ -310,7 +297,7 @@ class SettingsDialog(QDialog, IconReloadMixin):
         with SettingsTab("Local", self) as tab:
             # Script info section
             if self._script_path:
-                info_section = SettingsSection("Script", tab)
+                info_section = Accordion("Script", tab)
                 form = info_section.add_form_layout()
 
                 path_label = QLabel(str(self._script_path), self)
@@ -320,12 +307,12 @@ class SettingsDialog(QDialog, IconReloadMixin):
                 tab.add_section(info_section)
 
             # Build sections from registry
-            sections = dict[str, tuple[SettingsSection, QFormLayout]]()
+            sections = dict[str, tuple[Accordion, QFormLayout]]()
 
             for entry in self.local_settings_registry:
                 # Get or create section
                 if entry.section not in sections:
-                    section = SettingsSection(entry.section, tab)
+                    section = Accordion(entry.section, tab)
                     form = section.add_form_layout()
                     sections[entry.section] = (section, form)
                     tab.add_section(section)

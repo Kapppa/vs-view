@@ -18,7 +18,9 @@ from PySide6.QtWidgets import (
     QBoxLayout,
     QButtonGroup,
     QCheckBox,
+    QFormLayout,
     QFrame,
+    QHBoxLayout,
     QLabel,
     QProgressBar,
     QPushButton,
@@ -312,6 +314,23 @@ class Accordion(QFrame):
 
         if collapsed:
             self.content.setMaximumHeight(0)
+
+    def add_widget(self, widget: QWidget) -> None:
+        self.content_layout.addWidget(widget)
+
+    def add_form_layout(self) -> QFormLayout:
+        form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
+        form.setSpacing(8)
+        self.content_layout.addLayout(form)
+        return form
+
+    def add_hlayout(self) -> QHBoxLayout:
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        self.content_layout.addLayout(layout)
+        return layout
 
     def on_toggle(self, checked: bool) -> None:
         self.header.setArrowType(Qt.ArrowType.DownArrow if checked else Qt.ArrowType.RightArrow)
