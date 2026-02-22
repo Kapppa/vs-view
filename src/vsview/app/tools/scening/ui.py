@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
+from collections.abc import Sequence
 from copy import copy
 from datetime import timedelta
 from enum import IntEnum
@@ -10,7 +9,6 @@ from typing import Any, Self
 from jetpytools import cachedproperty, to_arr
 from PySide6.QtCore import (
     QAbstractItemModel,
-    QAbstractTableModel,
     QEvent,
     QModelIndex,
     QPersistentModelIndex,
@@ -32,7 +30,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vsview.api import FrameEdit, IconName, PluginAPI, Time, TimeEdit, VideoOutputProxy
+from vsview.api import AbstractTableModel, FrameEdit, IconName, PluginAPI, Time, TimeEdit, VideoOutputProxy
 from vsview.assets.utils import load_icon
 
 from .models import AbstractRange, RangeFrame, RangeTime, SceneRow
@@ -56,32 +54,6 @@ class Col(HeaderIntEnum):
     OUTPUTS = 2, "Outputs"
     DISPLAY = 3, "Display"
     DELETE = 4, ""
-
-
-class AbstractTableModel(QAbstractTableModel):
-    @contextmanager
-    def insert_rows(self, first: int, last: int | None = None) -> Iterator[None]:
-        self.beginInsertRows(QModelIndex(), first, last or first)
-        try:
-            yield
-        finally:
-            self.endInsertRows()
-
-    @contextmanager
-    def remove_rows(self, first: int, last: int | None = None) -> Iterator[None]:
-        self.beginRemoveRows(QModelIndex(), first, last or first)
-        try:
-            yield
-        finally:
-            self.endRemoveRows()
-
-    @contextmanager
-    def reset_model(self) -> Iterator[None]:
-        self.beginResetModel()
-        try:
-            yield
-        finally:
-            self.endResetModel()
 
 
 class SceneTableModel(AbstractTableModel):

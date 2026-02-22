@@ -1,7 +1,10 @@
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 
 from PySide6.QtCore import (
+    QAbstractTableModel,
     QEasingCurve,
+    QModelIndex,
     QPoint,
     QPointF,
     QPropertyAnimation,
@@ -348,3 +351,29 @@ class Accordion(QFrame):
             self.animation.setEndValue(0)
 
         self.animation.start()
+
+
+class AbstractTableModel(QAbstractTableModel):
+    @contextmanager
+    def insert_rows(self, first: int, last: int | None = None) -> Iterator[None]:
+        self.beginInsertRows(QModelIndex(), first, last or first)
+        try:
+            yield
+        finally:
+            self.endInsertRows()
+
+    @contextmanager
+    def remove_rows(self, first: int, last: int | None = None) -> Iterator[None]:
+        self.beginRemoveRows(QModelIndex(), first, last or first)
+        try:
+            yield
+        finally:
+            self.endRemoveRows()
+
+    @contextmanager
+    def reset_model(self) -> Iterator[None]:
+        self.beginResetModel()
+        try:
+            yield
+        finally:
+            self.endResetModel()

@@ -22,7 +22,7 @@ from ..app.settings.models import (
     WidgetMetadata,
     WidgetTimeEdit,
 )
-from ..app.views.components import Accordion, AnimatedToggle, SegmentedControl
+from ..app.views.components import AbstractTableModel, Accordion, AnimatedToggle, SegmentedControl
 from ..app.views.timeline import Frame, FrameEdit, Time, TimeEdit
 from ..app.views.video import BaseGraphicsView
 from ..assets import IconName, IconReloadMixin
@@ -30,6 +30,7 @@ from ..vsenv import run_in_background, run_in_loop
 from .output import set_output
 
 __all__ = [
+    "AbstractTableModel",
     "Accordion",
     "ActionDefinition",
     "AnimatedToggle",
