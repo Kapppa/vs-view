@@ -299,7 +299,7 @@ class PlainTextEdit[T: SupportsRichComparison](WidgetMetadata[QPlainTextEdit]):
 
 
 @dataclass(frozen=True, slots=True)
-class TimeEdit(WidgetMetadata[QTimeEdit]):
+class WidgetTimeEdit(WidgetMetadata[QTimeEdit]):
     """TimeEdit widget for times"""
 
     min: QTime | None = None
@@ -868,7 +868,7 @@ class GlobalSettings(BaseSettings):
 
     autosave: Annotated[
         time,
-        TimeEdit(
+        WidgetTimeEdit(
             label="Settings auto save interval",
             min=QTime(),
             max=QTime(0, 30, 0, 0),
@@ -1023,6 +1023,11 @@ class LocalSettings(BaseSettings):
     synchronization: SynchronizationSettings = SynchronizationSettings()
     layout: LayoutSettings = LayoutSettings()
     plugins: dict[str, dict[str, Any] | BaseModel] = Field(default_factory=dict)
+
+    @field_validator("last_output_tab_index")
+    @classmethod
+    def validate_last_output_tab_index(cls, i: int) -> int:
+        return max(0, i)
 
 
 DEFAULT_LOCAL_SETTINGS = LocalSettings()

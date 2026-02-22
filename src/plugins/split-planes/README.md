@@ -6,6 +6,7 @@ A [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view) plugin display
 
 - [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view)
 - [vsjetpack](https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack) 1.1.0 or later
+- [akarin](https://github.com/Jaded-Encoding-Thaumaturgy/akarin-vapoursynth-plugin)
 
 ## Installation
 

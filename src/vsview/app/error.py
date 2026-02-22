@@ -4,7 +4,7 @@ from pathlib import Path
 from traceback import TracebackException
 
 from PySide6.QtGui import QFontMetrics
-from PySide6.QtWidgets import QGridLayout, QMessageBox, QSpacerItem, QWidget
+from PySide6.QtWidgets import QGridLayout, QMessageBox, QSpacerItem, QStyle, QWidget
 from vsengine.vpy import ExecutionError
 
 from ..assets import get_monospace_font
@@ -90,7 +90,7 @@ def show_error(error: ExecutionError, parent: QWidget, user_script_path: str | N
     max_width = max(metrics.horizontalAdvance(line) for line in error_message.splitlines())
 
     msg = QMessageBox(parent)
-    msg.setIconPixmap(msg.style().standardIcon(msg.style().StandardPixmap.SP_MessageBoxCritical).pixmap(48, 48))
+    msg.setIconPixmap(msg.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxCritical).pixmap(48, 48))
     msg.setWindowTitle("Error")
     msg.setText(error_message)
     msg.setFont(font)
@@ -100,7 +100,3 @@ def show_error(error: ExecutionError, parent: QWidget, user_script_path: str | N
         layout.addItem(spacer, layout.rowCount(), 0, 1, layout.columnCount())
 
     msg.exec()
-
-    # Clear traceback references to avoid holding VS core objects
-    del tb, e
-    error.parent_error.__traceback__ = None

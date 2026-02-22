@@ -77,7 +77,6 @@ class TabViewWidget(QTabWidget):
         view = super().widget(index)
 
         if not isinstance(view, GraphicsView):
-            logger.debug("%s", view)
             raise ValueError("Current widget is not a GraphicsView")
 
         return view
@@ -199,14 +198,23 @@ class TabLabel(QWidget):
         Args:
             zoom: The zoom factor (1.0 = 100%), or 0 to show placeholder.
         """
+        if self._zoom == zoom:
+            return
+
         self._zoom = zoom
-        self._update_text()
+        self._update_zoom_text()
 
     def _update_text(self) -> None:
+        self._update_name_text()
+        self._update_zoom_text()
+
+    def _update_name_text(self) -> None:
         name_text = f"{self.vs_index}: {self.name}"
         metrics = QFontMetrics(self._name_label.font())
 
         self._name_label.setText(
             metrics.elidedText(name_text, Qt.TextElideMode.ElideRight, self._name_label.maximumWidth())
         )
+
+    def _update_zoom_text(self) -> None:
         self._zoom_label.setText(f"({round(self._zoom * 100)}%)" if self._zoom else "(---%)")

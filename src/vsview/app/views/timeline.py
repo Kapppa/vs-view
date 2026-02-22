@@ -111,7 +111,7 @@ class Time(timedelta):
         hours, remainder = divmod(self.seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
 
-        milliseconds = self.microseconds // 1000
+        milliseconds = cround(self.microseconds / 1000)
 
         format_data = {
             "D": days,
