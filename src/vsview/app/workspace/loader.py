@@ -34,9 +34,9 @@ from ..outputs import AudioOutput, OutputsManager, VideoOutput
 from ..plugins.api import PluginAPI, WidgetPluginBase
 from ..plugins.manager import PluginManager
 from ..settings import ActionID, ShortcutManager
-from ..views import OutputInfo, PluginDock, PluginSplitter
+from ..views import PluginDock, PluginSplitter
 from ..views.components import CustomLoadingPage, DockButton
-from ..views.timeline import Frame, Time, TimelineControlBar
+from ..views.timeline import Frame, TimelineControlBar
 from .base import BaseWorkspace
 from .playback import PlaybackManager
 from .tab_manager import TabManager
@@ -600,33 +600,7 @@ class LoaderWorkspace[T](BaseWorkspace):
             logger.warning("No current video output, ignoring")
             return
 
-        # Calculate total duration
-        if voutput.vs_output.clip.fps.numerator > 0:
-            total_seconds = (
-                voutput.vs_output.clip.num_frames
-                * voutput.vs_output.clip.fps.denominator
-                / voutput.vs_output.clip.fps.numerator
-            )
-            total_duration = Time(seconds=total_seconds)
-            fps = voutput.vs_output.clip.fps.numerator / voutput.vs_output.clip.fps.denominator
-        elif voutput.cum_durations:
-            total_duration = Time(seconds=voutput.cum_durations[-1])
-            fps = voutput.vs_output.clip.num_frames / total_duration.total_seconds()
-        else:
-            total_duration = Time()
-            fps = 0
-
-        info = OutputInfo(
-            total_duration=total_duration.to_ts("{H}:{M:02d}:{S:02d}.{ms:03d}"),
-            total_frames=voutput.vs_output.clip.num_frames,
-            width=voutput.vs_output.clip.width,
-            height=voutput.vs_output.clip.height,
-            format_name=voutput.vs_output.clip.format.name if voutput.vs_output.clip.format else "NONE",
-            fps=f"{fps:.3f}",
-            sar=self.tab_manager.current_view.display_sar,
-        )
-
-        self.statusOutputChanged.emit(info)
+        self.statusOutputChanged.emit(voutput.info._replace(sar=self.tab_manager.current_view.display_sar))
 
     def _on_reload_failed(self) -> None:
         self.load_content(self.content)

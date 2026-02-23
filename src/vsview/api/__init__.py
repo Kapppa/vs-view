@@ -22,6 +22,7 @@ from ..app.settings.models import (
     WidgetMetadata,
     WidgetTimeEdit,
 )
+from ..app.views import OutputInfo
 from ..app.views.components import AbstractTableModel, Accordion, AnimatedToggle, SegmentedControl
 from ..app.views.timeline import Frame, FrameEdit, Time, TimeEdit
 from ..app.views.video import BaseGraphicsView
@@ -46,6 +47,7 @@ __all__ = [
     "IconReloadMixin",
     "LocalSettingsModel",
     "NodeProcessor",
+    "OutputInfo",
     "PlainTextEdit",
     "PluginAPI",
     "PluginGraphicsView",

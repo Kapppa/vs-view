@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from logging import getLogger
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, SupportsFloat
 
 from PySide6.QtCore import QSize, Qt, QTimer, Slot
 from PySide6.QtGui import QPalette, QPixmap, QTransform
@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QWidget
 
 from ...assets import IconName, IconReloadMixin, load_icon
 from ..settings import SettingsManager
+from .timeline import Time
 
 if TYPE_CHECKING:
     from ..workspace import LoaderWorkspace
@@ -18,12 +19,12 @@ logger = getLogger(__name__)
 
 
 class OutputInfo(NamedTuple):
-    total_duration: str  # "1:23:04.500"
+    total_duration: Time  # "1:23:04.500"
     total_frames: int  # 24000
     width: int  # 1920
     height: int  # 1080
     format_name: str  # "YUV420P16"
-    fps: str  # "23.976"
+    fps: SupportsFloat  # "23.976"
     sar: float = 1.0
 
 
@@ -212,7 +213,7 @@ class StatusWidget(IconReloadMixin, QWidget):
             info: OutputInfo dataclass containing all output details.
         """
         # Duration: "1:23:04.500"
-        self.duration_label.setText(info.total_duration)
+        self.duration_label.setText(info.total_duration.to_ts())
 
         # Frames: "24000 frames"
         self.frames_label.setText(f"{info.total_frames} frames")
@@ -220,7 +221,7 @@ class StatusWidget(IconReloadMixin, QWidget):
         # Output info: "1920x1080 YUV420P16 @23.976fps"
         sar_info = "" if info.sar == 1.0 else f"({round(info.sar * info.width)}x{info.height})"
 
-        self.output_info_label.setText(f"{info.width}x{info.height} {sar_info} {info.format_name} @{info.fps}fps")
+        self.output_info_label.setText(f"{info.width}x{info.height} {sar_info} {info.format_name} @{info.fps:.3f}fps")
 
     @Slot(str)
     def set_plugin_message(self, message: str) -> None:

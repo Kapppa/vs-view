@@ -37,6 +37,7 @@ from shiboken6 import Shiboken
 from vsview.app.outputs import Packer, VideoOutput
 from vsview.app.settings import SettingsManager, ShortcutManager
 from vsview.app.settings.models import ActionDefinition
+from vsview.app.views import OutputInfo
 from vsview.app.views.timeline import Frame, Time
 from vsview.app.views.video import BaseGraphicsView
 from vsview.vsenv.loop import run_in_loop
@@ -72,6 +73,11 @@ class VideoOutputProxy:
     cum_durations: Sequence[float] | None = field(hash=False, compare=False)
     """
     Cumulative durations of the clip.
+    """
+
+    info: OutputInfo = field(hash=False, compare=False)
+    """
+    Output information.
     """
 
     def time_to_frame(self, time: timedelta, fps: VideoOutputProxy | Fraction | None = None) -> Frame:
