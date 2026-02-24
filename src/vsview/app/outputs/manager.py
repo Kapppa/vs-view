@@ -147,8 +147,8 @@ class OutputsManager:
 
         for output in self.voutputs:
             output.clear()
-        self._voutputs = []
+        self._voutputs.clear()
 
         for output in self.aoutputs:
             output.clear()
-        self._aoutputs = []
+        self._aoutputs.clear()

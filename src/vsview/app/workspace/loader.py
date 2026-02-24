@@ -350,7 +350,6 @@ class LoaderWorkspace[T](BaseWorkspace):
             # 3. Load New Content
             with loader_lock:
                 self.env.switch()
-                outputs = self._get_outputs()
 
                 if not (outputs := self._get_outputs()):
                     self.clear_failed_load()
