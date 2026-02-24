@@ -11,7 +11,7 @@ from vsengine.loops import set_loop
 
 from .app.main import MainWindow
 from .app.plugins.manager import PluginManager
-from .app.settings import SettingsManager, ShortcutManager
+from .app.settings import SecretsManager, SettingsManager, ShortcutManager
 from .assets import load_fonts
 from .logging import console, setup_logging
 from .vsenv import QtEventLoop
@@ -56,6 +56,7 @@ def vsview_cli(
     set_loop(QtEventLoop())
     SettingsManager()
     ShortcutManager()
+    SecretsManager()
 
     app = QApplication(sys.argv)
     PluginManager.load()

@@ -15,7 +15,7 @@ from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QMouseEvent
 from PySide6.QtWidgets import QDockWidget, QSplitter, QTabWidget, QWidget
 
 from vsview.app.outputs import VideoOutput
-from vsview.app.settings import SettingsManager
+from vsview.app.settings import SecretsManager, SettingsManager
 from vsview.app.utils import ObjectType
 from vsview.app.views.timeline import Timeline
 from vsview.app.views.video import GraphicsView
@@ -485,3 +485,14 @@ class _PlaybackProxy(QObject):
         super().__init__()
         self.__workspace = workspace
         self.__playback_manager = playback_manager
+
+
+class _PluginSecrets:
+    def __init__(self, plugin: _PluginBase[Any, Any]) -> None:
+        self.__namespace = plugin.identifier
+
+    def __getattr__(self, name: str) -> Any:
+        if name in dir(SecretsManager) and not name.startswith("_"):
+            return lambda *args, **kwargs: getattr(SecretsManager, name)(self.__namespace, *args, **kwargs)
+
+        raise AttributeError
