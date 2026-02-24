@@ -366,7 +366,7 @@ class LoaderWorkspace[T](BaseWorkspace):
                 saved_state.apply_frozen_state(view)
 
             with QSignalBlocker(self.tab_manager):
-                self.tab_manager.swap_tabs(tabs, self.tab_manager.tabs.currentIndex())
+                self.tab_manager.swap_tabs(tabs, clamp(self.tab_manager.tabs.currentIndex(), 0, tabs.count() - 1))
 
             self.loop.from_thread(
                 self.tab_manager._on_global_autofit_changed,
