@@ -18,19 +18,27 @@ from PySide6.QtCore import (
     QTime,
     Signal,
 )
-from PySide6.QtGui import QAction, QColor, QCursor, QMouseEvent, QPainter, QPixmap
+from PySide6.QtGui import QAction, QColor, QCursor, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QColorDialog,
     QLineEdit,
-    QMenu,
     QStyle,
     QStyledItemDelegate,
     QStyleOptionViewItem,
     QWidget,
 )
 
-from vsview.api import AbstractTableModel, FrameEdit, IconName, PluginAPI, Time, TimeEdit, VideoOutputProxy
+from vsview.api import (
+    AbstractTableModel,
+    FrameEdit,
+    IconName,
+    NonClosingMenu,
+    PluginAPI,
+    Time,
+    TimeEdit,
+    VideoOutputProxy,
+)
 from vsview.assets.utils import load_icon
 
 from .models import AbstractRange, RangeFrame, RangeTime, SceneRow
@@ -197,14 +205,6 @@ class SceneTableModel(AbstractTableModel):
                 self.scenes.pop(r)
 
         self.scenesModified.emit()
-
-
-class NonClosingMenu(QMenu):
-    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        if (action := self.actionAt(event.position().toPoint())) and action.isCheckable():
-            return action.trigger()
-
-        super().mouseReleaseEvent(event)
 
 
 class SceneTableDelegate(QStyledItemDelegate):

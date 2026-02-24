@@ -16,7 +16,7 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtGui import QBrush, QColor, QPainter, QPaintEvent, QPalette, QShowEvent
+from PySide6.QtGui import QBrush, QColor, QMouseEvent, QPainter, QPaintEvent, QPalette, QShowEvent
 from PySide6.QtWidgets import (
     QBoxLayout,
     QButtonGroup,
@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QMenu,
     QProgressBar,
     QPushButton,
     QSizePolicy,
@@ -377,3 +378,11 @@ class AbstractTableModel(QAbstractTableModel):
             yield
         finally:
             self.endResetModel()
+
+
+class NonClosingMenu(QMenu):
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if action := self.actionAt(event.position().toPoint()):
+            return action.trigger()
+
+        super().mouseReleaseEvent(event)
