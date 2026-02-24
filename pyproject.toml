@@ -67,7 +67,7 @@ vsview = "vsview.cli:app"
 essential = ["vsview-split-planes", "vsview-frameprops-extended"]
 
 [project.urls]
-# Documentation = ""
+Documentation = "https://jaded-encoding-thaumaturgy.github.io/vs-view/"
 "Source Code" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view"
 "Bug Tracker" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/issues"
 "Contact" = "https://discord.gg/XTpc6Fa9eB"
