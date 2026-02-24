@@ -134,8 +134,9 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.plugin_splitter.insert_main_widget(self.tab_manager)
 
         # Connect plugin visibility signals
-        self.plugin_splitter.rightPanelBecameVisible.connect(self._on_splitter_visible)
-        self.plugin_splitter.rightPanelBecameCollapsed.connect(self._on_splitter_collapsed)
+        self.tab_manager.toggle_toolpanel_btn.toggled.connect(self.plugin_splitter.toggle_right_panel)
+        self.plugin_splitter.rightPanelVisibilityChanged.connect(self._sync_toolpanel_btn)
+        self.plugin_splitter.rightPanelVisibilityChanged.connect(self._on_splitter_visibility_changed)
         self.plugin_splitter.pluginTabChanged.connect(self._on_splitter_tab_changed)
 
         self.dock_container.setCentralWidget(self.plugin_splitter)
@@ -680,16 +681,19 @@ class LoaderWorkspace[T](BaseWorkspace):
             w.on_hide()
             dock.truly_visible = False
 
-    def _on_splitter_visible(self) -> None:
-        if (
-            isinstance(w := self.plugin_splitter.plugin_tabs.currentWidget(), WidgetPluginBase)
-            and self.outputs_manager.current_voutput
-        ):
-            with self.env.use():
-                self.api._init_plugin(w)
+    def _sync_toolpanel_btn(self, visible: bool) -> None:
+        with QSignalBlocker(self.tab_manager.toggle_toolpanel_btn):
+            self.tab_manager.toggle_toolpanel_btn.setChecked(visible)
 
-    def _on_splitter_collapsed(self) -> None:
-        if isinstance(w := self.plugin_splitter.plugin_tabs.currentWidget(), WidgetPluginBase):
+    def _on_splitter_visibility_changed(self, visible: bool = True) -> None:
+        if not isinstance(w := self.plugin_splitter.plugin_tabs.currentWidget(), WidgetPluginBase):
+            return
+
+        if visible:
+            if self.outputs_manager.current_voutput:
+                with self.env.use():
+                    self.api._init_plugin(w)
+        else:
             w.on_hide()
 
     def _on_splitter_tab_changed(self, new_index: int, old_index: int) -> None:

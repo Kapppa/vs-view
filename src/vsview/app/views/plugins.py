@@ -15,11 +15,8 @@ class PluginSplitter(QSplitter, IconReloadMixin):
     A horizontal splitter that manages the main content area and a collapsible plugin panel.
     """
 
-    rightPanelBecameVisible = Signal()
-    """Emitted when the right panel transitions from collapsed to visible."""
-
-    rightPanelBecameCollapsed = Signal()
-    """Emitted when the right panel transitions from visible to collapsed."""
+    rightPanelVisibilityChanged = Signal(bool)
+    """Emitted on any visibility transition. True = visible, False = collapsed."""
 
     pluginTabChanged = Signal(int, int)  # new_index, old_index
     """Emitted when the plugin tab changes (index of new tab)."""
@@ -52,13 +49,19 @@ class PluginSplitter(QSplitter, IconReloadMixin):
         self.addWidget(self.plugin_tabs)
 
         # Start with right panel collapsed
-        self.setSizes([1, 0])
-        self.splitterMoved.connect(self._on_splitter_moved)
         self.right_panel_collapsed = True
+        self.setSizes([1, 0])
+        self.splitterMoved.connect(lambda *_: self.setSizes(self.sizes()))  # for manual drag sync
 
     def setSizes(self, sizes: Sequence[int]) -> None:
+        was_collapsed = self.right_panel_collapsed
+        super().setSizes(sizes)
         self.right_panel_collapsed = sizes[1] == 0
-        return super().setSizes(sizes)
+
+        if was_collapsed and not self.right_panel_collapsed:
+            self.rightPanelVisibilityChanged.emit(True)
+        elif not was_collapsed and self.right_panel_collapsed:
+            self.rightPanelVisibilityChanged.emit(False)
 
     @property
     def is_right_panel_visible(self) -> bool:
@@ -83,16 +86,11 @@ class PluginSplitter(QSplitter, IconReloadMixin):
 
         self.plugin_tabs.tabBar().setTabButton(index, QTabBar.ButtonPosition.LeftSide, label_widget)
 
-    def _on_splitter_moved(self, pos: int, index: int) -> None:
-        right_panel_visible = self.sizes()[1] > 0
-
-        # Only emit on transition from collapsed to visible
-        if right_panel_visible and self.right_panel_collapsed:
-            self.rightPanelBecameVisible.emit()
-        elif not right_panel_visible and not self.right_panel_collapsed:
-            self.rightPanelBecameCollapsed.emit()
-
-        self.right_panel_collapsed = not right_panel_visible
+    def toggle_right_panel(self, visible: bool) -> None:
+        if visible:
+            self.setSizes([750, 250])
+        else:
+            self.setSizes([1, 0])
 
     def _on_plugin_tab_changed(self, index: int) -> None:
         # Only emit if right panel is visible

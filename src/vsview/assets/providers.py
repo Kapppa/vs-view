@@ -49,6 +49,7 @@ class IconName(StrEnum):
     SCENE_ADD = "selection-plus"
     MARK_IN = "selection-background"
     MARK_OUT = "selection-foreground"
+    SIDEBAR = "sidebar-simple"
 
 
 class IconProvider(ABC):
@@ -152,6 +153,7 @@ class MaterialProvider(IconProvider):
         IconName.SCENE_ADD: "plus-box",
         IconName.MARK_IN: "step-backward",
         IconName.MARK_OUT: "step-forward",
+        IconName.SIDEBAR: "page-layout-sidebar-right",
     }
 
     @property
@@ -201,6 +203,7 @@ class LucideProvider(IconProvider):
         IconName.SCENE_ADD: "square-plus",
         IconName.MARK_IN: "step-back",
         IconName.MARK_OUT: "step-forward",
+        IconName.SIDEBAR: "panel-right-open",
     }
 
     @property
