@@ -897,10 +897,12 @@ GLOBAL_SETTINGS_PATH = Path(__file__).parent.parent.parent / "global_settings.js
 DEFAULT_GLOBAL_SETTINGS = GlobalSettings()
 
 
-def fallback_global[R](getter: attrgetter[R]) -> Callable[[Any | None], R]:
+def fallback_global(attr: str) -> Callable[[Any | None], Any]:
     """Fallback to global settings if the value is None."""
 
-    def validator(v: Any | None) -> R:
+    getter = attrgetter(attr)
+
+    def validator(v: Any | None) -> Any:
         if v is not None:
             return v
 
@@ -915,9 +917,10 @@ def fallback_global[R](getter: attrgetter[R]) -> Callable[[Any | None], R]:
 
 
 class LocalPlaybackSettings(BaseModel):
-    seek_step: Annotated[int, BeforeValidator(fallback_global(attrgetter("timeline.seek_step")))] = Field(
-        default=None, validate_default=True
-    )
+    seek_step: Annotated[
+        int,
+        BeforeValidator(fallback_global("timeline.seek_step")),
+    ] = Field(default=None, validate_default=True)
     speed: float = 1.0
     uncapped: bool = False
     zone_frames: int = 100
@@ -927,15 +930,17 @@ class LocalPlaybackSettings(BaseModel):
     last_audio_index: int | None = None
     current_volume: float = 0.5
     muted: bool = False
-    audio_delay: Annotated[float, BeforeValidator(fallback_global(attrgetter("playback.audio_delay")))] = Field(
-        default=None, validate_default=True
-    )
+    audio_delay: Annotated[
+        float,
+        BeforeValidator(fallback_global("playback.audio_delay")),
+    ] = Field(default=None, validate_default=True)
 
 
 class LocalTimelineSettings(BaseModel):
-    mode: Annotated[Literal["frame", "time"], BeforeValidator(fallback_global(attrgetter("timeline.mode")))] = Field(
-        default=None, validate_default=True
-    )
+    mode: Annotated[
+        Literal["frame", "time"],
+        BeforeValidator(fallback_global("timeline.mode")),
+    ] = Field(default=None, validate_default=True)
 
 
 class SynchronizationSettings(BaseModel):
