@@ -1,10 +1,16 @@
+from collections.abc import Sequence
+from concurrent.futures import Future, wait
+from datetime import datetime
 from functools import cache
 from logging import getLogger
+from pathlib import Path
 from typing import Annotated
 
-from jetpytools import clamp
+from jetpytools import clamp, ndigits
+from pathvalidate import sanitize_filepath
 from pydantic import BaseModel
 from PySide6.QtCore import Qt, QTime
+from PySide6.QtGui import QImage
 from PySide6.QtWidgets import (
     QCheckBox,
     QFormLayout,
@@ -20,27 +26,33 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from vapoursynth import RGB24, VideoNode
+from vsengine.loops import get_loop
+from vstools import clip_async_render, core, remap_frames
 
 from vsview.api import (
     Accordion,
     ActionDefinition,
-    Checkbox,
     Frame,
     FrameEdit,
     IconName,
     IconReloadMixin,
     LineEdit,
+    Login,
     PluginAPI,
     SegmentedControl,
     Time,
     TimeEdit,
     VideoOutputProxy,
     WidgetPluginBase,
+    run_in_background,
+    run_in_loop,
 )
 
 from .ui import FrameThumbnailList, MainCompWidget, OutputDropdown
 
 logger = getLogger(__name__)
+
 
 PLUGIN_ID = "jet_vsview_comp"
 PLUGIN_DISPLAY = "Comparison"
@@ -96,18 +108,18 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.api.register_on_destroy(self.init_load.cache_clear)
 
     def _setup_clip_options(self, main: MainCompWidget) -> None:
-        section = Accordion("Clip Options", main)
-        section.setToolTip("Configure source clips and select frames for comparison")
+        self.clip_section = Accordion("Clip Options", main)
+        self.clip_section.setToolTip("Configure source clips and select frames for comparison")
 
-        form = section.add_form_layout()
+        form = self.clip_section.add_form_layout()
 
-        self.outputs_dropdown = OutputDropdown(section)
+        self.outputs_dropdown = OutputDropdown(self.clip_section)
         self.outputs_dropdown.setToolTip("Select and rename outputs.")
         self.outputs_dropdown.populate(self.api.voutputs)
         form.addRow(self.outputs_dropdown)
 
         # Current frames + add remove buttons
-        frame_widget = QWidget(section)
+        frame_widget = QWidget(self.clip_section)
         frame_row = QVBoxLayout(frame_widget)
         frame_row.setContentsMargins(0, 0, 0, 0)
         frame_row.setSpacing(4)
@@ -148,7 +160,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         form.addRow(frame_widget)
 
         # Group box for the Auto Select automation
-        auto_select_container = QGroupBox("Auto Select", section)
+        auto_select_container = QGroupBox("Auto Select", self.clip_section)
         auto_select_container.setToolTip("Automated frame selection tools based on brightness and picture type")
         auto_select_frame_layout = QFormLayout(auto_select_container)
 
@@ -258,17 +270,19 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         auto_select_frame_layout.addRow(self.picture_type_container)
 
         # The actual button
-        self.get_frames_btn = QPushButton("Select frames", auto_select_container)
-        self.get_frames_btn.setToolTip("Collect frames based on the current settings")
+        self.select_frames_btn = QPushButton("Select frames", auto_select_container)
+        self.select_frames_btn.setToolTip("Collect frames based on the current settings")
+        self.select_frames_btn.clicked.connect(self.on_select_frames_clicked)
 
-        auto_select_frame_layout.addRow(self.get_frames_btn)
+        auto_select_frame_layout.addRow(self.select_frames_btn)
         form.addRow(auto_select_container)
 
-        self.extract_btn = QPushButton("Extract", section)
+        self.extract_btn = QPushButton("Extract", self.clip_section)
         self.extract_btn.setToolTip("Extract selected frames to disk")
+        self.extract_btn.clicked.connect(self.on_extract_btn_clicked)
         form.addRow(self.extract_btn)
 
-        main.add_section(section)
+        main.add_section(self.clip_section)
 
     def _setup_upload_settings(self, main: MainCompWidget) -> None:
         section = Accordion("Upload Settings", main)
@@ -401,3 +415,75 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
     def on_light_frame_count_changed(self, new: Frame, old: Frame) -> None:
         self.dark_frame_count.setMaximum(self.random_frame_count.value() - new)
+
+    def on_select_frames_clicked(self) -> None:
+        # TODO
+        ...
+
+    def on_extract_btn_clicked(self) -> None:
+        self.clip_section.setDisabled(True)
+        f = self.start_extraction_task(self.frames_list.get_data())
+        f.add_done_callback(lambda _: self.clip_section.setEnabled(True))
+
+    @run_in_background(name="ExtractFrames")
+    def start_extraction_task(self, data: list[tuple[Time, str]]) -> None:
+        if not (storage := self.api.get_local_storage(self)):
+            raise NotImplementedError
+
+        path = storage / str(datetime.now())
+        workers = list[Future[None]]()
+
+        with self.api.vs_context():
+            is_fpng_available = hasattr(core, "fpng")
+
+            for output in self.api.voutputs:
+                if output.vs_index not in self.outputs_dropdown.included_outputs:
+                    continue
+
+                images_path = path / f"({output.vs_index}) ({output.vs_name})"
+                images_path = sanitize_filepath(images_path, replacement_text="_")
+                images_path.mkdir(parents=True, exist_ok=True)
+
+                clip = self.api.packer.to_rgb_planar(output.vs_output.clip, format=RGB24)
+                frames = [output.time_to_frame(t) for t, _ in data]
+                clip_image_path = images_path / f"%0{ndigits(max(frames))}d.png"
+
+                if is_fpng_available:
+                    f = self._fpng_extract(clip, clip_image_path, frames)
+                else:
+                    f = self._qt_extract(clip, clip_image_path, frames)
+
+                workers.append(f)
+
+            # Wait for workers to finish extracting
+            wait(workers)
+
+    @run_in_background(name="ExtractFPNG")
+    def _fpng_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
+        # TODO: Maybe add alpha support?
+        with self.api.vs_context():
+            # 1 - slow compression (smaller output file)
+            clip = clip.fpng.Write(filename=str(path), compression=1)
+            remapped = remap_frames(clip, frames)
+
+            # TODO: add progress bar callbacks
+            clip_async_render(remapped, progress="Progress...")
+
+    @run_in_background(name="ExtractQt")
+    def _qt_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
+        with self.api.vs_context():
+            clip = self.api.packer.to_rgb_packed(clip)
+            remapped = remap_frames(clip, frames)
+
+            workers = list[Future[None]]()
+
+            for n, vs_frame in zip(frames, remapped.frames(close=True)):
+                qimage = self.api.packer.frame_to_qimage(vs_frame).copy()
+                f = self._qt_save(qimage, path.with_stem(path.stem % n))
+                workers.append(f)
+
+            wait(workers)
+
+    @run_in_background(name="QtSave")
+    def _qt_save(self, qimage: QImage, path: Path) -> None:
+        qimage.save(str(path), "PNG", 75)  # type: ignore[call-overload]
