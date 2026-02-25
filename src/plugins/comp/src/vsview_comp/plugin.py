@@ -42,24 +42,14 @@ from .ui import FrameThumbnailList, MainCompWidget, OutputDropdown
 
 logger = getLogger(__name__)
 
+PLUGIN_ID = "jet_vsview_comp"
+PLUGIN_DISPLAY = "Comparison"
+COOKIE_KEY = "cookies.v1"
+
 
 class GlobalSettings(BaseModel):
-    tmdb_movie_format: Annotated[
-        str,
-        LineEdit("Format to use when selecting a Movie from TMDB"),
-    ] = "{tmdb_title} ({tmdb_year}) - {video_nodes}"
-    tmdb_tv_format: Annotated[
-        str,
-        LineEdit("Format to use when selecting a TV Show from TMDB"),
-    ] = "{tmdb_title} ({tmdb_year}) - S01E01 - {video_nodes}"
-    open_comp_automatically: Annotated[
-        bool,
-        Checkbox(
-            label="Open comp links automatically",
-            text="",
-            tooltip="Will open the link to the comp once it has finished automatically.",
-        ),
-    ] = False
+    login: Annotated[str, Login(label="Slow.pics credentials", namespace=PLUGIN_ID)]
+
 
     pict_types_i: bool = True
     pict_types_p: bool = True
@@ -68,10 +58,10 @@ class GlobalSettings(BaseModel):
 
 
 class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
-    identifier = "jet_vsview_comp"
-    display_name = "Comparison"
+    identifier = PLUGIN_ID
+    display_name = PLUGIN_DISPLAY
 
-    shortcuts = (ActionDefinition("jet_vsview_comp.add_current_frame", "Add Current Frame", "Shift+E"),)
+    shortcuts = (ActionDefinition(f"{PLUGIN_ID}.add_current_frame", "Add Current Frame", "Ctrl+Space"),)
 
     def __init__(self, parent: QWidget, api: PluginAPI) -> None:
         super().__init__(parent, api)
@@ -98,7 +88,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         main_layout.addWidget(self.progress_bar)
 
         self.api.register_action(
-            "jet_vsview_comp.add_current_frame",
+            f"{PLUGIN_ID}.add_current_frame",
             self.add_frame_act,
             context=Qt.ShortcutContext.WindowShortcut,
         )
