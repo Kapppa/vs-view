@@ -411,4 +411,3 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
     def on_light_frame_count_changed(self, new: Frame, old: Frame) -> None:
         self.dark_frame_count.setMaximum(self.random_frame_count.value() - new)
-

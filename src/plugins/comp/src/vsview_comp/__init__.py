@@ -2,7 +2,7 @@ from typing import Any
 
 from vsview.api import WidgetPluginBase, hookimpl
 
-from .main import CompPlugin
+from .plugin import CompPlugin
 
 
 @hookimpl
