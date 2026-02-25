@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidgetAction,
 )
 from vapoursynth import RGB24, VideoNode, core
+from vstools import get_prop
 
 from vsview.api import NonClosingMenu, PluginAPI, Time, VideoOutputProxy, run_in_background, run_in_loop
 
@@ -182,6 +183,8 @@ class OutputDropdown(QPushButton):
 
 class FrameThumbnailList(QListWidget):
     ICON_SIZE = QSize(112, 63)
+    TIME_ROLE = Qt.ItemDataRole.UserRole
+    PICT_TYPE_ROLE = Qt.ItemDataRole.UserRole + 1
 
     listSizeChanged = Signal(int)  # delta
 
@@ -245,18 +248,18 @@ class FrameThumbnailList(QListWidget):
 
         return self.clip_cache[voutput.vs_index]
 
-    def add_item(self) -> None:
+    def add_item(self, get_pict_type: bool = False) -> None:
         time = self.api.current_time
         frame = self.api.current_frame
 
         # Reject duplicates
         for i in range(self.count()):
-            if self.item(i).data(Qt.ItemDataRole.UserRole) == time:
+            if self.item(i).data(self.TIME_ROLE) == time:
                 self.setCurrentRow(i)
                 return
 
         item = QListWidgetItem(f"{time.to_ts('{H:01d}:{M:02d}:{S:02d}.{ms:03d}')} ({frame})")
-        item.setData(Qt.ItemDataRole.UserRole, time)
+        item.setData(self.TIME_ROLE, time)
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         # Ensure the item has space for the icon before it's loaded
         item.setSizeHint(QSize(self.ICON_SIZE.width() + self.spacing() * 2, 92))
@@ -264,14 +267,14 @@ class FrameThumbnailList(QListWidget):
         # Find sorted insertion position
         insert_idx = self.count()
         for i in range(insert_idx):
-            if self.item(i).data(Qt.ItemDataRole.UserRole) > time:
+            if self.item(i).data(self.TIME_ROLE) > time:
                 insert_idx = i
                 break
 
         self.insertItem(insert_idx, item)
         self.scrollToItem(item)
 
-        self.fetch_thumbnail(frame, item)
+        self.fetch_thumbnail(frame, item, get_pict_type)
 
     def remove_selected(self) -> None:
         nb = len(self.selectedItems())
@@ -281,15 +284,27 @@ class FrameThumbnailList(QListWidget):
 
         self.listSizeChanged.emit(-nb)
 
+    def get_data(self) -> list[tuple[Time, str]]:
+        return [
+            (self.item(i).data(self.TIME_ROLE), self.item(i).data(self.PICT_TYPE_ROLE)) for i in range(self.count())
+        ]
+
     @run_in_background(name="FetchThumbnail")
-    def fetch_thumbnail(self, n: int, item: QListWidgetItem) -> None:
+    def fetch_thumbnail(self, n: int, item: QListWidgetItem, get_pict_type: bool) -> None:
         with self.api.vs_context(), self.thumbnail_clip.get_frame(n) as f:
-            self.update_item_icon(item, self.api.packer.frame_to_qimage(f).copy())
+            self.update_item_icon(
+                item,
+                self.api.packer.frame_to_qimage(f).copy(),
+                get_prop(f, "_PictType", str, default="?", func=self.fetch_thumbnail) if get_pict_type else "?",
+            )
 
     @run_in_loop
-    def update_item_icon(self, item: QListWidgetItem, image: QImage) -> None:
+    def update_item_icon(self, item: QListWidgetItem, image: QImage, pict_type: str) -> None:
         with suppress(RuntimeError):
             item.setIcon(QPixmap.fromImage(image))
+            item.setData(self.PICT_TYPE_ROLE, pict_type)
+            if pict_type != "?":
+                item.setText(item.text() + f"({pict_type})")
             self.listSizeChanged.emit(1)
 
     def show_context_menu(self, pos: QPoint) -> None:
