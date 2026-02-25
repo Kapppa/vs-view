@@ -1,4 +1,4 @@
-import logging
+from logging import getLogger
 from typing import Any
 
 import httpx
@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 
 from .utils import get_slowpics_headers
 
-logger = logging.getLogger("vsview-slowpics")
+logger = getLogger(__name__)
 
 
 class TMDBPopup(QDialog):

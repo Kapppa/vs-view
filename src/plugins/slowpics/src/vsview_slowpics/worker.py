@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import math
 import random
 import re
@@ -7,6 +6,7 @@ import string
 from collections import defaultdict
 from enum import IntEnum, auto
 from itertools import chain
+from logging import getLogger
 from pathlib import Path
 from typing import Any, NamedTuple
 from uuid import uuid4
@@ -23,7 +23,7 @@ from vsview.app.settings.models import GLOBAL_SETTINGS_PATH
 from .settings import GlobalSettings
 from .utils import get_slowpics_headers
 
-logger = logging.getLogger("vsview-slowpics")
+logger = getLogger(__name__)
 
 
 class SPFrameSource(IntEnum):

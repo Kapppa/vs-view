@@ -1,5 +1,5 @@
-import logging
 import webbrowser
+from logging import getLogger
 from typing import Any
 
 from PySide6.QtCore import Qt, QThread, QUrl, Signal
@@ -37,7 +37,7 @@ from .worker import (
     SPFrameSource,
 )
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 class SlowPicsPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
