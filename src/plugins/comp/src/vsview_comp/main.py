@@ -1,7 +1,9 @@
 from functools import cache
 from logging import getLogger
+from typing import Annotated
 
 from jetpytools import clamp
+from pydantic import BaseModel
 from PySide6.QtCore import Qt, QTime
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -22,10 +24,12 @@ from PySide6.QtWidgets import (
 from vsview.api import (
     Accordion,
     ActionDefinition,
+    Checkbox,
     Frame,
     FrameEdit,
     IconName,
     IconReloadMixin,
+    LineEdit,
     PluginAPI,
     SegmentedControl,
     Time,
@@ -39,7 +43,31 @@ from .ui import FrameThumbnailList, MainCompWidget, OutputDropdown
 logger = getLogger(__name__)
 
 
-class CompPlugin(WidgetPluginBase, IconReloadMixin):
+class GlobalSettings(BaseModel):
+    tmdb_movie_format: Annotated[
+        str,
+        LineEdit("Format to use when selecting a Movie from TMDB"),
+    ] = "{tmdb_title} ({tmdb_year}) - {video_nodes}"
+    tmdb_tv_format: Annotated[
+        str,
+        LineEdit("Format to use when selecting a TV Show from TMDB"),
+    ] = "{tmdb_title} ({tmdb_year}) - S01E01 - {video_nodes}"
+    open_comp_automatically: Annotated[
+        bool,
+        Checkbox(
+            label="Open comp links automatically",
+            text="",
+            tooltip="Will open the link to the comp once it has finished automatically.",
+        ),
+    ] = False
+
+    pict_types_i: bool = True
+    pict_types_p: bool = True
+    pict_types_b: bool = True
+    public_comp_default: bool = True
+
+
+class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
     identifier = "jet_vsview_comp"
     display_name = "Comparison"
 
@@ -227,9 +255,12 @@ class CompPlugin(WidgetPluginBase, IconReloadMixin):
         self.pict_type_p_cb.setToolTip("Include P-frames (Predictive)")
         self.pict_type_b_cb = QCheckBox("B-Frame", self.picture_type_container)
         self.pict_type_b_cb.setToolTip("Include B-frames (Bi-predictive)")
-        self.pict_type_i_cb.setChecked(True)
-        self.pict_type_p_cb.setChecked(True)
-        self.pict_type_b_cb.setChecked(True)
+        self.pict_type_i_cb.setChecked(self.settings.global_.pict_types_i)
+        self.pict_type_p_cb.setChecked(self.settings.global_.pict_types_p)
+        self.pict_type_b_cb.setChecked(self.settings.global_.pict_types_b)
+        self.pict_type_i_cb.toggled.connect(lambda state: setattr(self.settings.global_, "pict_types_i", state))
+        self.pict_type_p_cb.toggled.connect(lambda state: setattr(self.settings.global_, "pict_types_p", state))
+        self.pict_type_b_cb.toggled.connect(lambda state: setattr(self.settings.global_, "pict_types_b", state))
         pict_type_layout.addWidget(self.pict_type_i_cb)
         pict_type_layout.addWidget(self.pict_type_p_cb)
         pict_type_layout.addWidget(self.pict_type_b_cb)
