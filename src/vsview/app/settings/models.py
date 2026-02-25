@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Callable, Iterable
+from contextlib import suppress
 from dataclasses import KW_ONLY, dataclass, field
 from datetime import time
 from enum import StrEnum
@@ -51,10 +52,12 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QSpinBox,
     QTimeEdit,
+    QVBoxLayout,
     QWidget,
 )
 
 from .enums import Resizer
+from .secrets import SecretsManager
 
 logger = getLogger(__name__)
 
@@ -65,14 +68,22 @@ class WidgetMetadataMeta(ABCMeta):
     """Metaclass for WidgetMetadata."""
 
     def __new__[MetaSelf: WidgetMetadataMeta](
-        mcls: type[MetaSelf], name: str, bases: tuple[type, ...], namespace: dict[str, Any], /, **kwargs: Any
+        mcls: type[MetaSelf],
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        /,
+        *,
+        tooltip: bool = True,
+        **kwargs: Any,
     ) -> MetaSelf:
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
 
-        func = getattr(cls, "create_widget")
+        if tooltip:
+            func = getattr(cls, "create_widget")
 
-        if not getattr(func, "__has_tooltip_deco__", False):
-            setattr(cls, "create_widget", mcls._set_tool_tip(func))
+            if not getattr(func, "__isdecorated__", False):
+                setattr(cls, "create_widget", mcls._set_tool_tip(func))
 
         return cls
 
@@ -91,7 +102,7 @@ class WidgetMetadataMeta(ABCMeta):
 
             return widget
 
-        setattr(wrapper, "__has_tooltip_deco__", True)
+        setattr(wrapper, "__isdecorated__", True)
 
         return wrapper
 
@@ -123,6 +134,78 @@ class WidgetMetadata[W: QWidget](ABC, metaclass=WidgetMetadataMeta):
     @abstractmethod
     def get_value(self, widget: W) -> Any:
         """Get the current value from the widget."""
+
+
+class LoginCredentialsInput(QWidget):
+    """Widget for entering login credentials."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        self.setLayout(layout := QVBoxLayout(self))
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        self.username_edit = QLineEdit(self, placeholderText="Username")
+        layout.addWidget(self.username_edit)
+
+        self.password_edit = QLineEdit(self, placeholderText="Password")
+        self.password_edit.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
+        layout.addWidget(self.password_edit)
+
+    @property
+    def credentials(self) -> tuple[str, str]:
+        return self.username_edit.text().strip(), self.password_edit.text()
+
+    @credentials.setter
+    def credentials(self, value: tuple[str, str]) -> None:
+        self.username_edit.setText(value[0])
+        self.password_edit.setText(value[1])
+
+
+@dataclass(frozen=True)
+class Login(WidgetMetadata[LoginCredentialsInput]):
+    """Login credentials widget metadata."""
+
+    namespace: str = "vsview"
+    """Namespace for the secret."""
+
+    to_ui: None = None
+    from_ui: None = None
+
+    def create_widget(self, parent: QWidget | None = None) -> LoginCredentialsInput:
+        return LoginCredentialsInput(parent)
+
+    def load_value(self, widget: LoginCredentialsInput, value: str) -> None:
+        username = value
+        password = self._get_password(username) if username else ""
+
+        if username and password:
+            widget.credentials = username, password
+
+    def get_value(self, widget: LoginCredentialsInput) -> Any:
+        username, password = widget.credentials
+
+        if username:
+            self._set_password((username, password))
+
+        return username
+
+    def _get_password(self, username: str) -> str:
+        # Store the username for removal if the user passes a new username
+        object.__setattr__(self, "_old_username", username)
+        return SecretsManager.get(self.namespace, username) or ""
+
+    def _set_password(self, cred: tuple[str, str]) -> None:
+        username, password = cred
+
+        # Remove old entry if the username has been changed
+        with suppress(AttributeError):
+            SecretsManager.delete(self.namespace, object.__getattribute__(self, "_old_username"))
+            object.__delattr__(self, "_old_username")
+
+        if username:
+            SecretsManager.set(self.namespace, username, password)
 
 
 @dataclass(frozen=True, slots=True)
