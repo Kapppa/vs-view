@@ -545,11 +545,16 @@ class LoaderWorkspace[T](BaseWorkspace):
             or not current_voutput.loaded_once
         ):
             if not seamless:
-                self.set_loading_page()
+                if (prev_pixmap := self.tab_manager.previous_view.pixmap_item.pixmap()).isNull():
+                    self.set_loading_page()
+                else:
+                    self.loaded_page.setDisabled(True)
+                    self.tab_manager.update_current_view(prev_pixmap.toImage()).result()
             current_voutput.loaded_once = True
 
             def on_complete(f: Future[None]) -> None:
                 if not f.exception():
+                    self.loaded_page.setEnabled(True)
                     self.set_loaded_page()
 
                     if cb_render:
