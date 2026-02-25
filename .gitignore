@@ -218,7 +218,7 @@ __marimo__/
 # vsjet
 .vsjet/
 src/vsview/global_settings.json
-src/plugins/slowpics/src/vsview_slowpics/_version.py
+
 # VapourSynth inventory files
 vs_objects.inv
 vs_fixed.inv

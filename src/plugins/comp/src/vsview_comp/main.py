@@ -40,11 +40,11 @@ from .worker import (
 logger = getLogger(__name__)
 
 
-class SlowPicsPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
-    identifier = "jet_vsview_slowpics"
-    display_name = "Slow.pics Tool"
+class CompPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
+    identifier = "jet_vsview_comp"
+    display_name = "Comparison"
 
-    shortcuts = (ActionDefinition("jet_vsview_slowpics.add_current_frame", "Add Current Frame", "Shift+Space"),)
+    shortcuts = (ActionDefinition("jet_vsview_comp.add_current_frame", "Add Current Frame", "Shift+Space"),)
 
     startJob = Signal(str, object, bool)
     sendSettings = Signal(object)
@@ -239,7 +239,7 @@ class SlowPicsPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
 
     def _setup_shortcuts(self) -> None:
         self.api.register_shortcut(
-            "jet_vsview_slowpics.add_current_frame",
+            "jet_vsview_comp.add_current_frame",
             lambda: self.add_manual_frame(self.api.current_frame),
             self,
             context=Qt.ShortcutContext.WindowShortcut,

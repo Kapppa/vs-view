@@ -1,6 +1,6 @@
 # vsview-comp
 
-A [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view) plugin to upload frames to slow.pics.
+A [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view) plugin to make comparison backed by Slowpoke Pics.
 
 ## Requirements
 

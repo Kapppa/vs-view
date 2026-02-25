@@ -11,9 +11,9 @@ members = [
     "vspackrgb",
     "vsview",
     "vsview-audio-convert",
+    "vsview-comp",
     "vsview-fftspectrum",
     "vsview-frameprops-extended",
-    "vsview-slowpics",
     "vsview-split-planes",
 ]
 
@@ -1435,8 +1435,8 @@ dependencies = [
 
 [package.optional-dependencies]
 essential = [
+    { name = "vsview-comp" },
     { name = "vsview-frameprops-extended" },
-    { name = "vsview-slowpics" },
     { name = "vsview-split-planes" },
 ]
 secrets = [
@@ -1461,9 +1461,9 @@ doc = [
 ]
 plugins = [
     { name = "vsview-audio-convert" },
+    { name = "vsview-comp" },
     { name = "vsview-fftspectrum" },
     { name = "vsview-frameprops-extended" },
-    { name = "vsview-slowpics" },
     { name = "vsview-split-planes" },
 ]
 test = [
@@ -1487,8 +1487,8 @@ requires-dist = [
     { name = "vapoursynth", specifier = ">=69" },
     { name = "vsjetengine", specifier = ">=1.1.0" },
     { name = "vspackrgb", editable = "src/vspackrgb" },
+    { name = "vsview-comp", marker = "extra == 'essential'", editable = "src/plugins/comp" },
     { name = "vsview-frameprops-extended", marker = "extra == 'essential'", editable = "src/plugins/frameprops-extended" },
-    { name = "vsview-slowpics", marker = "extra == 'essential'", editable = "src/plugins/slowpics" },
     { name = "vsview-split-planes", marker = "extra == 'essential'", editable = "src/plugins/split-planes" },
 ]
 provides-extras = ["essential", "secrets"]
@@ -1511,9 +1511,9 @@ doc = [
 ]
 plugins = [
     { name = "vsview-audio-convert", editable = "src/plugins/audio-convert" },
+    { name = "vsview-comp", editable = "src/plugins/comp" },
     { name = "vsview-fftspectrum", editable = "src/plugins/fftspectrum" },
     { name = "vsview-frameprops-extended", editable = "src/plugins/frameprops-extended" },
-    { name = "vsview-slowpics", editable = "src/plugins/slowpics" },
     { name = "vsview-split-planes", editable = "src/plugins/split-planes" },
 ]
 test = [
@@ -1533,6 +1533,22 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "vsview", editable = "." }]
+
+[[package]]
+name = "vsview-comp"
+source = { editable = "src/plugins/comp" }
+dependencies = [
+    { name = "httpx" },
+    { name = "vsjetpack" },
+    { name = "vsview" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "vsjetpack", specifier = ">=1.0.0" },
+    { name = "vsview", editable = "." },
+]
 
 [[package]]
 name = "vsview-fftspectrum"
@@ -1558,22 +1574,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "vsjetpack", specifier = ">=1.0.0" },
-    { name = "vsview", editable = "." },
-]
-
-[[package]]
-name = "vsview-slowpics"
-source = { editable = "src/plugins/slowpics" }
-dependencies = [
-    { name = "httpx" },
-    { name = "vsjetpack" },
-    { name = "vsview" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", specifier = ">=0.28.1" },
     { name = "vsjetpack", specifier = ">=1.0.0" },
     { name = "vsview", editable = "." },
 ]

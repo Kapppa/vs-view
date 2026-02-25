@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "vsview-comp"
 dynamic = ["version"]
-description = "A vsview plugin to upload frames to slow.pics"
+description = "A vsview plugin to make comparison backed by Slowpoke Pics"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12"
@@ -21,7 +21,7 @@ classifiers = [
 dependencies = ["vsview", "vsjetpack>=1.0.0", "httpx>=0.28.1"]
 
 [project.entry-points.vsview]
-vsview_slowpics = "vsview_slowpics"
+vsview_comp = "vsview_comp"
 
 [project.urls]
 "Source Code" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/slowpics"
@@ -35,4 +35,4 @@ vsview = { workspace = true }
 source = "versioningit"
 default-version = "0.0.0"
 next-version = "minor"
-write = { file = "src/vsview_slowpics/_version.py", template = "__version__ = \"{normalized_version}\"\n__version_tuple__ = {version_tuple}" }
+write = { file = "src/vsview_comp/_version.py", template = "__version__ = \"{normalized_version}\"\n__version_tuple__ = {version_tuple}" }
