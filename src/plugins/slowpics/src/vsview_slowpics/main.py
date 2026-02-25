@@ -2,12 +2,7 @@ import logging
 import webbrowser
 from typing import Any
 
-from PySide6.QtCore import (
-    Qt,
-    QThread,
-    QUrl,
-    Signal,
-)
+from PySide6.QtCore import Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (
@@ -25,11 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vsview.api import (
-    IconReloadMixin,
-    PluginAPI,
-    WidgetPluginBase,
-)
+from vsview.api import IconReloadMixin, PluginAPI, WidgetPluginBase
 from vsview.app.settings.models import ActionDefinition
 from vsview.assets.providers import IconName
 

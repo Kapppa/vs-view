@@ -2,13 +2,7 @@ import logging
 from typing import Any
 
 import httpx
-from PySide6.QtCore import (
-    QSize,
-    Qt,
-    QTimer,
-    QUrl,
-    Signal,
-)
+from PySide6.QtCore import QSize, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (

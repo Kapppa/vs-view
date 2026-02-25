@@ -2,10 +2,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
-from vsview.api import (
-    Checkbox,
-    LineEdit,
-)
+from vsview.api import Checkbox, LineEdit
 
 
 class GlobalSettings(BaseModel):
