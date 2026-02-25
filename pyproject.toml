@@ -55,21 +55,17 @@ test = [
 doc = ["mkdocstrings[python]>=1.0.3", "zensical==0.0.23", "ruff"]
 plugins = [
     "vsview-split-planes",
-    "vsview-slowpics",
     "vsview-fftspectrum",
     "vsview-frameprops-extended",
     "vsview-audio-convert",
+    "vsview-comp",
 ]
 
 [project.scripts]
 vsview = "vsview.cli:app"
 
 [project.optional-dependencies]
-essential = [
-    "vsview-split-planes",
-    "vsview-frameprops-extended",
-    "vsview-slowpics",
-]
+essential = ["vsview-split-planes", "vsview-frameprops-extended", "vsview-comp"]
 secrets = ["keyring>=25.7.0"]
 
 [project.urls]
@@ -106,9 +102,9 @@ members = ["src/vspackrgb", "src/plugins/*"]
 vspackrgb = { workspace = true }
 vsview-fftspectrum = { workspace = true }
 vsview-split-planes = { workspace = true }
-vsview-slowpics = { workspace = true }
 vsview-frameprops-extended = { workspace = true }
 vsview-audio-convert = { workspace = true }
+vsview-comp = { workspace = true }
 
 [tool.mypy]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/stubs"

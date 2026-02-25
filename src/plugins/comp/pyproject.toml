@@ -3,7 +3,7 @@ requires = ["hatchling", "versioningit"]
 build-backend = "hatchling.build"
 
 [project]
-name = "vsview-slowpics"
+name = "vsview-comp"
 dynamic = ["version"]
 description = "A vsview plugin to upload frames to slow.pics"
 readme = "README.md"
@@ -18,11 +18,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
-dependencies = [
-    "vsview",
-    "vsjetpack>=1.0.0",
-    "httpx>=0.28.1",
-]
+dependencies = ["vsview", "vsjetpack>=1.0.0", "httpx>=0.28.1"]
 
 [project.entry-points.vsview]
 vsview_slowpics = "vsview_slowpics"
