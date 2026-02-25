@@ -111,6 +111,7 @@ class BaseGraphicsView(QGraphicsView):
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, False)
 
         self.graphics_scene = QGraphicsScene(self)
 
@@ -311,6 +312,7 @@ class BaseGraphicsView(QGraphicsView):
         self.setScene(self.graphics_scene)
 
     def set_pixmap(self, pixmap: QPixmap) -> None:
+        pixmap.setDevicePixelRatio(self.devicePixelRatio())
         old_size = self.pixmap_item.pixmap().size()
         self.pixmap_item.setPixmap(pixmap)
 

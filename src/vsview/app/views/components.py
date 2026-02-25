@@ -1,7 +1,10 @@
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 
 from PySide6.QtCore import (
+    QAbstractTableModel,
     QEasingCurve,
+    QModelIndex,
     QPoint,
     QPointF,
     QPropertyAnimation,
@@ -13,13 +16,16 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtGui import QBrush, QColor, QPainter, QPaintEvent, QPalette, QShowEvent
+from PySide6.QtGui import QBrush, QColor, QMouseEvent, QPainter, QPaintEvent, QPalette, QShowEvent
 from PySide6.QtWidgets import (
     QBoxLayout,
     QButtonGroup,
     QCheckBox,
+    QFormLayout,
     QFrame,
+    QHBoxLayout,
     QLabel,
+    QMenu,
     QProgressBar,
     QPushButton,
     QSizePolicy,
@@ -313,6 +319,23 @@ class Accordion(QFrame):
         if collapsed:
             self.content.setMaximumHeight(0)
 
+    def add_widget(self, widget: QWidget) -> None:
+        self.content_layout.addWidget(widget)
+
+    def add_form_layout(self) -> QFormLayout:
+        form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
+        form.setSpacing(8)
+        self.content_layout.addLayout(form)
+        return form
+
+    def add_hlayout(self) -> QHBoxLayout:
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        self.content_layout.addLayout(layout)
+        return layout
+
     def on_toggle(self, checked: bool) -> None:
         self.header.setArrowType(Qt.ArrowType.DownArrow if checked else Qt.ArrowType.RightArrow)
 
@@ -329,3 +352,37 @@ class Accordion(QFrame):
             self.animation.setEndValue(0)
 
         self.animation.start()
+
+
+class AbstractTableModel(QAbstractTableModel):
+    @contextmanager
+    def insert_rows(self, first: int, last: int | None = None) -> Iterator[None]:
+        self.beginInsertRows(QModelIndex(), first, last or first)
+        try:
+            yield
+        finally:
+            self.endInsertRows()
+
+    @contextmanager
+    def remove_rows(self, first: int, last: int | None = None) -> Iterator[None]:
+        self.beginRemoveRows(QModelIndex(), first, last or first)
+        try:
+            yield
+        finally:
+            self.endRemoveRows()
+
+    @contextmanager
+    def reset_model(self) -> Iterator[None]:
+        self.beginResetModel()
+        try:
+            yield
+        finally:
+            self.endResetModel()
+
+
+class NonClosingMenu(QMenu):
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if action := self.actionAt(event.position().toPoint()):
+            return action.trigger()
+
+        super().mouseReleaseEvent(event)

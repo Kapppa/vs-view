@@ -65,10 +65,15 @@ plugins = [
 vsview = "vsview.cli:app"
 
 [project.optional-dependencies]
-essential = ["vsview-split-planes", "vsview-frameprops-extended", "vsview-slowpics"]
+essential = [
+    "vsview-split-planes",
+    "vsview-frameprops-extended",
+    "vsview-slowpics",
+]
+secrets = ["keyring>=25.7.0"]
 
 [project.urls]
-# Documentation = ""
+Documentation = "https://jaded-encoding-thaumaturgy.github.io/vs-view/"
 "Source Code" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view"
 "Bug Tracker" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/issues"
 "Contact" = "https://discord.gg/XTpc6Fa9eB"

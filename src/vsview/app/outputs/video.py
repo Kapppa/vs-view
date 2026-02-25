@@ -20,6 +20,7 @@ from .packing import AlphaNotImplementedError, CythonPacker, Packer
 if TYPE_CHECKING:
     from ...api._helpers import VideoMetadata
     from ..plugins import PluginAPI
+    from ..views.status import OutputInfo
     from ..views.timeline import Frame, Time
 
 
@@ -55,6 +56,38 @@ class VideoOutput:
 
         self.last_frame = 0
         self.loaded_once = False
+
+    @property
+    def info(self) -> OutputInfo:
+        from ..views.status import OutputInfo
+        from ..views.timeline import Time
+
+        if self.vs_output.clip.fps.numerator > 0:
+            total_duration = Time(seconds=float(self.vs_output.clip.num_frames * 1 / self.vs_output.clip.fps))
+            fps = self.vs_output.clip.fps
+        elif self.cum_durations:
+            total_duration = Time(seconds=self.cum_durations[-1])
+            fps = self.vs_output.clip.num_frames / total_duration.total_seconds()
+        else:
+            total_duration = Time()
+            fps = 0
+
+        sar = 1.0
+        if props := self.props.get(self.last_frame):
+            sar_num, sar_den = props.get("_SARNum"), props.get("_SARDen")
+
+            if isinstance(sar_num, int) and isinstance(sar_den, int):
+                sar = sar_num / sar_den
+
+        return OutputInfo(
+            total_duration=total_duration,
+            total_frames=self.vs_output.clip.num_frames,
+            width=self.vs_output.clip.width,
+            height=self.vs_output.clip.height,
+            format_name=self.vs_output.clip.format.name if self.vs_output.clip.format else "NONE",
+            fps=fps,
+            sar=sar,
+        )
 
     def prepare_video(self, api: PluginAPI) -> None:
         clip = self.vs_output.clip.std.ModifyFrame(self.vs_output.clip, self._get_props_on_render)

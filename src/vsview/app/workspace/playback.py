@@ -202,6 +202,8 @@ class PlaybackManager(QObject):
         self.state.audio_timer.timeout.connect(self._play_next_audio_frame)
 
         self.can_reload = False
+        self._timeline_rendering = False
+        self._pending_frame: Frame | None = None
 
     @property
     def _env(self) -> ManagedEnvironment:
@@ -250,7 +252,7 @@ class PlaybackManager(QObject):
             else:
                 self.statusLoadingStarted.emit(f"Rendering frame {n}...")
 
-                with self._tbar.timeline.block_events(), voutput.prepared_clip.get_frame(n) as frame:
+                with voutput.prepared_clip.get_frame(n) as frame:
                     logger.debug("Frame %d rendered", n)
                     image = voutput.packer.frame_to_qimage(frame)
 
@@ -685,5 +687,26 @@ class PlaybackManager(QObject):
 
     @Slot(Frame, Time)
     def _on_timeline_clicked(self, frame: Frame, time: Time) -> None:
-        logger.debug("Timeline clicked: frame=%d, time=%s", frame, time)
-        self.request_frame(frame)
+        self.stop()
+
+        self._pending_frame = frame
+
+        if not self._timeline_rendering:
+            logger.debug("Timeline clicked: frame=%d, time=%s", frame, time)
+            self._render_pending_frame()
+
+    def _render_pending_frame(self) -> None:
+        if self._pending_frame is None:
+            self._timeline_rendering = False
+            return
+
+        frame = self._pending_frame
+
+        self._pending_frame = None
+        self._timeline_rendering = True
+
+        @run_in_loop(return_future=False)
+        def on_render_complete(f: Future[None]) -> None:
+            self._render_pending_frame()
+
+        self.request_frame(frame, cb_render=on_render_complete)

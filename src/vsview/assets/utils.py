@@ -12,7 +12,7 @@ from weakref import WeakKeyDictionary
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QAction, QColor, QFont, QFontDatabase, QIcon, QPainter, QPalette, QPixmap
 from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtWidgets import QToolButton, QWidget
+from PySide6.QtWidgets import QApplication, QToolButton, QWidget
 from shiboken6 import Shiboken
 
 from .providers import ICON_PROVIDERS, IconName
@@ -359,9 +359,13 @@ class IconReloadMixin:
         return q_icon
 
 
-def load_svg(svg_data: bytes, size: QSize, color: QColor | None = None) -> QPixmap:
+def load_svg(svg_data: bytes, size: QSize, color: QColor | None = None, dpr: float | None = None) -> QPixmap:
+    if dpr is None:
+        app = QApplication.instance()
+        dpr = app.devicePixelRatio() if isinstance(app, QApplication) else 1.0
+
     renderer = QSvgRenderer(svg_data)
-    pixmap = QPixmap(size)
+    pixmap = QPixmap(size * dpr)
     pixmap.fill(Qt.GlobalColor.transparent)
 
     with QPainter(pixmap) as painter:
@@ -373,6 +377,7 @@ def load_svg(svg_data: bytes, size: QSize, color: QColor | None = None) -> QPixm
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
             painter.fillRect(pixmap.rect(), QColor(color))
 
+    pixmap.setDevicePixelRatio(dpr)
     return pixmap
 
 
@@ -383,6 +388,7 @@ def load_icon(
     *,
     provider: str | None = None,
     weight: str | None = None,
+    dpr: float | None = None,
 ) -> QPixmap:
     # Get from settings if not specified
     if provider is None or weight is None:
@@ -396,7 +402,7 @@ def load_icon(
 
     svg_data = ICON_PROVIDERS[provider].get_icon_path(name, weight).read_bytes()
 
-    return load_svg(svg_data, size, QColor(color) if color is not None else None)
+    return load_svg(svg_data, size, QColor(color) if color is not None else None, dpr=dpr)
 
 
 @cache

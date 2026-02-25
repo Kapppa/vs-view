@@ -37,11 +37,20 @@ from shiboken6 import Shiboken
 from vsview.app.outputs import Packer, VideoOutput
 from vsview.app.settings import SettingsManager, ShortcutManager
 from vsview.app.settings.models import ActionDefinition
+from vsview.app.views import OutputInfo
 from vsview.app.views.timeline import Frame, Time
 from vsview.app.views.video import BaseGraphicsView
 from vsview.vsenv.loop import run_in_loop
 
-from ._interface import _GraphicsViewProxy, _PlaybackProxy, _PluginAPI, _PluginBaseMeta, _TimelineProxy, _ViewportProxy
+from ._interface import (
+    _GraphicsViewProxy,
+    _PlaybackProxy,
+    _PluginAPI,
+    _PluginBaseMeta,
+    _PluginSecrets,
+    _TimelineProxy,
+    _ViewportProxy,
+)
 
 logger = getLogger(__name__)
 
@@ -72,6 +81,11 @@ class VideoOutputProxy:
     cum_durations: Sequence[float] | None = field(hash=False, compare=False)
     """
     Cumulative durations of the clip.
+    """
+
+    info: OutputInfo = field(hash=False, compare=False)
+    """
+    Output information.
     """
 
     def time_to_frame(self, time: timedelta, fps: VideoOutputProxy | Fraction | None = None) -> Frame:
@@ -297,6 +311,31 @@ class PlaybackProxy(_PlaybackProxy):
         self.__workspace.playback.request_frame(frame)
 
         return True
+
+
+class PluginSecrets(_PluginSecrets):
+    """
+    Secure secret storage API backed by the OS keyring.
+
+    The `keyring` package is necessary for this API to work. You can depend on it with `vsview[secrets]`.
+    """
+
+    if TYPE_CHECKING:
+
+        def get(self, key: str) -> str | None:
+            """Get a plaintext secret value."""
+
+        def set(self, key: str, value: str) -> None:
+            """Set a plaintext secret value."""
+
+        def delete(self, key: str) -> None:
+            """Delete a secret value."""
+
+        def get_json(self, key: str) -> Any | None:
+            """Get a JSON-encoded secret value."""
+
+        def set_json(self, key: str, value: Any) -> None:
+            """Set a JSON-encoded secret value."""
 
 
 class PluginAPI(_PluginAPI):
@@ -543,6 +582,11 @@ class _PluginBase(Generic[TGlobalSettings, TLocalSettings], metaclass=_PluginBas
     def settings(self) -> PluginSettings[TGlobalSettings, TLocalSettings]:
         """Get the settings wrapper for lazy, always-fresh access."""
         return PluginSettings(self)
+
+    @property
+    def secrets(self) -> PluginSecrets:
+        """Get a namespaced secure secrets API for this plugin."""
+        return PluginSecrets(self)
 
     def update_global_settings(self, **updates: Any) -> None:
         """Update specific global settings fields and trigger persistence."""

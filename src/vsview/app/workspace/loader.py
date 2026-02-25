@@ -34,9 +34,9 @@ from ..outputs import AudioOutput, OutputsManager, VideoOutput
 from ..plugins.api import PluginAPI, WidgetPluginBase
 from ..plugins.manager import PluginManager
 from ..settings import ActionID, ShortcutManager
-from ..views import OutputInfo, PluginDock, PluginSplitter
+from ..views import PluginDock, PluginSplitter
 from ..views.components import CustomLoadingPage, DockButton
-from ..views.timeline import Frame, Time, TimelineControlBar
+from ..views.timeline import Frame, TimelineControlBar
 from .base import BaseWorkspace
 from .playback import PlaybackManager
 from .tab_manager import TabManager
@@ -134,8 +134,9 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.plugin_splitter.insert_main_widget(self.tab_manager)
 
         # Connect plugin visibility signals
-        self.plugin_splitter.rightPanelBecameVisible.connect(self._on_splitter_visible)
-        self.plugin_splitter.rightPanelBecameCollapsed.connect(self._on_splitter_collapsed)
+        self.tab_manager.toggle_toolpanel_btn.toggled.connect(self.plugin_splitter.toggle_right_panel)
+        self.plugin_splitter.rightPanelVisibilityChanged.connect(self._sync_toolpanel_btn)
+        self.plugin_splitter.rightPanelVisibilityChanged.connect(self._on_splitter_visibility_changed)
         self.plugin_splitter.pluginTabChanged.connect(self._on_splitter_tab_changed)
 
         self.dock_container.setCentralWidget(self.plugin_splitter)
@@ -349,7 +350,6 @@ class LoaderWorkspace[T](BaseWorkspace):
             # 3. Load New Content
             with loader_lock:
                 self.env.switch()
-                outputs = self._get_outputs()
 
                 if not (outputs := self._get_outputs()):
                     self.clear_failed_load()
@@ -366,7 +366,7 @@ class LoaderWorkspace[T](BaseWorkspace):
                 saved_state.apply_frozen_state(view)
 
             with QSignalBlocker(self.tab_manager):
-                self.tab_manager.swap_tabs(tabs, self.tab_manager.tabs.currentIndex())
+                self.tab_manager.swap_tabs(tabs, clamp(self.tab_manager.tabs.currentIndex(), 0, tabs.count() - 1))
 
             self.loop.from_thread(
                 self.tab_manager._on_global_autofit_changed,
@@ -600,33 +600,7 @@ class LoaderWorkspace[T](BaseWorkspace):
             logger.warning("No current video output, ignoring")
             return
 
-        # Calculate total duration
-        if voutput.vs_output.clip.fps.numerator > 0:
-            total_seconds = (
-                voutput.vs_output.clip.num_frames
-                * voutput.vs_output.clip.fps.denominator
-                / voutput.vs_output.clip.fps.numerator
-            )
-            total_duration = Time(seconds=total_seconds)
-            fps = voutput.vs_output.clip.fps.numerator / voutput.vs_output.clip.fps.denominator
-        elif voutput.cum_durations:
-            total_duration = Time(seconds=voutput.cum_durations[-1])
-            fps = voutput.vs_output.clip.num_frames / total_duration.total_seconds()
-        else:
-            total_duration = Time()
-            fps = 0
-
-        info = OutputInfo(
-            total_duration=total_duration.to_ts("{H}:{M:02d}:{S:02d}.{ms:03d}"),
-            total_frames=voutput.vs_output.clip.num_frames,
-            width=voutput.vs_output.clip.width,
-            height=voutput.vs_output.clip.height,
-            format_name=voutput.vs_output.clip.format.name if voutput.vs_output.clip.format else "NONE",
-            fps=f"{fps:.3f}",
-            sar=self.tab_manager.current_view.display_sar,
-        )
-
-        self.statusOutputChanged.emit(info)
+        self.statusOutputChanged.emit(voutput.info._replace(sar=self.tab_manager.current_view.display_sar))
 
     def _on_reload_failed(self) -> None:
         self.load_content(self.content)
@@ -706,16 +680,19 @@ class LoaderWorkspace[T](BaseWorkspace):
             w.on_hide()
             dock.truly_visible = False
 
-    def _on_splitter_visible(self) -> None:
-        if (
-            isinstance(w := self.plugin_splitter.plugin_tabs.currentWidget(), WidgetPluginBase)
-            and self.outputs_manager.current_voutput
-        ):
-            with self.env.use():
-                self.api._init_plugin(w)
+    def _sync_toolpanel_btn(self, visible: bool) -> None:
+        with QSignalBlocker(self.tab_manager.toggle_toolpanel_btn):
+            self.tab_manager.toggle_toolpanel_btn.setChecked(visible)
 
-    def _on_splitter_collapsed(self) -> None:
-        if isinstance(w := self.plugin_splitter.plugin_tabs.currentWidget(), WidgetPluginBase):
+    def _on_splitter_visibility_changed(self, visible: bool = True) -> None:
+        if not isinstance(w := self.plugin_splitter.plugin_tabs.currentWidget(), WidgetPluginBase):
+            return
+
+        if visible:
+            if self.outputs_manager.current_voutput:
+                with self.env.use():
+                    self.api._init_plugin(w)
+        else:
             w.on_hide()
 
     def _on_splitter_tab_changed(self, new_index: int, old_index: int) -> None:

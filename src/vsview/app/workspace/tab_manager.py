@@ -78,6 +78,14 @@ class TabManager(QWidget, IconReloadMixin):
             checked=False,
             icon_states=self.DEFAULT_ICON_STATES,
         )
+        self.toggle_toolpanel_btn = self.make_tool_button(
+            IconName.SIDEBAR,
+            "Toggle Plugin Tool Panel",
+            self,
+            checkable=True,
+            checked=False,
+            icon_states=self.DEFAULT_ICON_STATES,
+        )
         self.sync_zoom_btn.toggled.connect(self._on_sync_zoom_changed)
         self.autofit_btn.toggled.connect(self._on_global_autofit_changed)
 
@@ -85,6 +93,7 @@ class TabManager(QWidget, IconReloadMixin):
         self.sync_layout.addWidget(self.sync_zoom_btn)
         self.sync_layout.addWidget(self.sync_scroll_btn)
         self.sync_layout.addWidget(self.autofit_btn)
+        self.sync_layout.addWidget(self.toggle_toolpanel_btn)
 
         # The actual tabs widget
         self.tabs = TabViewWidget(self)
@@ -104,6 +113,7 @@ class TabManager(QWidget, IconReloadMixin):
         sm.register_shortcut(ActionID.SYNC_ZOOM, self.sync_zoom_btn.toggle, self)
         sm.register_shortcut(ActionID.SYNC_SCROLL, self.sync_scroll_btn.toggle, self)
         sm.register_shortcut(ActionID.AUTOFIT_ALL_VIEWS, self.autofit_btn.toggle, self)
+        sm.register_shortcut(ActionID.TOGGLE_PLUGIN_PANEL, self.toggle_toolpanel_btn.toggle, self)
 
     @property
     def current_view(self) -> GraphicsView:
