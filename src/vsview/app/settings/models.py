@@ -64,14 +64,22 @@ class WidgetMetadataMeta(ABCMeta):
     """Metaclass for WidgetMetadata."""
 
     def __new__[MetaSelf: WidgetMetadataMeta](
-        mcls: type[MetaSelf], name: str, bases: tuple[type, ...], namespace: dict[str, Any], /, **kwargs: Any
+        mcls: type[MetaSelf],
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        /,
+        *,
+        tooltip: bool = True,
+        **kwargs: Any,
     ) -> MetaSelf:
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
 
-        func = getattr(cls, "create_widget")
+        if tooltip:
+            func = getattr(cls, "create_widget")
 
-        if not getattr(func, "__has_tooltip_deco__", False):
-            setattr(cls, "create_widget", mcls._set_tool_tip(func))
+            if not getattr(func, "__isdecorated__", False):
+                setattr(cls, "create_widget", mcls._set_tool_tip(func))
 
         return cls
 
@@ -90,7 +98,7 @@ class WidgetMetadataMeta(ABCMeta):
 
             return widget
 
-        setattr(wrapper, "__has_tooltip_deco__", True)
+        setattr(wrapper, "__isdecorated__", True)
 
         return wrapper
 
