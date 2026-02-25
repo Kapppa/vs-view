@@ -1,497 +1,383 @@
-import webbrowser
+from functools import cache
 from logging import getLogger
-from typing import Any
 
-from PySide6.QtCore import Qt, QThread, QUrl, Signal
-from PySide6.QtGui import QPixmap
-from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
+from jetpytools import clamp
+from PySide6.QtCore import Qt, QTime
 from PySide6.QtWidgets import (
     QCheckBox,
-    QComboBox,
-    QDialog,
+    QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QProgressBar,
     QPushButton,
-    QSizePolicy,
     QSpinBox,
+    QStackedWidget,
+    QToolBar,
     QVBoxLayout,
     QWidget,
 )
 
-from vsview.api import IconReloadMixin, PluginAPI, WidgetPluginBase
-from vsview.app.settings.models import ActionDefinition
-from vsview.assets.providers import IconName
-
-from .panels import FramePopup, LoginPopup, TagPopup, TMDBPopup
-from .settings import GlobalSettings
-from .worker import (
-    SlowPicsFramesData,
-    SlowPicsImageData,
-    SlowPicsUploadData,
-    SlowPicsUploadInfo,
-    SlowPicsUploadSource,
-    SlowPicsWorker,
-    SPFrame,
-    SPFrameSource,
+from vsview.api import (
+    Accordion,
+    ActionDefinition,
+    Frame,
+    FrameEdit,
+    IconName,
+    IconReloadMixin,
+    PluginAPI,
+    SegmentedControl,
+    Time,
+    TimeEdit,
+    VideoOutputProxy,
+    WidgetPluginBase,
 )
+
+from .ui import FrameThumbnailList, MainCompWidget, OutputDropdown
 
 logger = getLogger(__name__)
 
 
-class CompPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
+class CompPlugin(WidgetPluginBase, IconReloadMixin):
     identifier = "jet_vsview_comp"
     display_name = "Comparison"
 
-    shortcuts = (ActionDefinition("jet_vsview_comp.add_current_frame", "Add Current Frame", "Shift+Space"),)
-
-    startJob = Signal(str, object, bool)
-    sendSettings = Signal(object)
+    shortcuts = (ActionDefinition("jet_vsview_comp.add_current_frame", "Add Current Frame", "Shift+E"),)
 
     def __init__(self, parent: QWidget, api: PluginAPI) -> None:
         super().__init__(parent, api)
-        self.tmdb_info = dict[str, Any]()
-        self.selected_tags = list[str]()
-        self.extracted_sources = list[SlowPicsUploadSource]()
-        self.frames = list[SPFrame]()
-        self.manual_frames = set[SPFrame]()
+
+        self.pict_types_supported = True
 
         main_layout = QVBoxLayout(self)
-        main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        self.poster_container = QWidget(self)
-        poster_layout = QHBoxLayout(self.poster_container)
-        poster_layout.setContentsMargins(0, 0, 0, 0)
+        with MainCompWidget(self) as main:
+            self._setup_clip_options(main)
+            self._setup_upload_settings(main)
+            self._setup_actions(main)
 
-        self.poster_label = QLabel(self.poster_container)
-        self.poster_label.setFixedSize(98, 138)
-        self.poster_label.setStyleSheet("background-color: #444; border: 1px solid #222;")
-
-        self.show_name_label = QLabel("Show Name", self.poster_container)
-        self.show_name_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-
-        poster_layout.addWidget(self.poster_label)
-        poster_layout.addWidget(self.show_name_label)
-
-        self.poster_container.setVisible(False)
-        main_layout.addWidget(self.poster_container)
-
-        self.comp_title = QLineEdit(self)
-        self.comp_title.setPlaceholderText("Comp Title")
-        main_layout.addWidget(self.comp_title)
-
-        main_layout.addWidget(QLabel("Current Frames"))
-        frame_widget = QWidget()
-        current_frames_row = QHBoxLayout(frame_widget)
-        current_frames_row.setContentsMargins(0, 0, 0, 0)
-        self.frames_dropdown = QComboBox(frame_widget)
-        self.frames_dropdown.currentIndexChanged.connect(self._frame_selected)
-
-        self.remove_manual_frame_btn = self.make_tool_button(
-            IconName.MINUS, "Remove the current selected frame", frame_widget
-        )
-        self.remove_manual_frame_btn.clicked.connect(self.remove_frame)
-        self.remove_manual_frame_btn.setFixedWidth(28)
-        self.remove_manual_frame_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-        self.add_manual_frame_btn = self.make_tool_button(
-            IconName.PLUS, "Open a dialog to add frames manually", frame_widget
-        )
-        self.add_manual_frame_btn.clicked.connect(self.handle_frame_ui)
-        self.add_manual_frame_btn.setFixedWidth(28)
-        self.add_manual_frame_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-        current_frames_row.addWidget(self.frames_dropdown)
-        current_frames_row.addWidget(self.remove_manual_frame_btn)
-        current_frames_row.addWidget(self.add_manual_frame_btn)
-
-        main_layout.addWidget(frame_widget)
-
-        pic_widget = QWidget(self)
-        pic_widget.setContentsMargins(0, 0, 0, 0)
-        pictype_layout = QVBoxLayout(pic_widget)
-        pictype_layout.setContentsMargins(0, 0, 0, 0)
-        pictype_layout.addWidget(QLabel("Picture Types"))
-
-        pictype_widget = QWidget(self)
-        pictype_row = QHBoxLayout(pictype_widget)
-        pictype_row.setContentsMargins(0, 0, 0, 0)
-        self.i_frame = QCheckBox("I", pictype_widget)
-        self.p_frame = QCheckBox("P", pictype_widget)
-        self.b_frame = QCheckBox("B", pictype_widget)
-        self.i_frame.setChecked(self.settings.global_.i_picttype_default)
-        self.p_frame.setChecked(self.settings.global_.p_picttype_default)
-        self.b_frame.setChecked(self.settings.global_.b_picttype_default)
-        pictype_row.addWidget(self.i_frame)
-        pictype_row.addWidget(self.p_frame)
-        pictype_row.addWidget(self.b_frame)
-        pictype_layout.addWidget(pictype_widget)
-        main_layout.addWidget(pic_widget)
-
-        pubnsfw_widget = QWidget(self)
-        pubnsfw_row = QHBoxLayout(pubnsfw_widget)
-        pubnsfw_row.setContentsMargins(0, 0, 0, 0)
-        self.public_check = QCheckBox("Public", pubnsfw_widget)
-        self.public_check.setChecked(self.settings.global_.public_comp_default)
-        self.nsfw_check = QCheckBox("NSFW", pubnsfw_widget)
-        self.current_frame_check = QCheckBox("Include Current Frame", pubnsfw_widget)
-        self.current_frame_check.setChecked(self.settings.global_.current_frame_default)
-        pubnsfw_row.addWidget(self.public_check)
-        pubnsfw_row.addWidget(self.nsfw_check)
-        pubnsfw_row.addWidget(self.current_frame_check)
-        main_layout.addWidget(pubnsfw_widget)
-
-        random_remove_widget = QWidget(self)
-        random_remove_layout = QHBoxLayout(random_remove_widget)
-        random_remove_layout.setContentsMargins(0, 0, 0, 0)
-        random_widget = QWidget(random_remove_widget)
-        random_layout = QVBoxLayout(random_widget)
-        random_layout.setContentsMargins(0, 0, 0, 0)
-        random_layout.addWidget(QLabel("Random Frame Count", random_widget))
-        self.random_frames = QSpinBox(random_widget)
-        self.random_frames.setRange(0, 70)
-        random_layout.addWidget(self.random_frames)
-
-        remove_widget = QWidget(self)
-        remove_layout = QVBoxLayout(remove_widget)
-        remove_layout.setContentsMargins(0, 0, 0, 0)
-        remove_layout.addWidget(QLabel("Remove After N days", remove_widget))
-        self.remove_after = QSpinBox(remove_widget)
-        self.remove_after.setRange(0, 999999)
-        remove_layout.addWidget(self.remove_after)
-
-        random_remove_layout.addWidget(random_widget)
-        random_remove_layout.addWidget(remove_widget)
-        main_layout.addWidget(random_remove_widget)
-
-        light_dark_widget = QWidget(self)
-        light_dark_layout = QHBoxLayout(light_dark_widget)
-        light_dark_layout.setContentsMargins(0, 0, 0, 0)
-
-        light_widget = QWidget(self)
-        light_layout = QVBoxLayout(light_widget)
-        light_layout.setContentsMargins(0, 0, 0, 0)
-        light_layout.addWidget(QLabel("Light Frames", light_widget))
-        self.light_frames = QSpinBox(light_widget)
-        self.light_frames.setRange(0, 10)
-        light_layout.addWidget(self.light_frames)
-
-        dark_widget = QWidget(self)
-        dark_layout = QVBoxLayout(dark_widget)
-        dark_layout.setContentsMargins(0, 0, 0, 0)
-        dark_layout.addWidget(QLabel("Dark Frames", dark_widget))
-        self.dark_frames = QSpinBox(dark_widget)
-        self.dark_frames.setRange(0, 10)
-        dark_layout.addWidget(self.dark_frames)
-
-        light_dark_layout.addWidget(light_widget)
-        light_dark_layout.addWidget(dark_widget)
-        main_layout.addWidget(light_dark_widget)
-
-        meta_tag_widget = QWidget(self)
-        meta_tag_row = QHBoxLayout(meta_tag_widget)
-        meta_tag_row.setContentsMargins(0, 0, 0, 0)
-        self.metadata_btn = QPushButton("Search TMDB", meta_tag_widget)
-        self.metadata_btn.clicked.connect(self._open_tmdb_search_popup)
-        self.tags_btn = QPushButton("Select Tags", meta_tag_widget)
-        self.tags_btn.clicked.connect(self._open_tag_menu)
-        self.login_btn = QPushButton("Login to Slow.pics", meta_tag_widget)
-        self.login_btn.clicked.connect(self._login_to_slowpics)
-
-        meta_tag_row.addWidget(self.metadata_btn)
-        meta_tag_row.addWidget(self.tags_btn)
-        meta_tag_row.addWidget(self.login_btn)
-        main_layout.addWidget(meta_tag_widget)
-
-        action_widget = QWidget(self)
-        action_row = QHBoxLayout(action_widget)
-        action_row.setContentsMargins(0, 0, 0, 0)
-        self.get_frames_btn = QPushButton("Get Frames", action_widget)
-        self.extract_frames_btn = QPushButton("Extract Frames", action_widget)
-        self.upload_images_btn = QPushButton("Upload Images", action_widget)
-        self.get_frames_btn.clicked.connect(lambda: self.do_job("frames"))
-        self.extract_frames_btn.clicked.connect(lambda: self.do_job("extract"))
-        self.upload_images_btn.clicked.connect(lambda: self.do_job("upload"))
-        action_row.addWidget(self.get_frames_btn)
-        action_row.addWidget(self.extract_frames_btn)
-        action_row.addWidget(self.upload_images_btn)
-        main_layout.addWidget(action_widget)
-
-        self.do_all_btn = QPushButton("All 3", self)
-        self.do_all_btn.clicked.connect(lambda: self.do_job("frames", True))
-        main_layout.addWidget(self.do_all_btn)
-
-        # main_layout.addStretch()
+        main_layout.addWidget(main)
 
         self.progress_bar = QProgressBar(self)
-        self.progress_bar.setMinimumHeight(28)
+        self.progress_bar.setMinimumHeight(24)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setTextVisible(True)
         self.progress_bar.setHidden(True)
-
+        self.progress_bar.setToolTip("Overall progress of extraction and upload tasks")
         main_layout.addWidget(self.progress_bar)
 
-        self.api.globalSettingsChanged.connect(self.on_settings_changed)
-
-        self.init_worker()
-        self._setup_shortcuts()
-
-    def _setup_shortcuts(self) -> None:
-        self.api.register_shortcut(
+        self.api.register_action(
             "jet_vsview_comp.add_current_frame",
-            lambda: self.add_manual_frame(self.api.current_frame),
-            self,
+            self.add_frame_act,
             context=Qt.ShortcutContext.WindowShortcut,
         )
 
-    def on_current_frame_changed(self, n: int) -> None:
-        pass
+        self.api.register_on_destroy(self.init_load.cache_clear)
 
-    def init_worker(self) -> None:
-        self.thread_handle = QThread()
-        self.worker = SlowPicsWorker(self.api, self.settings.global_)
-        self.worker.moveToThread(self.thread_handle)
+    def _setup_clip_options(self, main: MainCompWidget) -> None:
+        section = Accordion("Clip Options", main)
+        section.setToolTip("Configure source clips and select frames for comparison")
 
-        self.thread_handle.start()
+        form = section.add_form_layout()
 
-        self.worker.progressFormat.connect(self.progress_bar.setFormat)
-        self.worker.progress.connect(self.progress_bar.setValue)
-        self.worker.progressRange.connect(self.progress_bar.setRange)
-        self.worker.jobFinished.connect(self.handle_finish)
-        self.worker.updateSettings.connect(self.worker_update_settings)
+        self.outputs_dropdown = OutputDropdown(section)
+        self.outputs_dropdown.setToolTip("Select and rename outputs.")
+        self.outputs_dropdown.populate(self.api.voutputs)
+        form.addRow(self.outputs_dropdown)
 
-        self.startJob.connect(self.worker.do_work)
-        self.sendSettings.connect(self.worker.update_settings)
+        # Current frames + add remove buttons
+        frame_widget = QWidget(section)
+        frame_row = QVBoxLayout(frame_widget)
+        frame_row.setContentsMargins(0, 0, 0, 0)
+        frame_row.setSpacing(4)
 
-        self.api.register_on_destroy(self.kill_worker)
-
-        self.net = QNetworkAccessManager(self)
-        self.net.finished.connect(self.on_icon_downloaded)
-
-    def do_job(self, job_name: str, do_next: bool = False) -> None:
-        self.progress_bar.setHidden(False)
-        if job_name == "frames":
-            self.do_get_frames(do_next)
-        elif job_name == "extract":
-            self.do_extract_frames(do_next)
-        elif job_name == "upload":
-            self.do_upload_images(do_next)
-
-    def do_get_frames(self, do_next: bool) -> None:
-        pict_types = set()
-        if self.p_frame.isChecked():
-            pict_types.add("P")
-        if self.b_frame.isChecked():
-            pict_types.add("B")
-        if self.i_frame.isChecked():
-            pict_types.add("I")
-
-        data = SlowPicsFramesData(
-            int(self.random_frames.value()),
-            0,
-            None,
-            self.dark_frames.value(),
-            self.light_frames.value(),
-            pict_types,
-            self.current_frame_check.isChecked(),
+        toolbar = QToolBar(
+            frame_widget,
+            movable=False,
+            toolButtonStyle=Qt.ToolButtonStyle.ToolButtonTextBesideIcon,
         )
 
-        self.extracted_sources = []
-        self.frames = []
+        self.add_frame_act = self.make_action(IconName.PLUS, "Add current frame to the list", frame_widget)
+        self.add_frame_act.setIconText("Add current frame")
+        toolbar.addAction(self.add_frame_act)
 
-        self.startJob.emit("frames", data, do_next)
+        self.remove_frame_act = self.make_action(IconName.MINUS, "Remove selected frame(s) from the list", frame_widget)
+        self.remove_frame_act.setIconText("Remove selected frame(s)")
+        self.remove_frame_act.setEnabled(False)
 
-    def do_extract_frames(self, do_next: bool) -> None:
-        if not self.frames:
-            logger.debug("Trying to extract with no frames.")
-            return
+        toolbar.addActions([self.add_frame_act, self.remove_frame_act])
 
-        plugin_path = self.api.get_local_storage(self)
-
-        if not plugin_path:
-            logger.debug("No plugin path")
-            return
-
-        extract = SlowPicsImageData(plugin_path, self.frames)
-        self.extracted_sources = []
-        self.startJob.emit("extract", extract, do_next)
-
-    def do_upload_images(self, do_next: bool) -> None:
-        if not self.extracted_sources:
-            logger.debug("Trying to upload without any images")
-            return
-
-        upload_data = SlowPicsUploadInfo(
-            self.comp_title.text(),
-            self.public_check.isChecked(),
-            self.nsfw_check.isChecked(),
-            self.tmdb_info.get("id", None),
-            self.remove_after.value(),
-            self.selected_tags,
+        self.frames_list = FrameThumbnailList(self.api, frame_widget)
+        self.frames_list.setToolTip("Double-click to seek to frame. Use 'Delete' to remove.")
+        self.frames_list.itemDoubleClicked.connect(
+            lambda item: self.api.playback.seek(
+                self.api.current_voutput.time_to_frame(item.data(Qt.ItemDataRole.UserRole))
+            )
         )
-        upload = SlowPicsUploadData(upload_data, self.extracted_sources)
-        self.startJob.emit("upload", upload, do_next)
-
-    def handle_finish(self, job_name: str, result: Any, do_next: bool) -> None:
-        if job_name == "frames":
-            self.handle_get_frames(result)
-        elif job_name == "extract":
-            self.handle_extract_frames(result)
-        elif job_name == "upload":
-            self.handle_upload_images(result)
-
-        self.handle_do_next(job_name, do_next)
-
-    def handle_get_frames(self, result: list[SPFrame]) -> None:
-        self.frames = result
-        self.add_frames()
-
-    def handle_extract_frames(self, result: list[SlowPicsUploadSource]) -> None:
-        self.extracted_sources = result
-
-    def handle_upload_images(self, result: str) -> None:
-        logger.debug("Uploaded comp: %s", result)
-        if self.settings.global_.open_comp_automatically:
-            webbrowser.open(result)
-
-    def handle_do_next(self, job_name: str, do_next: bool) -> None:
-        # Do next job if clicked all 3
-        if not do_next:
-            return
-
-        if job_name == "frames":
-            self.do_job("extract", True)
-        elif job_name == "extract":
-            self.do_job("upload", True)
-
-    def kill_worker(self) -> None:
-        if self.thread_handle.isRunning():
-            self.thread_handle.quit()
-            self.thread_handle.wait()
-
-    def add_frames(self) -> None:
-        self.frames_dropdown.blockSignals(True)
-        self.frames_dropdown.clear()
-        frames: list[SPFrame] = sorted(self.frames + list(self.manual_frames), key=lambda x: x.frame)
-        for frame in frames:
-            self.frames_dropdown.addItem(f"{frame.frame} ({frame.frame_type.name})", frame)
-        self.frames_dropdown.blockSignals(False)
-
-    def _frame_selected(self, index: int) -> None:
-        data: SPFrame = self.frames_dropdown.itemData(index)
-
-        self.api.playback.seek(data.frame)
-
-    def _open_tmdb_search_popup(self) -> None:
-        self.popup = TMDBPopup(self, self.settings.global_.tmdb_api_key)
-        self.popup.itemSelected.connect(self._handle_tmdb_selected)
-        self.popup.exec()
-        self.popup.search_input.setFocus()
-
-    def _handle_tmdb_selected(self, data: dict[str, Any]) -> None:
-        self.tmdb_info = data
-
-        self.handle_comp_title()
-
-    def handle_comp_title(self) -> None:
-        is_tv = self.tmdb_info["is_tv"]
-        result = self.tmdb_info["result"]
-
-        if is_tv:
-            comp_title = self.settings.global_.tmdb_tv_format
-            comp_title = comp_title.replace("{tmdb_title}", result["name"])
-            comp_title = comp_title.replace("{tmdb_year}", (result["first_air_date"] or "0000")[:4])
-        else:
-            comp_title = self.settings.global_.tmdb_movie_format
-            comp_title = comp_title.replace("{tmdb_title}", result["title"])
-            comp_title = comp_title.replace("{tmdb_year}", (result["release_date"] or "0000")[:4])
-
-        comp_title = comp_title.replace(
-            "{video_nodes}",
-            " vs ".join([source.vs_name or f"Node {source.vs_index}" for source in self.api.voutputs]),
+        self.frames_list.itemSelectionChanged.connect(
+            lambda: self.remove_frame_act.setEnabled(len(self.frames_list.selectedItems()) > 0)
         )
+        self.frames_list.listSizeChanged.connect(self.on_list_size_changed)
 
-        self.comp_title.setText(comp_title)
-        if result["poster_path"]:
-            request = QNetworkRequest(QUrl(f"https://image.tmdb.org/t/p/w92{result['poster_path']}"))
-            self.net.get(request)
+        self.add_frame_act.triggered.connect(self.frames_list.add_item)
+        self.remove_frame_act.triggered.connect(self.frames_list.remove_selected)
 
-    def on_icon_downloaded(self, reply: QNetworkReply) -> None:
+        frame_row.addWidget(toolbar)
+        frame_row.addWidget(self.frames_list)
+        form.addRow(frame_widget)
 
-        if reply.error() != QNetworkReply.NetworkError.NoError:
-            reply.deleteLater()
-            return
+        # Group box for the Auto Select automation
+        auto_select_container = QGroupBox("Auto Select", section)
+        auto_select_container.setToolTip("Automated frame selection tools based on brightness and picture type")
+        auto_select_frame_layout = QFormLayout(auto_select_container)
 
-        data = reply.readAll()
-        pixmap = QPixmap()
-        pixmap.loadFromData(data)
+        # Frame counts
+        frame_count_widget = QWidget(auto_select_container)
+        frame_count_layout = QHBoxLayout(frame_count_widget)
+        frame_count_layout.setContentsMargins(0, 0, 0, 0)
+        frame_count_layout.setSpacing(8)
 
-        if not pixmap.isNull():
-            self.poster_label.setPixmap(pixmap)
-            is_tv = self.tmdb_info["is_tv"]
-            result = self.tmdb_info["result"]
-            self.show_name_label.setText(result["name"] if is_tv else result["title"])
-            self.poster_container.setVisible(True)
+        self.random_frame_count = FrameEdit(frame_count_widget)
+        self.random_frame_count.setRange(0, 40)  # 40 should be more than enough
+        self.random_frame_count.setValue(0)
+        self.random_frame_count.setFixedWidth(80)
+        self.random_frame_count.setToolTip("Total number of random frames to select")
+        self.random_frame_count.frameChanged.connect(self.on_random_frame_count_changed)
 
-        reply.deleteLater()
+        self.dark_frame_count = FrameEdit(frame_count_widget)
+        self.dark_frame_count.setRange(0, 0)
+        self.dark_frame_count.setValue(0)
+        self.dark_frame_count.setFixedWidth(80)
+        self.dark_frame_count.setToolTip("Number of random darkest frames to include")
+        self.dark_frame_count.frameChanged.connect(self.on_dark_frame_count_changed)
 
-    def _open_tag_menu(self) -> None:
-        self.tag_popup = TagPopup(self, self.selected_tags)
-        self.tag_popup.itemSelected.connect(self.handle_tag_selection)
-        self.tag_popup.exec()
-        self.tag_popup.search.setFocus()
+        self.light_frame_count = FrameEdit(frame_count_widget)
+        self.light_frame_count.setRange(0, 0)
+        self.light_frame_count.setValue(0)
+        self.light_frame_count.setFixedWidth(80)
+        self.light_frame_count.setToolTip("Number of random lightest frames to include")
+        self.light_frame_count.frameChanged.connect(self.on_light_frame_count_changed)
 
-    def handle_tag_selection(self, tags: list[str]) -> None:
-        self.selected_tags = tags
+        frame_count_layout.addWidget(self.random_frame_count)
+        frame_count_layout.addStretch()
+        frame_count_layout.addWidget(QLabel("Dark:"))
+        frame_count_layout.addWidget(self.dark_frame_count)
+        frame_count_layout.addSpacing(4)
+        frame_count_layout.addWidget(QLabel("Light:"))
+        frame_count_layout.addWidget(self.light_frame_count)
 
-    def add_manual_frame(self, frame: int) -> None:
-        mframe = SPFrame(frame, SPFrameSource.MANUAL)
+        auto_select_frame_layout.addRow("Total Random:", frame_count_widget)
 
-        if mframe in self.manual_frames:
-            self.manual_frames.remove(mframe)
-        else:
-            self.manual_frames.add(mframe)
+        # Range limit
+        self.range_mode_selector = SegmentedControl(["Frame", "Time"], auto_select_container)
+        self.range_mode_selector.setToolTip("Switch between frame-based and time-based range selection")
+        auto_select_frame_layout.addRow("Range Unit:", self.range_mode_selector)
 
-        self.add_frames()
+        self.range_stack = QStackedWidget(auto_select_container)
 
-    def handle_frame_ui(self, checked: bool) -> None:
-        dialog = FramePopup(self)
+        # Frame/time range inputs
+        frame_page = QWidget(self.range_stack)
+        frame_row = QHBoxLayout(frame_page)
+        frame_row.setContentsMargins(0, 0, 0, 0)
+        frame_row.setSpacing(8)
 
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            for frame in dialog.frames:
-                if frame <= self.api.current_voutput.vs_output.clip.num_frames and frame >= 0:
-                    self.manual_frames.add(SPFrame(frame, SPFrameSource.MANUAL))
-            self.add_frames()
+        self.frame_edit_start = FrameEdit(frame_page)
+        self.frame_edit_start.setToolTip("Start frame for comparison range")
+        self.frame_edit_start.frameChanged.connect(self.on_frame_edit_start_changed)
 
-    def remove_frame(self) -> None:
-        if self.frames_dropdown.count() == 0:
-            return
+        self.frame_edit_end = FrameEdit(frame_page)
+        self.frame_edit_end.setToolTip("End frame for comparison range")
+        self.frame_edit_end.frameChanged.connect(self.on_frame_edit_end_changed)
 
-        current_data: SPFrame = self.frames_dropdown.currentData()
-        if current_data.frame_type == SPFrameSource.MANUAL:
-            self.manual_frames.remove(current_data)
-        else:
-            self.frames.remove(current_data)
+        frame_row.addWidget(self.frame_edit_start)
+        frame_row.addWidget(self.frame_edit_end)
+        self.range_stack.addWidget(frame_page)
 
-        self.add_frames()
+        time_page = QWidget(self.range_stack)
+        time_row = QHBoxLayout(time_page)
+        time_row.setContentsMargins(0, 0, 0, 0)
+        time_row.setSpacing(8)
 
-    def _login_to_slowpics(self) -> None:
-        dialog = LoginPopup(self)
-        dialog.username_edit.setFocus()
+        self.time_edit_start = TimeEdit(time_page)
+        self.time_edit_start.setToolTip("Start time for comparison range")
+        self.time_edit_start.valueChanged.connect(self.on_time_edit_start_changed)
 
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            logger.debug("Attempting to login")
-            login_data = {"username": dialog.username, "password": dialog.password}
+        self.time_edit_end = TimeEdit(time_page)
+        self.time_edit_end.setToolTip("End time for comparison range")
+        self.time_edit_end.valueChanged.connect(self.on_time_edit_end_changed)
 
-            self.startJob.emit("login", login_data, False)
+        time_row.addWidget(self.time_edit_start)
+        time_row.addWidget(self.time_edit_end)
 
-    def on_settings_changed(self) -> None:
-        self.sendSettings.emit(self.settings.global_)
+        self.range_stack.addWidget(time_page)
+        self.range_mode_selector.segmentChanged.connect(self.range_stack.setCurrentIndex)
 
-    def worker_update_settings(self, to_change: dict[str, Any]) -> None:
-        self.update_global_settings(cookies=to_change)
+        auto_select_frame_layout.addRow("Range:", self.range_stack)
 
-        # send this one as a temp for the real one to be sent above.
-        self.settings.global_.cookies = to_change
-        self.sendSettings.emit(self.settings.global_)
+        # Picture Type Group
+        self.picture_type_container = QGroupBox("Picture Type", auto_select_container)
+        pict_type_layout = QHBoxLayout(self.picture_type_container)
+
+        self.pict_type_i_cb = QCheckBox("I-Frame", self.picture_type_container)
+        self.pict_type_i_cb.setToolTip("Include I-frames (Intra-coded)")
+        self.pict_type_p_cb = QCheckBox("P-Frame", self.picture_type_container)
+        self.pict_type_p_cb.setToolTip("Include P-frames (Predictive)")
+        self.pict_type_b_cb = QCheckBox("B-Frame", self.picture_type_container)
+        self.pict_type_b_cb.setToolTip("Include B-frames (Bi-predictive)")
+        self.pict_type_i_cb.setChecked(True)
+        self.pict_type_p_cb.setChecked(True)
+        self.pict_type_b_cb.setChecked(True)
+        pict_type_layout.addWidget(self.pict_type_i_cb)
+        pict_type_layout.addWidget(self.pict_type_p_cb)
+        pict_type_layout.addWidget(self.pict_type_b_cb)
+
+        auto_select_frame_layout.addRow(self.picture_type_container)
+
+        # The actual button
+        self.get_frames_btn = QPushButton("Select frames", auto_select_container)
+        self.get_frames_btn.setToolTip("Collect frames based on the current settings")
+
+        auto_select_frame_layout.addRow(self.get_frames_btn)
+        form.addRow(auto_select_container)
+
+        self.extract_btn = QPushButton("Extract", section)
+        self.extract_btn.setToolTip("Extract selected frames to disk")
+        form.addRow(self.extract_btn)
+
+        main.add_section(section)
+
+    def _setup_upload_settings(self, main: MainCompWidget) -> None:
+        section = Accordion("Upload Settings", main)
+        section.setToolTip("Configure upload settings for Slow.pics")
+        form = section.add_form_layout()
+
+        # Collection name
+        self.collection_name = QLineEdit(section, placeholderText="Name for the image collection")
+        self.collection_name.setToolTip("The name of the comparison collection")
+        form.addRow("Collection:", self.collection_name)
+
+        # Network stuff
+        self.tmdb_name = QLineEdit(section, placeholderText="Search for a movie or TV show...")
+        self.tmdb_name.setToolTip("Movie or TV show name to fetch metadata from TMDB")
+        form.addRow("TMDB Name:", self.tmdb_name)
+
+        self.tags = QLineEdit(section, placeholderText="Search for additional informations...")
+        self.tags.setToolTip("Additional tags to help find the comparison")
+        form.addRow("Tags:", self.tags)
+
+        # Public / NSFW checkboxes
+        flags_widget = QWidget(section)
+        flags_row = QHBoxLayout(flags_widget)
+        flags_row.setContentsMargins(0, 0, 0, 0)
+        flags_row.setSpacing(16)
+
+        self.public_check = QCheckBox("Public", flags_widget)
+        self.public_check.setToolTip("Make the comparison publicly visible")
+        self.nsfw_check = QCheckBox("NSFW", flags_widget)
+        self.nsfw_check.setToolTip("Mark the comparison as Not Safe For Work")
+
+        flags_row.addWidget(self.public_check)
+        flags_row.addWidget(self.nsfw_check)
+        flags_row.addStretch(1)
+
+        form.addRow("Flags:", flags_widget)
+
+        # Remove after N days
+        self.remove_after = QSpinBox(section)
+        self.remove_after.setRange(0, 999999)
+        self.remove_after.setSpecialValueText("Never")
+        self.remove_after.setSuffix(" days")
+        self.remove_after.setToolTip("Remove comparison after N days (0 = never)")
+        form.addRow("Auto-Remove:", self.remove_after)
+
+        self.upload_btn = QPushButton("Upload", section)
+        self.upload_btn.setToolTip("Upload extracted frames")
+        form.addRow(self.upload_btn)
+
+        main.add_section(section)
+
+    def _setup_actions(self, main: MainCompWidget) -> None:
+        actions_widget = QWidget(main)
+        actions_layout = QVBoxLayout(actions_widget)
+        actions_layout.setContentsMargins(8, 4, 8, 4)
+        actions_layout.setSpacing(6)
+
+        self.do_all_btn = QPushButton("Extract && Upload", actions_widget)
+        self.do_all_btn.setToolTip("Extract selected frames → Upload")
+        actions_layout.addWidget(self.do_all_btn)
+
+        main.add_section(actions_widget)
+
+    @cache
+    def init_load(self) -> None:
+        shortest_output = min(self.api.voutputs, key=lambda v: v.info.total_duration)
+
+        max_frame = shortest_output.info.total_frames - 1
+        self.frame_edit_start.setRange(0, max_frame)
+        self.frame_edit_end.setRange(0, max_frame)
+
+        self.frame_edit_start.setValue(0)
+        self.frame_edit_end.setValue(max_frame)
+
+        qtime_s = Time().to_qtime()
+        qtime_e = shortest_output.frame_to_time(max_frame).to_qtime()
+
+        self.time_edit_start.setTime(qtime_s)
+        self.time_edit_start.setTimeRange(qtime_s, qtime_e)
+
+        self.time_edit_end.setTime(qtime_e)
+        self.time_edit_end.setTimeRange(qtime_s, qtime_e)
+
+    def on_current_voutput_changed(self, voutput: VideoOutputProxy, tab_index: int) -> None:
+        self.init_load()
+
+        if self.pict_types_supported and not any("_PictType" in props for props in voutput.props.values()):
+            self.pict_types_supported = False
+            self.picture_type_container.setEnabled(False)
+
+    def on_frame_edit_start_changed(self, new: Frame, old: Frame) -> None:
+        self.frame_edit_end.setMinimum(new)
+        self.time_edit_start.setTime(self.api.current_voutput.frame_to_time(new).to_qtime())
+
+    def on_frame_edit_end_changed(self, new: Frame, old: Frame) -> None:
+        self.frame_edit_start.setMaximum(new)
+        self.time_edit_end.setTime(self.api.current_voutput.frame_to_time(new).to_qtime())
+
+    def on_time_edit_start_changed(self, new: QTime, old: QTime) -> None:
+        self.time_edit_end.setMinimumTime(new)
+        self.frame_edit_start.setValue(self.api.current_voutput.time_to_frame(Time.from_qtime(new)))
+
+    def on_time_edit_end_changed(self, new: QTime, old: QTime) -> None:
+        self.time_edit_start.setMaximumTime(new)
+        self.frame_edit_end.setValue(self.api.current_voutput.time_to_frame(Time.from_qtime(new)))
+
+    def on_list_size_changed(self, delta: int) -> None:
+        self.random_frame_count.setMaximum(clamp(self.random_frame_count.maximum() - delta, 0, 40))
+
+    def on_random_frame_count_changed(self, new: Frame, old: Frame) -> None:
+        dark_val = self.dark_frame_count.value()
+        light_val = self.light_frame_count.value()
+
+        if dark_val + light_val > new:
+            total = dark_val + light_val
+            new_dark = int((dark_val / total) * new)
+            new_light = int((light_val / total) * new)
+
+            self.dark_frame_count.setMaximum(new)
+            self.light_frame_count.setMaximum(new)
+
+            self.dark_frame_count.setValue(new_dark)
+            self.light_frame_count.setValue(new_light)
+
+        self.dark_frame_count.setMaximum(new - self.light_frame_count.value())
+        self.light_frame_count.setMaximum(new - self.dark_frame_count.value())
+
+    def on_dark_frame_count_changed(self, new: Frame, old: Frame) -> None:
+        self.light_frame_count.setMaximum(self.random_frame_count.value() - new)
+
+    def on_light_frame_count_changed(self, new: Frame, old: Frame) -> None:
+        self.dark_frame_count.setMaximum(self.random_frame_count.value() - new)
+
