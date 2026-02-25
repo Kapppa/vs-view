@@ -160,9 +160,7 @@ class SlowPicsWorker(QObject):
             found_frames.append(SPFrame(self.api.current_frame, SPFrameSource.CURRENT))
 
         found_frames.extend(
-            self._get_random_frames(
-                frame_info.random_frames, frame_info.pict_types, frame_info.random_min, random_max
-            )
+            self._get_random_frames(frame_info.random_frames, frame_info.pict_types, frame_info.random_min, random_max)
         )
 
         if frame_info.random_light or frame_info.random_dark:
@@ -470,8 +468,6 @@ class SlowPicsWorker(QObject):
 
             login_data["_csrf"] = csrf.group(1)
             login_data["remember-me"] = "on"
-
-            print(login_data)
 
             (await client.post("https://slow.pics/login", data=login_data, follow_redirects=True)).raise_for_status()
 
