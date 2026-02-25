@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import json
+from contextlib import suppress
 from importlib.util import find_spec
 from logging import getLogger
 from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
 from jetpytools import Singleton, cachedproperty, inject_self
+
+if TYPE_CHECKING:
+    from keyring.credentials import Credential
 
 logger = getLogger(__name__)
 
@@ -20,7 +24,7 @@ class SecretsError(RuntimeError):
 class SecretsManager(Singleton):
     """Manage secure storage of plugin/application secrets."""
 
-    service_name = "vsview"
+    prefix_service_name = "jet.vsview"
 
     if TYPE_CHECKING:
         import keyring
@@ -58,25 +62,40 @@ class SecretsManager(Singleton):
     @inject_self
     def get(self, namespace: str, key: str) -> str | None:
         try:
-            return self.keyring.get_password(self.service_name, get_username(namespace, key))
+            return self.keyring.get_password(f"{self.prefix_service_name}.{namespace}", key)
         except self.KeyringError as exc:
             raise SecretsError("Failed to read secret from keyring backend.") from exc
 
     @inject_self
     def set(self, namespace: str, key: str, value: str) -> None:
+        if not key:
+            logger.warning("Empty usernames are prohibited.")
+            return
+
+        # https://github.com/jaraco/keyring/issues/545
+        with suppress(SecretsError):
+            self.delete(namespace, key)
+
         try:
-            self.keyring.set_password(self.service_name, get_username(namespace, key), value)
+            self.keyring.set_password(f"{self.prefix_service_name}.{namespace}", key, value)
         except self.KeyringError as exc:
             raise SecretsError("Failed to store secret in keyring backend.") from exc
 
     @inject_self
     def delete(self, namespace: str, key: str) -> None:
         try:
-            self.keyring.delete_password(self.service_name, get_username(namespace, key))
+            self.keyring.delete_password(f"{self.prefix_service_name}.{namespace}", key)
         except self.PasswordDeleteError:
             logger.debug("No secret exists for %s:%s", namespace, key)
         except self.KeyringError as exc:
             raise SecretsError("Failed to delete secret from keyring backend.") from exc
+
+    @inject_self
+    def get_credential(self, namespace: str) -> Credential | None:
+        try:
+            return self.keyring.get_credential(f"{self.prefix_service_name}.{namespace}", None)
+        except Exception as exc:
+            raise SecretsError("Failed to get credential from keyring backend.") from exc
 
     @inject_self
     def get_json(self, namespace: str, key: str) -> Any | None:
@@ -91,12 +110,3 @@ class SecretsManager(Singleton):
     @inject_self
     def set_json(self, namespace: str, key: str, value: Any) -> None:
         self.set(namespace, key, json.dumps(value, separators=(",", ":")))
-
-
-def get_username(namespace: str, key: str) -> str:
-    if not namespace.strip():
-        raise ValueError("namespace must not be empty")
-    if not key.strip():
-        raise ValueError("key must not be empty")
-
-    return f"{namespace}:{key}"
