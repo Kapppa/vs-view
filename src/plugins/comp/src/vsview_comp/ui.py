@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from dataclasses import dataclass
 from typing import Self
 
 from PySide6.QtCore import QPoint, QSize, Qt, Signal
@@ -52,15 +51,6 @@ class MainCompWidget(QScrollArea):
 
     def finalize(self) -> None:
         self.container_layout.addStretch(1)
-
-
-@dataclass(slots=True, repr=False, match_args=False)
-class OutputRow:
-    included: bool
-    vs_index: int
-    vs_name: str
-    num_frames: int
-    duration: Time
 
 
 class PaddedCheckBox(QWidget):
@@ -148,6 +138,10 @@ class OutputDropdown(QPushButton):
 
         self.setStyleSheet("text-align: left; padding: 4px;")
 
+    @property
+    def included_outputs(self) -> list[int]:
+        return [w.vs_index for w in self.items if w.included]
+
     def populate(self, voutputs: list[VideoOutputProxy]) -> None:
         self.menu().clear()
         self.items.clear()
@@ -184,19 +178,6 @@ class OutputDropdown(QPushButton):
             self.setText(f"{', '.join(names)}{self.shortest_dur_text}")
 
         self.inclusionChanged.emit()
-
-    def included_outputs(self) -> list[OutputRow]:
-        return [
-            OutputRow(
-                included=w.included,
-                vs_index=w.vs_index,
-                vs_name=w.vs_name,
-                num_frames=w.num_frames,
-                duration=w.duration,
-            )
-            for w in self.items
-            if w.included
-        ]
 
 
 class FrameThumbnailList(QListWidget):
