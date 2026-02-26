@@ -1,479 +1,242 @@
-import asyncio
-import math
-import random
-import re
-import string
-from collections import defaultdict
-from enum import IntEnum, auto
-from itertools import chain
+from collections.abc import Sequence
+from concurrent.futures import Future, wait
+from datetime import datetime
 from logging import getLogger
 from pathlib import Path
-from typing import Any, NamedTuple
-from uuid import uuid4
+from typing import TYPE_CHECKING, Any
 
-import httpx
-import vapoursynth as vs
 from jetpytools import ndigits
-from PySide6.QtCore import QObject, Signal, Slot
-from vstools import clip_data_gather, get_prop, remap_frames
+from pathvalidate import sanitize_filepath
+from PySide6.QtGui import QImage
+from vapoursynth import GRAY8, RGB24, VideoNode
+from vstools import clip_async_render, clip_data_gather, core, get_prop, remap_frames
 
-from vsview.app.plugins.api import PluginAPI
-from vsview.app.settings.models import GLOBAL_SETTINGS_PATH
+from vsview.api import PluginAPI, Time, run_in_background
 
-from .settings import GlobalSettings
-from .utils import get_slowpics_headers
+from .ui import FrameSourceProvider
+from .utils import get_random_number_interval
+
+if TYPE_CHECKING:
+    from .plugin import CompPlugin
 
 logger = getLogger(__name__)
 
 
-class SPFrameSource(IntEnum):
-    RANDOM = auto()
-    RANDOM_DARK = auto()
-    RANDOM_LIGHT = auto()
-    MANUAL = auto()
-    CURRENT = auto()
-
-
-class SPFrame:
-    frame: int
-    frame_type: SPFrameSource
-
-    def __init__(self, value: int, source: SPFrameSource):
-        self.frame = value
-        self.frame_type = source
-
-    def __repr__(self) -> str:
-        return f"SPFrame(frame={self.frame}, frame_type={self.frame_type})"
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, SPFrame):
-            return False
-        return self.frame == other.frame
-
-    def __hash__(self) -> int:
-        return hash(self.frame)
-
-
-# For extraction
-
-
-class SlowPicsFramesData(NamedTuple):
-    random_frames: int
-    random_min: int
-    random_max: int | None
-    random_dark: int
-    random_light: int
-    pict_types: set[str]
-    current_frame: bool
-
-
-class SlowPicsUploadInfo(NamedTuple):
-    name: str
-    public: bool
-    nsfw: bool
-    tmdb: str | None
-    remove_after: int
-    tags: list[str]
-
-
-class SlowPicsImageData(NamedTuple):
-    path: Path
-    frames: list[SPFrame]
-
-
-# For upload
-
-
-class SlowPicsUploadImage(NamedTuple):
-    path: Path
-    image_type: str
-    frame_no: int
-    timestamp: str
-
-
-class SlowPicsUploadSource(NamedTuple):
-    name: str
-    images: list[SlowPicsUploadImage]
-
-
-class SlowPicsUploadData(NamedTuple):
-    info: SlowPicsUploadInfo
-    sources: list[SlowPicsUploadSource]
-
-
-class SlowPicsWorker(QObject):
-    ALLOWED_FRAME_SEARCHES = 150
-
-    progress = Signal(int)
-    progressFormat = Signal(str)
-    progressRange = Signal(int, int)
-    jobFinished = Signal(str, object, bool)
-    updateSettings = Signal(object)
-
-    def __init__(self, api: PluginAPI, settings: GlobalSettings, parent: QObject | None = None):
-        super().__init__(parent)
-
+class ExtractFramesWorker:
+    def __init__(self, api: PluginAPI, parent: CompPlugin) -> None:
         self.api = api
+        self.progress_bar = parent.progress_bar
+        self.data = parent.frames_list.get_data()
+        self.included_outputs = parent.outputs_dropdown.included_outputs
 
-        self.semaphore = asyncio.Semaphore(20)
-        self.browser_id = str(uuid4())
+        if not (storage := self.api.get_local_storage(parent)):
+            raise NotImplementedError
+        self.storage = storage
 
-        self.has_login = len(settings.cookies) > 0
-        self.settings = settings
-
-    @Slot(str, object)
-    def do_work(self, job_name: str, params: Any, do_next: bool) -> None:
-        with self.api.vs_context():
-            if job_name == "frames":
-                frames = self.get_frames(params)
-                self.jobFinished.emit(job_name, frames, do_next)
-            elif job_name == "extract":
-                extract = self.get_upload_data(params)
-                self.jobFinished.emit(job_name, extract, do_next)
-            elif job_name == "upload":
-                slow = asyncio.run(self.upload_slowpics(params))
-                self.jobFinished.emit(job_name, slow, do_next)
-            elif job_name == "login":
-                login = asyncio.run(self.login(params))
-                self.jobFinished.emit(job_name, login, do_next)
-            else:
-                logger.warning("Running unknown job %s", job_name)
-                self.progressFormat.emit(f"Unknown job: {job_name}")
-                self.jobFinished.emit(job_name, None, do_next)
-
-    def update_settings(self, settings: GlobalSettings) -> None:
-        logger.debug("Worker updated settings")
-        self.settings = settings
-
-    def get_frames(self, frame_info: SlowPicsFramesData) -> list[SPFrame]:
-
-        self.checked = list[int]()
-
-        random_max = frame_info.random_max or min(source.vs_output.clip.num_frames - 1 for source in self.api.voutputs)
-
-        if (random_max - frame_info.random_min) < frame_info.random_frames:
-            raise ValueError("Cannot generate enough frames with this range of frames.")
-
-        found_frames = []
-
-        if frame_info.current_frame:
-            found_frames.append(SPFrame(self.api.current_frame, SPFrameSource.CURRENT))
-
-        found_frames.extend(
-            self._get_random_frames(frame_info.random_frames, frame_info.pict_types, frame_info.random_min, random_max)
+    @run_in_background(name="ExtractFrames")
+    def run(self) -> None:
+        self.progress_bar.update_progress(
+            range=(0, len(self.data) * len(self.included_outputs)),
+            fmt="Extracting frames %v / %m",
+            value=0,
         )
 
-        if frame_info.random_light or frame_info.random_dark:
-            found_frames.extend(
-                self._get_random_by_light_level(
-                    frame_info.random_light, frame_info.random_dark, frame_info.random_min, random_max
+        path = self.storage / str(datetime.now())
+        workers = list[Future[None]]()
+
+        with self.api.vs_context():
+            is_fpng_available = hasattr(core, "fpng")
+
+            for output in self.api.voutputs:
+                if output.vs_index not in self.included_outputs:
+                    continue
+
+                images_path = path / f"({output.vs_index}) ({output.vs_name})"
+                images_path = sanitize_filepath(images_path, replacement_text="_")
+                images_path.mkdir(parents=True, exist_ok=True)
+
+                clip = self.api.packer.to_rgb_planar(output.vs_output.clip, format=RGB24)
+                frames = [output.time_to_frame(t) for t, _ in self.data]
+                clip_image_path = images_path / f"%0{ndigits(max(frames))}d.png"
+
+                if is_fpng_available:
+                    f = self._fpng_extract(clip, clip_image_path, frames)
+                else:
+                    f = self._qt_extract(clip, clip_image_path, frames)
+
+                workers.append(f)
+
+            # Wait for workers to finish extracting
+            wait(workers)
+
+    @run_in_background(name="ExtractFPNG")
+    def _fpng_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
+        # TODO: Maybe add alpha support?
+        with self.api.vs_context():
+            # 1 - slow compression (smaller output file)
+            clip = clip.fpng.Write(filename=str(path), compression=1)
+            remapped = remap_frames(clip, frames)
+
+            clip_async_render(remapped, progress=lambda *_: self.progress_bar.update_progress(increment=1))
+
+    @run_in_background(name="ExtractQt")
+    def _qt_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
+        with self.api.vs_context():
+            clip = self.api.packer.to_rgb_packed(clip)
+            remapped = remap_frames(clip, frames)
+
+            workers = list[Future[None]]()
+
+            for n, vs_frame in zip(frames, remapped.frames(close=True)):
+                qimage = self.api.packer.frame_to_qimage(vs_frame).copy()
+                f = self._qt_save(qimage, path.with_stem(path.stem % n))
+                workers.append(f)
+
+            wait(workers)
+
+    @run_in_background(name="QtSave")
+    def _qt_save(self, qimage: QImage, path: Path) -> None:
+        qimage.save(str(path), "PNG", 75)  # type: ignore[call-overload]
+        self.progress_bar.update_progress(increment=1)
+
+
+class SelectFrameWorker:
+    ALLOWED_FRAME_SEARCHES = 150
+
+    def __init__(self, api: PluginAPI, parent: CompPlugin) -> None:
+        self.api = api
+        self.progress_bar = parent.progress_bar
+
+        self.start = Time.from_qtime(parent.time_edit_start.time())
+        self.end = Time.from_qtime(parent.time_edit_end.time())
+        self.dark = parent.dark_frame_count.value()
+        self.light = parent.light_frame_count.value()
+        self.normal = parent.random_frame_count.value() - self.dark - self.light
+
+        # Existing frames to avoid duplicates
+        v = self.api.current_voutput
+        self.checked = [int(v.time_to_frame(t)) for t, _ in parent.frames_list.get_data()]
+
+        # Picture types
+        self.pict_types = list[str]()
+        if parent.pict_type_i_cb.isChecked():
+            self.pict_types.append("I")
+        if parent.pict_type_p_cb.isChecked():
+            self.pict_types.append("P")
+        if parent.pict_type_b_cb.isChecked():
+            self.pict_types.append("B")
+
+        self.should_check_pict = len(self.pict_types) < 3 and parent.pict_types_supported
+        self.should_check_combed = not parent.combed_cb.isChecked()
+
+    @run_in_background(name="SelectFrames")
+    def run(self) -> list[tuple[Time, FrameSourceProvider]]:
+        with self.api.vs_context():
+            return self.get()
+
+    def get(self) -> list[tuple[Time, FrameSourceProvider]]:
+        found_times = list[tuple[Time, FrameSourceProvider]]()
+
+        if self.normal > 0:
+            found_times.extend((t, FrameSourceProvider.RANDOM) for t in self._get_normal_frames())
+
+        if self.dark > 0 or self.light > 0:
+            found_times.extend(self._get_light_dark_frames())
+
+        return sorted(set(found_times))
+
+    def _get_normal_frames(self) -> list[Time]:
+        v = self.api.current_voutput
+        start_frame, end_frame = v.time_to_frame(self.start), v.time_to_frame(self.end)
+
+        self.progress_bar.update_progress(range=(0, self.normal), fmt="Selecting frames %v / %m", value=0)
+
+        random_frames = list[Time]()
+        base_clip = core.std.BlankClip(width=1, height=1, format=GRAY8, length=len(self.api.voutputs), keep=True)
+        other_clips = [source.vs_output.clip for source in self.api.voutputs]
+
+        while len(random_frames) < self.normal:
+            for _ in range(self.ALLOWED_FRAME_SEARCHES):
+                rnum = get_random_number_interval(
+                    start_frame,
+                    end_frame,
+                    self.normal,
+                    len(random_frames),
+                    self.checked,
                 )
-            )
+                self.checked.append(rnum)
 
-        self.progressRange.emit(0, len(found_frames))
-        self.progress.emit(len(found_frames))
-        self.progressFormat.emit("Extracted images %v / %m")
-
-        return sorted(set(found_frames), key=lambda x: x.frame)
-
-    def _get_random_number(self, min: int, max: int) -> int:
-
-        while (rnum := random.randint(min, max)) in self.checked:
-            pass
-
-        self.checked.append(rnum)
-        return rnum
-
-    def _get_random_number_interval(self, min: int, max: int, random_count: int, index: int) -> int:
-        if random_count < index or index < 0:
-            raise ValueError(f"{index} is out of range of 0-{random_count - 1}")
-
-        interval = math.floor((max - min) / random_count)
-        return min + self._get_random_number(interval * index, interval * (index + 1))
-
-    def _get_random_frames(
-        self, random_count: int, pict_types: set[str], random_min: int, random_max: int
-    ) -> list[SPFrame]:
-
-        self.progressFormat.emit("Random Frames by Pict %v / %m")
-        self.progressRange.emit(0, random_count)
-
-        pict_types_b = [pict_type.encode() for pict_type in pict_types]
-
-        should_check_pict = len(pict_types) != 3
-
-        random_frames: list[SPFrame] = []
-
-        while len(random_frames) < random_count:
-            attempts = 0
-            while True:
-                if attempts > self.ALLOWED_FRAME_SEARCHES:
-                    logger.warning(
-                        "%s attempts were made and only found %s frames "
-                        "and no match found for %s; stopping iteration...",
-                        self.ALLOWED_FRAME_SEARCHES,
-                        len(random_frames),
-                        pict_types,
+                is_valid = True
+                if self.should_check_pict or self.should_check_combed:
+                    # Check frame properties across all outputs
+                    node_frames = core.std.FrameEval(
+                        base_clip,
+                        lambda n, r=rnum: base_clip.std.CopyFrameProps(
+                            other_clips[n][r], props=["_PictType", "_Combed"]
+                        ),
                     )
+
+                    for f in node_frames.frames(close=True):
+                        is_pict_type_not_selected = (
+                            self.should_check_pict
+                            and get_prop(f, "_PictType", str, default="", func="__vsview__") not in self.pict_types
+                        )
+                        is_combed = (
+                            self.should_check_combed
+                            and get_prop(f, "_Combed", int, default=0, func="__vsview__")  # No format
+                        )
+
+                        if is_pict_type_not_selected or is_combed:
+                            is_valid = False
+                            break
+
+                if is_valid:
+                    random_frames.append(v.frame_to_time(rnum))
+                    self.progress_bar.update_progress(value=len(random_frames))
                     break
-
-                rnum = self._get_random_number_interval(random_min, random_max, random_count, len(random_frames))
-                if self.api.timeline.mode == "time":
-                    timestamp = self.api.voutputs[0].frame_to_time(rnum)
-                    frames = [source.vs_output.clip[source.time_to_frame(timestamp)] for source in self.api.voutputs]
-                else:
-                    frames = [source.vs_output.clip[rnum] for source in self.api.voutputs]
-
-                for f in vs.core.std.Splice(frames, True).frames(close=True):
-                    pict_type = get_prop(f.props, "_PictType", str, default="", func="__vsview__")
-                    if should_check_pict and pict_type.encode() not in pict_types_b:
-                        logger.debug("Ignoring frame %s due to '%s' PictType not in %s", rnum, pict_type, pict_types)
-                        break
-
-                    # Bad for vivtc/interlaced sources
-                    if get_prop(f.props, "_Combed", int, default=0, func="__vsview__"):
-                        logger.debug("Ignoring frame %s due to being combed", rnum)
-                        break
-                else:
-                    # This will only be hit if the above for loop didn't break
-                    random_frames.append(SPFrame(rnum, SPFrameSource.RANDOM))
-                    self.progress.emit(len(random_frames))
-                    break
-
-                attempts += 1
+            else:
+                logger.warning(
+                    "Max attempts reached searching for random frames. Found %s/%s",
+                    len(random_frames),
+                    self.normal,
+                )
+                break
 
         return random_frames
 
-    def _get_random_by_light_level(self, light: int, dark: int, random_min: int, random_max: int) -> list[SPFrame]:
+    def _get_light_dark_frames(self) -> list[tuple[Time, FrameSourceProvider]]:
+        v = self.api.current_voutput
+        start, end = v.time_to_frame(self.start), v.time_to_frame(self.end)
 
-        frame_level: dict[float, list[int]] = defaultdict(list)
+        # Sample frames for brightness analysis
+        step = max(1, (end - start) // (self.ALLOWED_FRAME_SEARCHES * 3))
+        frames_to_check = range(start, end, step)
 
-        clip = self.api.voutputs[0].vs_output.clip
-        frames = list(range(random_min, random_max, int((random_max - random_min) / (self.ALLOWED_FRAME_SEARCHES * 3))))
-
-        checked = 0
-        self.progressFormat.emit("Checking frames light levels %v / %m")
-        self.progressRange.emit(0, len(frames))
-
-        def _progress(a: int, b: int) -> None:
-            nonlocal checked
-            checked += 1
-            self.progress.emit(checked)
-
-        decimated = remap_frames(clip.std.PlaneStats(), frames)
-        image_types = clip_data_gather(
-            decimated,
-            _progress,
-            lambda a, f: get_prop(f.props, "PlaneStatsAverage", float, default=0, func="__vspreview__"),
+        self.progress_bar.update_progress(
+            range=(0, len(frames_to_check)), fmt="Checking frames light levels %v / %m", value=0
         )
 
-        for i, f in enumerate(image_types):
-            frame_level[f].append(frames[i])
+        checked_count = 0
 
-        dark_to_light = list(chain.from_iterable(frame_level[k] for k in sorted(frame_level)))
-        darkest = [SPFrame(frame, SPFrameSource.RANDOM_DARK) for frame in dark_to_light[:dark]]
-        lightest = [SPFrame(frame, SPFrameSource.RANDOM_LIGHT) for frame in dark_to_light[-light:]]
+        def _progress(*_: Any) -> None:
+            nonlocal checked_count
+            checked_count += 1
+            self.progress_bar.update_progress(value=checked_count)
 
-        return lightest + darkest
+        decimated = remap_frames(v.vs_output.clip, frames_to_check).std.PlaneStats()
+        avg_levels = clip_data_gather(
+            decimated,
+            _progress,
+            lambda n, f: get_prop(f, "PlaneStatsAverage", float, default=0, func=self._get_light_dark_frames),
+        )
 
-    def get_upload_data(self, data: SlowPicsImageData) -> list[SlowPicsUploadSource]:
-        base_path = data.path / "".join(random.choices(string.ascii_uppercase + string.digits, k=16))
+        # Pair levels with frames and sort by brightness
+        sorted_frames = [f for _, f in sorted(zip(avg_levels, frames_to_check))]
 
-        frames_n = [f.frame for f in data.frames]
+        dark = sorted_frames[: self.dark] if self.dark else []
+        light = sorted_frames[-self.light :] if self.light else []
 
-        self.progressRange.emit(0, len(frames_n))
-
-        def _frame_callback(n: int, f: vs.VideoFrame) -> str:
-            return get_prop(f.props, "_PictType", str, default="?", func="__vsview__")
-
-        sources = list[SlowPicsUploadSource]()
-
-        for source in self.api.voutputs:
-            name = source.vs_name or f"Node {source.vs_index}"
-
-            images = 0
-            self.progressFormat.emit(f"Extracting {name} %v / %m")
-
-            def _progress(a: int, b: int) -> None:
-                nonlocal images
-                images += 1
-                self.progress.emit(images)
-
-            safe_folder = "".join(x for x in name if x.isalnum() or x.isspace())
-            if not safe_folder:
-                safe_folder = "".join(random.choices(string.ascii_uppercase + string.digits, k=16))
-
-            image_path = (base_path / safe_folder) / f"%0{ndigits(max(frames_n))}d.png"
-
-            image_path.parent.mkdir(parents=True, exist_ok=True)
-
-            clip = self.api.packer.to_rgb_planar(source.vs_output.clip, format=vs.RGB24)
-            clip = vs.core.fpng.Write(clip, filename=str(image_path), compression=1)
-
-            decimated = remap_frames(clip, frames_n)
-            image_types = clip_data_gather(decimated, _progress, _frame_callback)
-
-            logger.debug("Saving images to: %s", image_path.parent)
-
-            sources.append(
-                SlowPicsUploadSource(
-                    name,
-                    [
-                        SlowPicsUploadImage(
-                            Path(str(image_path) % frame),
-                            image_types[framec],
-                            frame,
-                            source.frame_to_time(frame).to_ts("{M:02d}:{S:02d}.{ms:03d}"),
-                        )
-                        for framec, frame in enumerate(frames_n)
-                    ],
-                )
-            )
-
-        return sources
-
-    async def setup_http_client(self, client: httpx.AsyncClient, is_login: bool = False) -> None:
-        self.has_login = len(self.settings.cookies) > 0
-        if self.has_login and not is_login:
-            logger.debug("Logging in")
-            for key, value in self.settings.cookies.items():
-                client.cookies.set(key, value)
-
-        homepage = (await client.get("https://slow.pics/comparison")).raise_for_status()
-
-        client.headers.update({"X-XSRF-TOKEN": client.cookies.get("XSRF-TOKEN") or ""})
-
-        if self.has_login and not is_login:
-            if 'id="logoutBtn"' not in homepage.text:
-                logger.error("Cookies have expired")
-            else:
-                logger.debug("Cookies not stale, logged in.")
-                self.save_cookies(client)
-
-    def save_cookies(self, client: httpx.AsyncClient, is_login: bool = False) -> None:
-        if not is_login and not self.has_login:
-            return
-
-        self.updateSettings.emit(dict(client.cookies.items()))
-
-    async def upload_slowpics(self, data: SlowPicsUploadData) -> str:
-        """Takes SlowPicsUploadData and uploads to slow.pics based on parameters"""
-
-        async with httpx.AsyncClient(
-            limits=httpx.Limits(max_connections=20, max_keepalive_connections=20),
-            headers=get_slowpics_headers(),
-            timeout=20,
-        ) as client:
-            await self.setup_http_client(client)
-
-            is_comparison = len(data.sources) > 1
-
-            total_images = sum(len(source.images) for source in data.sources)
-
-            comp_upload = {}
-
-            for i, source in enumerate(data.sources):
-                for j, image in enumerate(source.images):
-                    # TODO: This time_str may need to per image as it may be different on VFR sources
-                    time_str = f"{image.timestamp} / {image.frame_no}"
-
-                    if is_comparison:
-                        comp_upload[f"comparisons[{j}].name"] = time_str
-                        comp_upload[f"comparisons[{j}].imageNames[{i}]"] = f"({image.image_type}) {source.name}"
-                    else:
-                        comp_upload[f"imageNames[{j}]"] = f"{time_str} - {source.name}"
-
-            tags = {}
-            if data.info.public:
-                tags = {f"tags[{i}]": tag for i, tag in enumerate(data.info.tags)}
-
-            comp_info = {
-                "collectionName": data.info.name,
-                "hentai": str(data.info.nsfw).lower(),
-                "optimizeImages": "true",
-                "browserId": self.browser_id,
-                "public": str(data.info.public).lower(),
-            }
-
-            if data.info.tmdb:
-                comp_info["tmdbId"] = data.info.tmdb
-            if data.info.remove_after >= 1:
-                comp_info["removeAfter"] = str(data.info.remove_after)
-
-            comp_data = (
-                (
-                    await client.post(
-                        f"https://slow.pics/upload/{'comparison' if is_comparison else 'collection'}",
-                        data=comp_upload | tags | comp_info,
-                    )
-                )
-                .raise_for_status()
-                .json()
-            )
-
-            collection = comp_data["collectionUuid"]
-            key = comp_data["key"]
-            image_ids = comp_data["images"]
-
-            logger.debug("String upload of: https://slow.pics/c/%s", key)
-
-            reqs = []
-            self.progressRange.emit(0, total_images)
-            self.progressFormat.emit("Uploading images %v / %m")
-            self.progress.emit(0)
-            for i, source in enumerate(data.sources):
-                for j, image in enumerate(source.images):
-                    image_uuid = image_ids[j][i] if is_comparison else image_ids[0][j]
-                    reqs.append(self.upload_image(client, collection, image_uuid, image))
-
-            for i, resp in enumerate(asyncio.as_completed(reqs), start=1):
-                await resp
-                self.progress.emit(i)
-
-            self.progressFormat.emit("Finished uploading %v images")
-
-            self.save_cookies(client)
-
-            return f"https://slow.pics/c/{key}"
-
-    async def upload_image(
-        self, client: httpx.AsyncClient, collection: str, image_uuid: str, image: SlowPicsUploadImage
-    ) -> httpx.Response:
-        async with self.semaphore:
-            return (
-                await client.post(
-                    f"https://slow.pics/upload/image/{image_uuid}",
-                    data={
-                        "collectionUuid": collection,
-                        "imageUuid": image_uuid,
-                        "browserId": self.browser_id,
-                    },
-                    files={
-                        "file": (image.path.name, image.path.read_bytes(), "image/png"),
-                    },
-                )
-            ).raise_for_status()
-
-    async def login(self, login_data: dict[str, str]) -> bool:
-        async with httpx.AsyncClient(headers=get_slowpics_headers(), timeout=20) as client:
-            await self.setup_http_client(client, True)
-
-            login_page = (await client.get("https://slow.pics/login")).raise_for_status()
-
-            csrf = re.search(r'<input type="hidden" name="_csrf" value="([a-zA-Z0-9-_]+)"\/>', login_page.text)
-
-            if not csrf:
-                logger.error("Failed to login!")
-                return False
-
-            login_data["_csrf"] = csrf.group(1)
-            login_data["remember-me"] = "on"
-
-            (await client.post("https://slow.pics/login", data=login_data, follow_redirects=True)).raise_for_status()
-
-            self.save_cookies(client, True)
-
-            logger.debug("Logged in saving cookies.")
-            logger.debug("%s", GLOBAL_SETTINGS_PATH)
-
-        return True
+        return [
+            *((v.frame_to_time(f), FrameSourceProvider.RANDOM_DARK) for f in dark),
+            *((v.frame_to_time(f), FrameSourceProvider.RANDOM_LIGHT) for f in light),
+        ]
