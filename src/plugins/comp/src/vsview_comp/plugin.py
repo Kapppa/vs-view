@@ -98,6 +98,9 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
     def __init__(self, parent: QWidget, api: PluginAPI) -> None:
         super().__init__(parent, api)
 
+        self._pending_select_frames: Future[Any] | None = None
+        self._pending_extract_frames: Future[Any] | None = None
+
         self.pict_types_supported = True
 
         main_layout = QVBoxLayout(self)
@@ -504,29 +507,42 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             self.select_frames_btn.setEnabled(True)
             self.progress_bar.reset_progress()
 
+            self._pending_select_frames = None
             worker.deleteLater()
 
-        worker.run().add_done_callback(on_finished)
+        self._pending_select_frames = worker.run()
+        self._pending_select_frames.add_done_callback(on_finished)
 
     def on_extract_btn_clicked(self) -> None:
+        @run_in_loop
+        def prepare_and_extract(future: Future[Any] | None = None) -> None:
+            if future and future.exception():
+                return
+
+            data = self.frames_list.get_data()
+
+            self.progress_bar.update_progress(
+                range=(0, len(data) * len(self.outputs_dropdown.included_outputs)),
+                fmt="Extracting frames %v / %m",
+                value=0,
+            )
+
+            self._pending_extract_frames = self.start_extraction_task(data, self.outputs_dropdown.included_outputs)
+
+            @run_in_loop
+            def on_finished(*_: Any) -> None:
+                self.clip_section.setEnabled(True)
+                self.progress_bar.reset_progress()
+                self._pending_extract_frames = None
+
+            self._pending_extract_frames.add_done_callback(on_finished)
+
         self.clip_section.setDisabled(True)
 
-        data = self.frames_list.get_data()
-
-        self.progress_bar.update_progress(
-            range=(0, len(data) * len(self.outputs_dropdown.included_outputs)),
-            fmt="Extracting frames %v / %m",
-            value=0,
-        )
-
-        f = self.start_extraction_task(data, self.outputs_dropdown.included_outputs)
-
-        @run_in_loop
-        def on_finished(f: Future[None]) -> None:
-            self.clip_section.setEnabled(True)
-            self.progress_bar.reset_progress()
-
-        f.add_done_callback(on_finished)
+        if self._pending_select_frames:
+            self._pending_select_frames.add_done_callback(prepare_and_extract)
+        else:
+            prepare_and_extract()
 
     @run_in_background(name="ExtractFrames")
     def start_extraction_task(self, data: list[tuple[Time, str]], included_outputs: list[int]) -> None:
