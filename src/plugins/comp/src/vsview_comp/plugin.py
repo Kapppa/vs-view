@@ -59,11 +59,20 @@ logger = getLogger(__name__)
 
 PLUGIN_ID = "jet_vsview_comp"
 PLUGIN_DISPLAY = "Comparison"
+LOGIN_CONTEXT = "slowpicslogin"
 COOKIE_KEY = "cookies.v1"
 
 
 class GlobalSettings(BaseModel):
-    login: Annotated[str, Login(label="Slow.pics credentials", namespace=PLUGIN_ID)]
+    login: Annotated[
+        str,
+        Login(
+            label="Slow.pics credentials",
+            namespace=PLUGIN_ID,
+            context=LOGIN_CONTEXT,
+            tooltip="The Slowpoke.pics credentials for login",
+        ),
+    ]
 
     # tmdb_movie_format: Annotated[
     #     str,
