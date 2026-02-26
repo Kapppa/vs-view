@@ -293,6 +293,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         # The actual button
         self.select_frames_btn = QPushButton("Select frames", auto_select_container)
+        self.select_frames_btn.setDisabled(True)
         self.select_frames_btn.setToolTip("Collect frames based on the current settings")
         self.select_frames_btn.clicked.connect(self.on_select_frames_clicked)
 
@@ -433,6 +434,11 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         self.dark_frame_count.setMaximum(new - self.light_frame_count.value())
         self.light_frame_count.setMaximum(new - self.dark_frame_count.value())
+
+        if new == 0:
+            self.select_frames_btn.setDisabled(True)
+        else:
+            self.select_frames_btn.setEnabled(True)
 
     def on_dark_frame_count_changed(self, new: Frame, old: Frame) -> None:
         self.light_frame_count.setMaximum(self.random_frame_count.value() - new)
