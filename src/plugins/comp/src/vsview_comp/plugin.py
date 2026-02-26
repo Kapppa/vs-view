@@ -10,7 +10,7 @@ from typing import Annotated, Any
 from jetpytools import clamp, ndigits
 from pathvalidate import sanitize_filepath
 from pydantic import BaseModel
-from PySide6.QtCore import QObject, Qt, QTime
+from PySide6.QtCore import Qt, QTime
 from PySide6.QtGui import QImage
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -510,7 +510,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             self.progress_bar.reset_progress()
 
             self._pending_select_frames = None
-            worker.deleteLater()
 
         self._pending_select_frames = worker.run()
         self._pending_select_frames.add_done_callback(on_finished)
@@ -529,7 +528,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                 self.clip_section.setEnabled(True)
                 self.progress_bar.reset_progress()
                 self._pending_extract_frames = None
-                worker.deleteLater()
 
             self._pending_extract_frames.add_done_callback(on_finished)
 
@@ -541,11 +539,10 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             prepare_and_extract()
 
 
-class SelectFrameWorker(QObject):
+class SelectFrameWorker:
     ALLOWED_FRAME_SEARCHES = 150
 
     def __init__(self, api: PluginAPI, parent: CompPlugin) -> None:
-        super().__init__(parent)
         self.api = api
         self.progress_bar = parent.progress_bar
 
@@ -684,27 +681,26 @@ class SelectFrameWorker(QObject):
         ]
 
 
-class ExtractFramesWorker(QObject):
+class ExtractFramesWorker:
     def __init__(self, api: PluginAPI, parent: CompPlugin) -> None:
-        super().__init__(parent)
         self.api = api
-        self.plugin = parent
         self.progress_bar = parent.progress_bar
         self.data = parent.frames_list.get_data()
         self.included_outputs = parent.outputs_dropdown.included_outputs
 
+        if not (storage := self.api.get_local_storage(parent)):
+            raise NotImplementedError
+        self.storage = storage
+
     @run_in_background(name="ExtractFrames")
     def run(self) -> None:
-        if not (storage := self.api.get_local_storage(self.plugin)):
-            raise NotImplementedError
-
         self.progress_bar.update_progress(
             range=(0, len(self.data) * len(self.included_outputs)),
             fmt="Extracting frames %v / %m",
             value=0,
         )
 
-        path = storage / str(datetime.now())
+        path = self.storage / str(datetime.now())
         workers = list[Future[None]]()
 
         with self.api.vs_context():
