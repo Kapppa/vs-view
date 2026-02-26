@@ -315,27 +315,106 @@ class PlaybackProxy(_PlaybackProxy):
 
 class PluginSecrets(_PluginSecrets):
     """
-    Secure secret storage API backed by the OS keyring.
+    Secure secret storage API for plugins, backed by the OS keyring.
 
     The `keyring` package is necessary for this API to work. You can depend on it with `vsview[secrets]`.
     """
 
     if TYPE_CHECKING:
+        from keyring.credentials import Credential
 
-        def get(self, key: str) -> str | None:
-            """Get a plaintext secret value."""
+        def get(self, context: str, username: str) -> str | None:
+            """
+            Get a plaintext secret value for the given key.
 
-        def set(self, key: str, value: str) -> None:
-            """Set a plaintext secret value."""
+            Args:
+                context: A sub-category or context for the secret.
+                username: The unique identifier or key for the secret.
 
-        def delete(self, key: str) -> None:
-            """Delete a secret value."""
+            Returns:
+                The secret string if found, otherwise None.
+            """
 
-        def get_json(self, key: str) -> Any | None:
-            """Get a JSON-encoded secret value."""
+        def set(self, context: str, username: str, password: str) -> None:
+            """
+            Set a plaintext secret value for the given key.
 
-        def set_json(self, key: str, value: Any) -> None:
-            """Set a JSON-encoded secret value."""
+            Args:
+                context: A sub-category or context for the secret.
+                username: The unique identifier or key for the secret.
+                password: The plaintext secret value to store.
+            """
+
+        def delete(self, context: str, username: str) -> None:
+            """
+            Delete a secret value for the given key.
+
+            Args:
+                context: A sub-category or context for the secret.
+                username: The unique identifier or key for the secret.
+            """
+
+        def get_credential(self, context: str, username: str | None = None) -> Credential | None:
+            """
+            Get a credential (username/password pair) for the given key.
+
+            Args:
+                context: A sub-category or context for the secret.
+                username: Optional filter for a specific username.
+
+            Returns:
+                A Credential object if found, otherwise None.
+            """
+
+        def set_credential(self, context: str, username: str, password: str) -> None:
+            """
+            Set a credential (username/password pair) for the given key.
+
+            Args:
+                context: A sub-category or context for the secret.
+                username: The unique identifier or key for the secret.
+                password: The plaintext secret value to store.
+            """
+
+        def delete_credential(self, context: str, username: str) -> None:
+            """
+            Delete a credential (username/password pair) for the given key.
+
+            Args:
+                context: A sub-category or context for the secret.
+                username: The unique identifier or key for the secret.
+            """
+
+        def get_json(self, context: str, key: str) -> Any | None:
+            """
+            Get a JSON-decoded secret value for the given key.
+
+            Args:
+                context: A sub-category or context for the secret.
+                key: The unique identifier for the secret.
+
+            Returns:
+                The decoded JSON data if found, otherwise None.
+            """
+
+        def set_json(self, context: str, key: str, value: Any) -> None:
+            """
+            Set a JSON-encoded secret value for the given key.
+
+            Args:
+                context: A sub-category or context for the secret.
+                key: The unique identifier for the secret.
+                value: Any JSON-serializable data to store.
+            """
+
+        def delete_json(self, context: str, key: str) -> None:
+            """
+            Delete a JSON-encoded secret value for the given key.
+
+            Args:
+                context: A sub-category or context for the secret.
+                key: The unique identifier for the secret.
+            """
 
 
 class PluginAPI(_PluginAPI):
