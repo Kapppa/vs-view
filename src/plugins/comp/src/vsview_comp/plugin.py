@@ -385,6 +385,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         actions_layout.setSpacing(6)
 
         self.do_all_btn = QPushButton("Extract && Upload", actions_widget)
+        self.do_all_btn.setDisabled(True)
         self.do_all_btn.setToolTip("Extract selected frames → Upload")
         actions_layout.addWidget(self.do_all_btn)
 
@@ -448,6 +449,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
     def on_list_size_changed(self, delta: int) -> None:
         self.random_frame_count.setMaximum(clamp(self.random_frame_count.maximum() - delta, 0, 40))
         self.extract_btn.setEnabled(len(self.frames_list.get_data()) > 0)
+        self.do_all_btn.setEnabled(len(self.frames_list.get_data()) > 0)
 
     def on_random_frame_count_changed(self, new: Frame, old: Frame) -> None:
         dark_val = self.dark_frame_count.value()
@@ -542,6 +544,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
             @run_in_loop
             def on_finished(*_: Any) -> None:
+                self.extract_btn.setDisabled(True)
                 self.clip_section.setEnabled(True)
                 self.progress_bar.reset_progress()
                 self._pending_extract_frames = None
