@@ -522,14 +522,15 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                 return
 
             data = self.frames_list.get_data()
+            included_outputs = self.outputs_dropdown.included_outputs
 
             self.progress_bar.update_progress(
-                range=(0, len(data) * len(self.outputs_dropdown.included_outputs)),
+                range=(0, len(data) * len(included_outputs)),
                 fmt="Extracting frames %v / %m",
                 value=0,
             )
 
-            self._pending_extract_frames = self.start_extraction_task(data, self.outputs_dropdown.included_outputs)
+            self._pending_extract_frames = self.start_extraction_task(data, included_outputs)
 
             @run_in_loop
             def on_finished(*_: Any) -> None:
