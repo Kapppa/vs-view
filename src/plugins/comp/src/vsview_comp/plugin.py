@@ -314,6 +314,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         form.addRow(auto_select_container)
 
         self.extract_btn = QPushButton("Extract", self.clip_section)
+        self.extract_btn.setDisabled(True)
         self.extract_btn.setToolTip("Extract selected frames to disk")
         self.extract_btn.clicked.connect(self.on_extract_btn_clicked)
         form.addRow(self.extract_btn)
@@ -429,6 +430,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
     def on_list_size_changed(self, delta: int) -> None:
         self.random_frame_count.setMaximum(clamp(self.random_frame_count.maximum() - delta, 0, 40))
+        self.extract_btn.setEnabled(len(self.frames_list.get_data()) > 0)
 
     def on_random_frame_count_changed(self, new: Frame, old: Frame) -> None:
         dark_val = self.dark_frame_count.value()
