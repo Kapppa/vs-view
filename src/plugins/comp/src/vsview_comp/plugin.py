@@ -104,6 +104,9 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.progress_bar.setToolTip("Overall progress of extraction and upload tasks")
         main_layout.addWidget(self.progress_bar)
 
+        # Disable the whole plugin if we don't have a local storage
+        self.setEnabled(bool(self.api.file_path))
+
         self.api.register_action(
             f"{PLUGIN_ID}.add_current_frame",
             self.add_frame_act,
