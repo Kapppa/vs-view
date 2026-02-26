@@ -521,22 +521,15 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             if future and future.exception():
                 return
 
-            data = self.frames_list.get_data()
-            included_outputs = self.outputs_dropdown.included_outputs
-
-            self.progress_bar.update_progress(
-                range=(0, len(data) * len(included_outputs)),
-                fmt="Extracting frames %v / %m",
-                value=0,
-            )
-
-            self._pending_extract_frames = self.start_extraction_task(data, included_outputs)
+            worker = ExtractFramesWorker(self.api, self)
+            self._pending_extract_frames = worker.run()
 
             @run_in_loop
             def on_finished(*_: Any) -> None:
                 self.clip_section.setEnabled(True)
                 self.progress_bar.reset_progress()
                 self._pending_extract_frames = None
+                worker.deleteLater()
 
             self._pending_extract_frames.add_done_callback(on_finished)
 
@@ -546,69 +539,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             self._pending_select_frames.add_done_callback(prepare_and_extract)
         else:
             prepare_and_extract()
-
-    @run_in_background(name="ExtractFrames")
-    def start_extraction_task(self, data: list[tuple[Time, str]], included_outputs: list[int]) -> None:
-        if not (storage := self.api.get_local_storage(self)):
-            raise NotImplementedError
-
-        path = storage / str(datetime.now())
-        workers = list[Future[None]]()
-
-        with self.api.vs_context():
-            is_fpng_available = hasattr(core, "fpng")
-
-            for output in self.api.voutputs:
-                if output.vs_index not in included_outputs:
-                    continue
-
-                images_path = path / f"({output.vs_index}) ({output.vs_name})"
-                images_path = sanitize_filepath(images_path, replacement_text="_")
-                images_path.mkdir(parents=True, exist_ok=True)
-
-                clip = self.api.packer.to_rgb_planar(output.vs_output.clip, format=RGB24)
-                frames = [output.time_to_frame(t) for t, _ in data]
-                clip_image_path = images_path / f"%0{ndigits(max(frames))}d.png"
-
-                if is_fpng_available:
-                    f = self._fpng_extract(clip, clip_image_path, frames)
-                else:
-                    f = self._qt_extract(clip, clip_image_path, frames)
-
-                workers.append(f)
-
-            # Wait for workers to finish extracting
-            wait(workers)
-
-    @run_in_background(name="ExtractFPNG")
-    def _fpng_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
-        # TODO: Maybe add alpha support?
-        with self.api.vs_context():
-            # 1 - slow compression (smaller output file)
-            clip = clip.fpng.Write(filename=str(path), compression=1)
-            remapped = remap_frames(clip, frames)
-
-            clip_async_render(remapped, progress=lambda *_: self.progress_bar.update_progress(increment=1))
-
-    @run_in_background(name="ExtractQt")
-    def _qt_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
-        with self.api.vs_context():
-            clip = self.api.packer.to_rgb_packed(clip)
-            remapped = remap_frames(clip, frames)
-
-            workers = list[Future[None]]()
-
-            for n, vs_frame in zip(frames, remapped.frames(close=True)):
-                qimage = self.api.packer.frame_to_qimage(vs_frame).copy()
-                f = self._qt_save(qimage, path.with_stem(path.stem % n))
-                workers.append(f)
-
-            wait(workers)
-
-    @run_in_background(name="QtSave")
-    def _qt_save(self, qimage: QImage, path: Path) -> None:
-        qimage.save(str(path), "PNG", 75)  # type: ignore[call-overload]
-        self.progress_bar.update_progress(increment=1)
 
 
 class SelectFrameWorker(QObject):
@@ -752,3 +682,82 @@ class SelectFrameWorker(QObject):
             *((v.frame_to_time(f), FrameSourceProvider.RANDOM_DARK) for f in dark),
             *((v.frame_to_time(f), FrameSourceProvider.RANDOM_LIGHT) for f in light),
         ]
+
+
+class ExtractFramesWorker(QObject):
+    def __init__(self, api: PluginAPI, parent: CompPlugin) -> None:
+        super().__init__(parent)
+        self.api = api
+        self.plugin = parent
+        self.progress_bar = parent.progress_bar
+        self.data = parent.frames_list.get_data()
+        self.included_outputs = parent.outputs_dropdown.included_outputs
+
+    @run_in_background(name="ExtractFrames")
+    def run(self) -> None:
+        if not (storage := self.api.get_local_storage(self.plugin)):
+            raise NotImplementedError
+
+        self.progress_bar.update_progress(
+            range=(0, len(self.data) * len(self.included_outputs)),
+            fmt="Extracting frames %v / %m",
+            value=0,
+        )
+
+        path = storage / str(datetime.now())
+        workers = list[Future[None]]()
+
+        with self.api.vs_context():
+            is_fpng_available = hasattr(core, "fpng")
+
+            for output in self.api.voutputs:
+                if output.vs_index not in self.included_outputs:
+                    continue
+
+                images_path = path / f"({output.vs_index}) ({output.vs_name})"
+                images_path = sanitize_filepath(images_path, replacement_text="_")
+                images_path.mkdir(parents=True, exist_ok=True)
+
+                clip = self.api.packer.to_rgb_planar(output.vs_output.clip, format=RGB24)
+                frames = [output.time_to_frame(t) for t, _ in self.data]
+                clip_image_path = images_path / f"%0{ndigits(max(frames))}d.png"
+
+                if is_fpng_available:
+                    f = self._fpng_extract(clip, clip_image_path, frames)
+                else:
+                    f = self._qt_extract(clip, clip_image_path, frames)
+
+                workers.append(f)
+
+            # Wait for workers to finish extracting
+            wait(workers)
+
+    @run_in_background(name="ExtractFPNG")
+    def _fpng_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
+        # TODO: Maybe add alpha support?
+        with self.api.vs_context():
+            # 1 - slow compression (smaller output file)
+            clip = clip.fpng.Write(filename=str(path), compression=1)
+            remapped = remap_frames(clip, frames)
+
+            clip_async_render(remapped, progress=lambda *_: self.progress_bar.update_progress(increment=1))
+
+    @run_in_background(name="ExtractQt")
+    def _qt_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
+        with self.api.vs_context():
+            clip = self.api.packer.to_rgb_packed(clip)
+            remapped = remap_frames(clip, frames)
+
+            workers = list[Future[None]]()
+
+            for n, vs_frame in zip(frames, remapped.frames(close=True)):
+                qimage = self.api.packer.frame_to_qimage(vs_frame).copy()
+                f = self._qt_save(qimage, path.with_stem(path.stem % n))
+                workers.append(f)
+
+            wait(workers)
+
+    @run_in_background(name="QtSave")
+    def _qt_save(self, qimage: QImage, path: Path) -> None:
+        qimage.save(str(path), "PNG", 75)  # type: ignore[call-overload]
+        self.progress_bar.update_progress(increment=1)
