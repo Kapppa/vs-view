@@ -167,9 +167,12 @@ class LoginCredentialsInput(QWidget):
 class Login(WidgetMetadata[LoginCredentialsInput]):
     """Login credentials widget metadata."""
 
-    namespace: str = "vsview"
+    namespace: str
     """Namespace for the secret."""
+    context: str
+    """Context for the secret"""
 
+    _: KW_ONLY
     to_ui: None = None
     from_ui: None = None
 
@@ -185,27 +188,24 @@ class Login(WidgetMetadata[LoginCredentialsInput]):
 
     def get_value(self, widget: LoginCredentialsInput) -> Any:
         username, password = widget.credentials
-
-        if username:
-            self._set_password((username, password))
-
+        self._set_password((username, password))
         return username
 
     def _get_password(self, username: str) -> str:
         # Store the username for removal if the user passes a new username
         object.__setattr__(self, "_old_username", username)
-        return SecretsManager.get(self.namespace, username) or ""
+        return SecretsManager.get(self.namespace, self.context, username) or ""
 
     def _set_password(self, cred: tuple[str, str]) -> None:
         username, password = cred
 
         # Remove old entry if the username has been changed
         with suppress(AttributeError):
-            SecretsManager.delete(self.namespace, object.__getattribute__(self, "_old_username"))
+            SecretsManager.delete(self.namespace, self.context, object.__getattribute__(self, "_old_username"))
             object.__delattr__(self, "_old_username")
 
         if username:
-            SecretsManager.set(self.namespace, username, password)
+            SecretsManager.set(self.namespace, self.context, username, password)
 
 
 @dataclass(frozen=True, slots=True)
