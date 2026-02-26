@@ -51,7 +51,7 @@ from vsview.api import (
     run_in_loop,
 )
 
-from .ui import FrameSourceProvider, FrameThumbnailList, MainCompWidget, OutputDropdown, ProgressBar
+from .ui import FrameSourceProvider, FrameThumbnailList, MainCompWidget, OutputDropdown, ProgressBar, PushButton
 from .utils import get_random_number_interval
 
 logger = getLogger(__name__)
@@ -320,10 +320,11 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         auto_select_frame_layout.addRow(self.select_frames_btn)
         form.addRow(auto_select_container)
 
-        self.extract_btn = QPushButton("Extract", self.clip_section)
+        self.extract_btn = PushButton("Extract", self.clip_section)
         self.extract_btn.setDisabled(True)
         self.extract_btn.setToolTip("Extract selected frames to disk")
         self.extract_btn.clicked.connect(self.on_extract_btn_clicked)
+        self.extract_btn.enabledChanged.connect(lambda enabled: self.upload_btn.setDisabled(enabled))
         form.addRow(self.extract_btn)
 
         main.add_section(self.clip_section)
@@ -373,6 +374,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         form.addRow("Auto-Remove:", self.remove_after)
 
         self.upload_btn = QPushButton("Upload", section)
+        self.upload_btn.setDisabled(True)
         self.upload_btn.setToolTip("Upload extracted frames")
         form.addRow(self.upload_btn)
 
@@ -449,6 +451,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
     def on_list_size_changed(self, delta: int) -> None:
         self.random_frame_count.setMaximum(clamp(self.random_frame_count.maximum() - delta, 0, 40))
         self.extract_btn.setEnabled(len(self.frames_list.get_data()) > 0)
+        self.upload_btn.setEnabled(False)
         self.do_all_btn.setEnabled(len(self.frames_list.get_data()) > 0)
 
     def on_random_frame_count_changed(self, new: Frame, old: Frame) -> None:

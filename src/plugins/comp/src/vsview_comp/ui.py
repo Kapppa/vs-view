@@ -4,7 +4,7 @@ from contextlib import suppress
 from enum import StrEnum
 from typing import Self
 
-from PySide6.QtCore import QPoint, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QImage, QKeyEvent, QMouseEvent, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -371,3 +371,13 @@ class ProgressBar(QProgressBar):
     def reset_progress(self) -> None:
         self.reset()
         self.setFormat("%p%")
+
+
+class PushButton(QPushButton):
+    enabledChanged = Signal(bool)
+
+    def changeEvent(self, e: QEvent) -> None:
+        if e.type() == QEvent.Type.EnabledChange:
+            self.enabledChanged.emit(self.isEnabled())
+
+        super().changeEvent(e)
