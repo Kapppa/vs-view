@@ -101,8 +101,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self._pending_select_frames: Future[Any] | None = None
         self._pending_extract_frames: Future[Any] | None = None
 
-        self.pict_types_supported = True
-
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -383,7 +381,20 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         main.add_section(actions_widget)
 
+    @property
+    @run_in_loop(return_future=False)
+    def pict_types_supported(self) -> bool:
+        return self.pict_type_i_cb.isEnabled() and self.pict_type_p_cb.isEnabled() and self.pict_type_b_cb.isEnabled()
+
+    @pict_types_supported.setter
+    @run_in_loop(return_future=False)
+    def pict_types_supported(self, value: bool) -> None:
+        self.pict_type_i_cb.setEnabled(value)
+        self.pict_type_p_cb.setEnabled(value)
+        self.pict_type_b_cb.setEnabled(value)
+
     @cache
+    @run_in_loop(return_future=False)
     def init_load(self) -> None:
         shortest_output = min(self.api.voutputs, key=lambda v: v.info.total_duration)
 
@@ -408,9 +419,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         if self.pict_types_supported and not any("_PictType" in props for props in voutput.props.values()):
             self.pict_types_supported = False
-            self.pict_type_i_cb.setDisabled(True)
-            self.pict_type_p_cb.setDisabled(True)
-            self.pict_type_b_cb.setDisabled(True)
 
     def on_frame_edit_start_changed(self, new: Frame, old: Frame) -> None:
         self.frame_edit_end.setMinimum(new)
