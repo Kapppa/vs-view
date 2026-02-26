@@ -21,7 +21,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMenu,
-    QProgressBar,
     QPushButton,
     QSpinBox,
     QStackedWidget,
@@ -52,7 +51,7 @@ from vsview.api import (
     run_in_loop,
 )
 
-from .ui import FrameThumbnailList, MainCompWidget, OutputDropdown
+from .ui import FrameThumbnailList, MainCompWidget, OutputDropdown, ProgressBar
 from .utils import get_random_number_interval
 
 logger = getLogger(__name__)
@@ -112,12 +111,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         main_layout.addWidget(main)
 
-        self.progress_bar = QProgressBar(self)
-        self.progress_bar.setMinimumHeight(24)
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setTextVisible(True)
-        self.progress_bar.setHidden(False)
-        self.progress_bar.setToolTip("Overall progress of extraction and upload tasks")
+        self.progress_bar = ProgressBar(self)
         main_layout.addWidget(self.progress_bar)
 
         # Disable the whole plugin if we don't have a local storage
@@ -504,8 +498,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                 self.frames_list.add_item(frame=v.time_to_frame(t), get_pict_type=worker.should_check_pict)
 
             self.select_frames_btn.setEnabled(True)
-            self.progress_bar.reset()
-            self.progress_bar.setFormat("%p%")
+            self.progress_bar.reset_progress()
 
             worker.deleteLater()
 
@@ -513,11 +506,26 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
     def on_extract_btn_clicked(self) -> None:
         self.clip_section.setDisabled(True)
-        f = self.start_extraction_task(self.frames_list.get_data())
-        f.add_done_callback(lambda _: self.clip_section.setEnabled(True))
+
+        data = self.frames_list.get_data()
+
+        self.progress_bar.update_progress(
+            range=(0, len(data) * len(self.outputs_dropdown.included_outputs)),
+            fmt="Extracting frames %v / %m",
+            value=0,
+        )
+
+        f = self.start_extraction_task(data, self.outputs_dropdown.included_outputs)
+
+        @run_in_loop
+        def on_finished(f: Future[None]) -> None:
+            self.clip_section.setEnabled(True)
+            self.progress_bar.reset_progress()
+
+        f.add_done_callback(on_finished)
 
     @run_in_background(name="ExtractFrames")
-    def start_extraction_task(self, data: list[tuple[Time, str]]) -> None:
+    def start_extraction_task(self, data: list[tuple[Time, str]], included_outputs: list[int]) -> None:
         if not (storage := self.api.get_local_storage(self)):
             raise NotImplementedError
 
@@ -528,7 +536,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             is_fpng_available = hasattr(core, "fpng")
 
             for output in self.api.voutputs:
-                if output.vs_index not in self.outputs_dropdown.included_outputs:
+                if output.vs_index not in included_outputs:
                     continue
 
                 images_path = path / f"({output.vs_index}) ({output.vs_name})"
@@ -557,8 +565,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             clip = clip.fpng.Write(filename=str(path), compression=1)
             remapped = remap_frames(clip, frames)
 
-            # TODO: add progress bar callbacks
-            clip_async_render(remapped, progress="Progress...")
+            clip_async_render(remapped, progress=lambda *_: self.progress_bar.update_progress(increment=1))
 
     @run_in_background(name="ExtractQt")
     def _qt_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
@@ -578,6 +585,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
     @run_in_background(name="QtSave")
     def _qt_save(self, qimage: QImage, path: Path) -> None:
         qimage.save(str(path), "PNG", 75)  # type: ignore[call-overload]
+        self.progress_bar.update_progress(increment=1)
 
 
 class SelectFrameWorker(QObject):
@@ -630,7 +638,7 @@ class SelectFrameWorker(QObject):
         v = self.api.current_voutput
         start_frame, end_frame = v.time_to_frame(self.start), v.time_to_frame(self.end)
 
-        self._update_progress(range=(0, self.normal), fmt="Selecting frames %v / %m")
+        self.progress_bar.update_progress(range=(0, self.normal), fmt="Selecting frames %v / %m", value=0)
 
         random_frames = list[Time]()
         base_clip = core.std.BlankClip(width=1, height=1, format=GRAY8, length=len(self.api.voutputs), keep=True)
@@ -673,7 +681,7 @@ class SelectFrameWorker(QObject):
 
                 if is_valid:
                     random_frames.append(v.frame_to_time(rnum))
-                    self._update_progress(value=len(random_frames))
+                    self.progress_bar.update_progress(value=len(random_frames))
                     break
             else:
                 logger.warning(
@@ -693,14 +701,16 @@ class SelectFrameWorker(QObject):
         step = max(1, (end - start) // (self.ALLOWED_FRAME_SEARCHES * 3))
         frames_to_check = range(start, end, step)
 
-        self._update_progress(range=(0, len(frames_to_check)), fmt="Checking frames light levels %v / %m")
+        self.progress_bar.update_progress(
+            range=(0, len(frames_to_check)), fmt="Checking frames light levels %v / %m", value=0
+        )
 
         checked_count = 0
 
         def _progress(*_: Any) -> None:
             nonlocal checked_count
             checked_count += 1
-            self._update_progress(value=checked_count)
+            self.progress_bar.update_progress(value=checked_count)
 
         decimated = remap_frames(v.vs_output.clip, frames_to_check).std.PlaneStats()
         avg_levels = clip_data_gather(
@@ -716,18 +726,3 @@ class SelectFrameWorker(QObject):
         light = sorted_frames[-self.light :] if self.light else []
 
         return [v.frame_to_time(f) for f in dark + light]
-
-    @run_in_loop(return_future=False)
-    def _update_progress(
-        self,
-        *,
-        value: int | None = None,
-        range: tuple[int, int] | None = None,
-        fmt: str | None = None,
-    ) -> None:
-        if range:
-            self.progress_bar.setRange(*range)
-        if fmt:
-            self.progress_bar.setFormat(fmt)
-        if value is not None:
-            self.progress_bar.setValue(value)

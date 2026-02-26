@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMenu,
+    QProgressBar,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -323,3 +324,35 @@ class FrameThumbnailList(QListWidget):
 
         menu.exec(self.mapToGlobal(pos))
         menu.deleteLater()
+
+
+class ProgressBar(QProgressBar):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setMinimumHeight(24)
+        self.setRange(0, 100)
+        self.setTextVisible(True)
+        self.setToolTip("Overall progress of extraction and upload tasks")
+
+    @run_in_loop(return_future=False)
+    def update_progress(
+        self,
+        *,
+        value: int | None = None,
+        range: tuple[int, int] | None = None,
+        fmt: str | None = None,
+        increment: int | None = None,
+    ) -> None:
+        if range:
+            self.setRange(*range)
+        if fmt:
+            self.setFormat(fmt)
+        if value is not None:
+            self.setValue(value)
+        if increment is not None:
+            self.setValue(self.value() + increment)
+
+    @run_in_loop(return_future=False)
+    def reset_progress(self) -> None:
+        self.reset()
+        self.setFormat("%p%")
