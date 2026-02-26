@@ -66,6 +66,22 @@ COOKIE_KEY = "cookies.v1"
 class GlobalSettings(BaseModel):
     login: Annotated[str, Login(label="Slow.pics credentials", namespace=PLUGIN_ID)]
 
+    # tmdb_movie_format: Annotated[
+    #     str,
+    #     LineEdit("Format to use when selecting a Movie from TMDB"),
+    # ] = "{tmdb_title} ({tmdb_year}) - {video_nodes}"
+    # tmdb_tv_format: Annotated[
+    #     str,
+    #     LineEdit("Format to use when selecting a TV Show from TMDB"),
+    # ] = "{tmdb_title} ({tmdb_year}) - S01E01 - {video_nodes}"
+    # open_comp_automatically: Annotated[
+    #     bool,
+    #     Checkbox(
+    #         label="Open comp links automatically",
+    #         text="",
+    #         tooltip="Will open the link to the comp once it has finished automatically.",
+    #     ),
+    # ] = False
 
     pict_types_i: bool = True
     pict_types_p: bool = True
@@ -592,7 +608,7 @@ class SelectFrameWorker(QObject):
             self._pict_types.append("B")
 
         self._should_check_pict = len(self._pict_types) < 3 and parent.pict_types_supported
-        self._should_check_combed = parent.combed_cb.isChecked()
+        self._should_check_combed = not parent.combed_cb.isChecked()
 
     @run_in_background(name="SelectFrames")
     def run(self) -> list[Time]:
