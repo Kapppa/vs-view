@@ -1,3 +1,4 @@
+import ast
 from collections.abc import Sequence
 from concurrent.futures import Future, wait
 from datetime import datetime
@@ -16,13 +17,16 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
+    QMenu,
     QProgressBar,
     QPushButton,
     QSpinBox,
     QStackedWidget,
     QToolBar,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -132,13 +136,22 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         self.add_frame_act = self.make_action(IconName.PLUS, "Add current frame to the list", frame_widget)
         self.add_frame_act.setIconText("Add current frame")
+
+        menu = QMenu(frame_widget)
+        self.add_multi_frames_act = menu.addAction("Add multiple frames...")
+        self.add_multi_frames_act.triggered.connect(self.on_add_multiple_frames)
+        self.add_frame_act.setMenu(menu)
+
         toolbar.addAction(self.add_frame_act)
+        if isinstance(add_btn := toolbar.widgetForAction(self.add_frame_act), QToolButton):
+            add_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+            add_btn.setStyleSheet("QToolButton::menu-button:hover {background-color: rgba(255, 255, 255, 0.1)}")
 
         self.remove_frame_act = self.make_action(IconName.MINUS, "Remove selected frame(s) from the list", frame_widget)
         self.remove_frame_act.setIconText("Remove selected frame(s)")
         self.remove_frame_act.setEnabled(False)
 
-        toolbar.addActions([self.add_frame_act, self.remove_frame_act])
+        toolbar.addAction(self.remove_frame_act)
 
         self.frames_list = FrameThumbnailList(self.api, frame_widget)
         self.frames_list.setToolTip("Double-click to seek to frame. Use 'Delete' to remove.")
@@ -152,7 +165,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         )
         self.frames_list.listSizeChanged.connect(self.on_list_size_changed)
 
-        self.add_frame_act.triggered.connect(self.frames_list.add_item)
+        self.add_frame_act.triggered.connect(lambda: self.frames_list.add_item())
         self.remove_frame_act.triggered.connect(self.frames_list.remove_selected)
 
         frame_row.addWidget(toolbar)
@@ -415,6 +428,32 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
     def on_light_frame_count_changed(self, new: Frame, old: Frame) -> None:
         self.dark_frame_count.setMaximum(self.random_frame_count.value() - new)
+
+    def on_add_multiple_frames(self) -> None:
+        text, ok = QInputDialog.getText(
+            self,
+            "Add Multiple Frames",
+            "Enter frames as a Python list or tuple (e.g. [1, 2, 3]):",
+        )
+        if not any([ok, text]):
+            return
+        try:
+            frames = ast.literal_eval(text)
+        except (SyntaxError, ValueError) as e:
+            logger.error("Failed to parse frame list: %s", e)
+            return
+
+        if isinstance(frames, int):
+            frames = [frames]
+        elif not isinstance(frames, Sequence):
+            logger.error("Invalid frame list format: %s", text)
+            return
+
+        for f in frames:
+            if f in range(self.api.current_voutput.info.total_frames):
+                self.frames_list.add_item(frame=f)
+            else:
+                logger.warning("Skipping invalid frame number: %s", f)
 
     def on_select_frames_clicked(self) -> None:
         # TODO

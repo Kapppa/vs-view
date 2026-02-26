@@ -248,9 +248,12 @@ class FrameThumbnailList(QListWidget):
 
         return self.clip_cache[voutput.vs_index]
 
-    def add_item(self, get_pict_type: bool = False) -> None:
-        time = self.api.current_time
-        frame = self.api.current_frame
+    def add_item(self, frame: int | None = None, get_pict_type: bool = False) -> None:
+        if frame is not None:
+            time = self.api.current_voutput.frame_to_time(frame)
+        else:
+            time = self.api.current_time
+            frame = self.api.current_frame
 
         # Reject duplicates
         for i in range(self.count()):
