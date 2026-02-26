@@ -51,7 +51,7 @@ from vsview.api import (
     run_in_loop,
 )
 
-from .ui import FrameThumbnailList, MainCompWidget, OutputDropdown, ProgressBar
+from .ui import FrameSourceProvider, FrameThumbnailList, MainCompWidget, OutputDropdown, ProgressBar
 from .utils import get_random_number_interval
 
 logger = getLogger(__name__)
@@ -487,15 +487,19 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         worker = SelectFrameWorker(self.api, self)
 
         @run_in_loop
-        def on_finished(future: Future[list[Time]]) -> None:
+        def on_finished(future: Future[list[tuple[Time, FrameSourceProvider]]]) -> None:
             if future.exception():
                 return
 
             times = future.result()
 
             v = self.api.current_voutput
-            for t in times:
-                self.frames_list.add_item(frame=v.time_to_frame(t), get_pict_type=worker.should_check_pict)
+            for t, src_provider in times:
+                self.frames_list.add_item(
+                    frame=v.time_to_frame(t),
+                    get_pict_type=worker.should_check_pict,
+                    src_provider=src_provider,
+                )
 
             self.select_frames_btn.setEnabled(True)
             self.progress_bar.reset_progress()
@@ -619,15 +623,15 @@ class SelectFrameWorker(QObject):
         self.should_check_combed = not parent.combed_cb.isChecked()
 
     @run_in_background(name="SelectFrames")
-    def run(self) -> list[Time]:
+    def run(self) -> list[tuple[Time, FrameSourceProvider]]:
         with self.api.vs_context():
             return self.get()
 
-    def get(self) -> list[Time]:
-        found_times = list[Time]()
+    def get(self) -> list[tuple[Time, FrameSourceProvider]]:
+        found_times = list[tuple[Time, FrameSourceProvider]]()
 
         if self.normal > 0:
-            found_times.extend(self._get_normal_frames())
+            found_times.extend((t, FrameSourceProvider.RANDOM) for t in self._get_normal_frames())
 
         if self.dark > 0 or self.light > 0:
             found_times.extend(self._get_light_dark_frames())
@@ -693,7 +697,7 @@ class SelectFrameWorker(QObject):
 
         return random_frames
 
-    def _get_light_dark_frames(self) -> list[Time]:
+    def _get_light_dark_frames(self) -> list[tuple[Time, FrameSourceProvider]]:
         v = self.api.current_voutput
         start, end = v.time_to_frame(self.start), v.time_to_frame(self.end)
 
@@ -725,4 +729,7 @@ class SelectFrameWorker(QObject):
         dark = sorted_frames[: self.dark] if self.dark else []
         light = sorted_frames[-self.light :] if self.light else []
 
-        return [v.frame_to_time(f) for f in dark + light]
+        return [
+            *((v.frame_to_time(f), FrameSourceProvider.RANDOM_DARK) for f in dark),
+            *((v.frame_to_time(f), FrameSourceProvider.RANDOM_LIGHT) for f in light),
+        ]

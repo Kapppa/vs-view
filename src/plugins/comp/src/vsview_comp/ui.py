@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from enum import StrEnum
 from typing import Self
 
 from PySide6.QtCore import QPoint, QSize, Qt, Signal
@@ -182,6 +183,13 @@ class OutputDropdown(QPushButton):
         self.inclusionChanged.emit()
 
 
+class FrameSourceProvider(StrEnum):
+    MANUAL = "Manual"
+    RANDOM = "Random"
+    RANDOM_DARK = "Random dark"
+    RANDOM_LIGHT = "Random light"
+
+
 class FrameThumbnailList(QListWidget):
     ICON_SIZE = QSize(112, 63)
     TIME_ROLE = Qt.ItemDataRole.UserRole
@@ -249,7 +257,12 @@ class FrameThumbnailList(QListWidget):
 
         return self.clip_cache[voutput.vs_index]
 
-    def add_item(self, frame: int | None = None, get_pict_type: bool = False) -> None:
+    def add_item(
+        self,
+        frame: int | None = None,
+        get_pict_type: bool = False,
+        src_provider: FrameSourceProvider = FrameSourceProvider.MANUAL,
+    ) -> None:
         if frame is not None:
             time = self.api.current_voutput.frame_to_time(frame)
         else:
@@ -267,6 +280,7 @@ class FrameThumbnailList(QListWidget):
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         # Ensure the item has space for the icon before it's loaded
         item.setSizeHint(QSize(self.ICON_SIZE.width() + self.spacing() * 2, 92))
+        item.setToolTip(f'{item.text()} from "{src_provider}"')
 
         # Find sorted insertion position
         insert_idx = self.count()
@@ -303,7 +317,7 @@ class FrameThumbnailList(QListWidget):
                 get_prop(f, "_PictType", str, default="?", func=self.fetch_thumbnail) if get_pict_type else "?",
             )
 
-    @run_in_loop
+    @run_in_loop(return_future=False)
     def update_item_icon(self, item: QListWidgetItem, image: QImage, pict_type: str) -> None:
         with suppress(RuntimeError):
             item.setIcon(QPixmap.fromImage(image))
