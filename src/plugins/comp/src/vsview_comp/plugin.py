@@ -630,7 +630,7 @@ class SelectFrameWorker(QObject):
         v = self.api.current_voutput
         start_frame, end_frame = v.time_to_frame(self._start), v.time_to_frame(self._end)
 
-        self._update_progress(range=(0, self._normal), fmt="Random Frames by Pict %v / %m")
+        self._update_progress(range=(0, self._normal), fmt="Selecting frames %v / %m")
 
         random_frames = list[Time]()
         base_clip = core.std.BlankClip(width=1, height=1, format=GRAY8, length=len(self.api.voutputs), keep=True)
