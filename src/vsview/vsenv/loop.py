@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from concurrent.futures import Future
 from functools import wraps
 from inspect import iscoroutinefunction
 from logging import getLogger
 from threading import Lock, current_thread
-from types import CoroutineType
-from typing import Any, Literal, cast, overload
+from typing import Any, Literal, Protocol, cast, overload
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import QApplication
 from vsengine.loops import EventLoop, get_loop
 
-type _Coro[R] = CoroutineType[Any, Any, R]
+type _CoroutineFunc[**P, R] = Callable[P, Coroutine[Any, Any, R]]
+type _Func[**P, R] = Callable[P, R]
 
 _logger = getLogger(__name__)
 
@@ -119,19 +119,35 @@ class QtEventLoop(QObject, EventLoop):
         QApplication.processEvents()
 
 
-@overload
-def run_in_loop[**P, R](func: Callable[P, R] | Callable[P, _Coro[R]]) -> Callable[P, Future[R]]: ...
+class _DecoratorFuture(Protocol):
+    """Protocol for decorators that wrap a function and return a Future."""
+
+    @overload
+    def __call__[**P, R](self, func: _CoroutineFunc[P, R]) -> Callable[P, Future[R]]: ...
+    @overload
+    def __call__[**P, R](self, func: _Func[P, R]) -> Callable[P, Future[R]]: ...
+
+
+class _DecoratorDirect(Protocol):
+    """Protocol for decorators that wrap a function and return the result directly."""
+
+    @overload
+    def __call__[**P, R](self, func: _CoroutineFunc[P, R]) -> Callable[P, R]: ...
+    @overload
+    def __call__[**P, R](self, func: _Func[P, R]) -> Callable[P, R]: ...
 
 
 @overload
-def run_in_loop[**P, R](
-    *, return_future: Literal[False]
-) -> Callable[[Callable[P, R] | Callable[P, _Coro[R]]], Callable[P, R]]: ...
-
-
-def run_in_loop[**P, R](
-    func: Callable[P, R] | Callable[P, _Coro[R]] | None = None, *, return_future: bool = True
-) -> Any:
+def run_in_loop[**P, R](func: _CoroutineFunc[P, R]) -> Callable[P, Future[R]]: ...
+@overload
+def run_in_loop[**P, R](func: _Func[P, R]) -> Callable[P, Future[R]]: ...
+@overload
+def run_in_loop(*, return_future: Literal[True]) -> _DecoratorFuture: ...
+@overload
+def run_in_loop(*, return_future: Literal[False]) -> _DecoratorDirect: ...
+@overload
+def run_in_loop(*, return_future: bool) -> _DecoratorFuture | _DecoratorDirect: ...
+def run_in_loop(func: Any = None, *, return_future: bool = True) -> Any:
     """
     Decorator. Executes the decorated function within the `QtEventLoop` (Main Thread).
 
@@ -153,18 +169,17 @@ def run_in_loop[**P, R](
     ```
     """
 
-    def decorator(fn: Callable[P, R] | Callable[P, _Coro[R]]) -> Callable[P, Future[R] | R]:
+    def decorator(fn: Any) -> Any:
         @wraps(fn)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> Future[R] | R:
-            # Retrieve the global loop instance
-            loop = get_loop()
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            loop = cast(QtEventLoop, get_loop())
 
             if iscoroutinefunction(fn):
                 import asyncio
 
                 coro = fn(*args, **kwargs)
 
-                def run_coro() -> R:
+                def run_coro() -> Any:
                     try:
                         existing_loop = asyncio.get_running_loop()
                     except RuntimeError:
@@ -175,8 +190,7 @@ def run_in_loop[**P, R](
                 fut = loop.from_thread(run_coro)
             else:
                 # Delegate to from_thread to marshal execution to the main loop
-                # We know fn is NOT a coroutine function here, so it returns R directly
-                fut = loop.from_thread(cast(Callable[P, R], fn), *args, **kwargs)
+                fut = loop.from_thread(fn, *args, **kwargs)
 
             if return_future:
                 return fut
@@ -187,25 +201,16 @@ def run_in_loop[**P, R](
     if func is not None:
         return decorator(func)
 
-    if return_future:
-        raise NotImplementedError
-
     return decorator
 
 
 @overload
-def run_in_background[**P, R](func: Callable[P, R] | Callable[P, _Coro[R]]) -> Callable[P, Future[R]]: ...
-
-
+def run_in_background[**P, R](func: _CoroutineFunc[P, R]) -> Callable[P, Future[R]]: ...
 @overload
-def run_in_background[**P, R](
-    *, name: str
-) -> Callable[[Callable[P, R] | Callable[P, _Coro[R]]], Callable[P, Future[R]]]: ...
-
-
-def run_in_background[**P, R](
-    func: Callable[P, R] | Callable[P, _Coro[R]] | None = None, *, name: str | None = None
-) -> Callable[P, Future[R]] | Callable[[Callable[P, R] | Callable[P, _Coro[R]]], Callable[P, Future[R]]]:
+def run_in_background[**P, R](func: _Func[P, R]) -> Callable[P, Future[R]]: ...
+@overload
+def run_in_background(*, name: str) -> _DecoratorFuture: ...
+def run_in_background(func: Any = None, *, name: str | None = None) -> Any:
     """
     Executes the decorated function in a background thread (via QThreadPool)
     using the `QtEventLoop`'s `to_thread` logic.
@@ -228,11 +233,9 @@ def run_in_background[**P, R](
     ```
     """
 
-    def decorator(fn: Callable[P, R] | Callable[P, _Coro[R]]) -> Callable[P, Future[R]]:
+    def decorator(fn: Any) -> Any:
         @wraps(fn)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> Future[R]:
-            nonlocal fn
-
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             loop = cast(QtEventLoop, get_loop())
 
             if iscoroutinefunction(fn):
@@ -240,7 +243,7 @@ def run_in_background[**P, R](
 
                 coro = fn(*args, **kwargs)
 
-                def run_coro() -> R:
+                def run_coro() -> Any:
                     try:
                         existing_loop = asyncio.get_running_loop()
                     except RuntimeError:
@@ -251,8 +254,6 @@ def run_in_background[**P, R](
                 if name is not None:
                     return loop.to_thread_named(name, run_coro)
                 return loop.to_thread(run_coro)
-
-            fn = cast(Callable[P, R], fn)
 
             if name is not None:
                 return loop.to_thread_named(name, fn, *args, **kwargs)
