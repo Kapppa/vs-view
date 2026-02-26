@@ -277,6 +277,7 @@ class FrameThumbnailList(QListWidget):
 
         self.insertItem(insert_idx, item)
         self.scrollToItem(item)
+        self.listSizeChanged.emit(1)
 
         self.fetch_thumbnail(frame, item, get_pict_type)
 
@@ -307,9 +308,9 @@ class FrameThumbnailList(QListWidget):
         with suppress(RuntimeError):
             item.setIcon(QPixmap.fromImage(image))
             item.setData(self.PICT_TYPE_ROLE, pict_type)
+
             if pict_type != "?":
                 item.setText(item.text() + f"({pict_type})")
-            self.listSizeChanged.emit(1)
 
     def show_context_menu(self, pos: QPoint) -> None:
         if not self.itemAt(pos):
