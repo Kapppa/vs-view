@@ -1,0 +1,16 @@
+<div style='font-size:10pt; line-height:1.35;'>
+    <div style='font-size:11pt; font-weight:700; margin-bottom:6px;'>{{ header }}</div>
+    <table cellspacing='0' cellpadding='0'><tr>
+        {% if poster_data_uri %}
+            <td style='padding-right:10px; vertical-align:top;'>
+                <img src='{{ poster_data_uri }}' width='92' height='138' style='border-radius:4px; border:1px solid #666;'/>
+            </td>
+        {% endif %}
+        <td style='vertical-align:top;'>
+            {% for row in meta_rows %}
+                <div><b>{{ row.label }}:</b> {{ row.value }}</div>
+            {% endfor %}
+        </td>
+    </tr></table>
+    <div style='margin-top:8px;'><b>Overview</b><br>{{ overview }}</div>
+</div>

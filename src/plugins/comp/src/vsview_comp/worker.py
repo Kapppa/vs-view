@@ -1,20 +1,26 @@
-from collections.abc import Sequence
+from __future__ import annotations
+
+import asyncio
+import re
+from collections.abc import Mapping, Sequence
 from concurrent.futures import Future, wait
 from datetime import datetime
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from jetpytools import ndigits
+import httpx
+from jetpytools import cachedproperty, ndigits
 from pathvalidate import sanitize_filepath
 from PySide6.QtGui import QImage
 from vapoursynth import GRAY8, RGB24, VideoNode
 from vstools import clip_async_render, clip_data_gather, core, get_prop, remap_frames
 
-from vsview.api import PluginAPI, Time, run_in_background
+from vsview.api import PluginAPI, PluginSecrets, Time, run_in_background
 
+from .models import TMDBPayload, TMDBTitle, TMDBTitleData
 from .ui import FrameSourceProvider
-from .utils import get_random_number_interval
+from .utils import demote_httpx_logs, get_random_number_interval, get_slowpics_headers, suppress_http_errors
 
 if TYPE_CHECKING:
     from .plugin import CompPlugin
@@ -240,3 +246,87 @@ class SelectFrameWorker:
             *((v.frame_to_time(f), FrameSourceProvider.RANDOM_DARK) for f in dark),
             *((v.frame_to_time(f), FrameSourceProvider.RANDOM_LIGHT) for f in light),
         ]
+
+
+class TMDBWorker:
+    BASE_URL = "https://api.themoviedb.org/3"
+    BASE_PARAMS: Mapping[str, str] = {"include_adult": "false", "language": "en-US"}
+    API_KEY_PATH = Path(__file__).parent / "tmdb_api_key.txt"
+
+    def __init__(self) -> None:
+        self._movie_genres = dict[int, str]()
+        self._tv_genres = dict[int, str]()
+
+    @cachedproperty
+    def api_key(self) -> str:
+        return self.API_KEY_PATH.read_text().strip()
+
+    @run_in_background(name="TMDBSearch")
+    @demote_httpx_logs
+    async def search(self, query: str) -> list[TMDBTitle]:
+        titles = list[TMDBTitle]()
+        search_params = {**self.BASE_PARAMS, "query": query}
+        api_headers = {"Authorization": f"Bearer {self.api_key}"}
+
+        async with (
+            httpx.AsyncClient(base_url=self.BASE_URL, timeout=10, headers=api_headers) as client,
+            suppress_http_errors("TMDB search"),
+        ):
+            await self._ensure_genres_loaded(client)
+
+            tv_task = client.get("/search/tv", params=search_params)
+            movie_task = client.get("/search/movie", params=search_params)
+
+            tv_resp, movie_resp = await asyncio.gather(tv_task, movie_task)
+
+            title_tasks = list[TMDBTitle]()
+
+            tv_data = TMDBPayload.validate_logged(tv_resp.raise_for_status().json(), "TMDB /search/tv")
+            if tv_data:
+                title_tasks.extend(self._create_title(item, "tv") for item in tv_data.results)
+
+            movie_data = TMDBPayload.validate_logged(movie_resp.raise_for_status().json(), "TMDB /search/movie")
+            if movie_data:
+                title_tasks.extend(self._create_title(item, "movie") for item in movie_data.results)
+
+            titles.extend(title_tasks)
+
+            if query.isnumeric():
+                tv_id_task = client.get(f"/tv/{query}", params=self.BASE_PARAMS)
+                movie_id_task = client.get(f"/movie/{query}", params=self.BASE_PARAMS)
+
+                responses = await asyncio.gather(tv_id_task, movie_id_task, return_exceptions=True)
+
+                for res, genre_type in zip(responses, ["tv", "movie"]):
+                    if isinstance(res, httpx.Response) and res.status_code == 200:
+                        item = TMDBTitleData.validate_logged(res.json(), f"TMDB /{genre_type}/{query}")
+                        if item:
+                            titles.append(self._create_title(item, genre_type))  # type: ignore[arg-type]
+
+        return titles
+
+    async def _ensure_genres_loaded(self, client: httpx.AsyncClient) -> None:
+        if not self._tv_genres or not self._movie_genres:
+            tv_req = client.get("/genre/tv/list")
+            movie_req = client.get("/genre/movie/list")
+
+            tv_res, movie_res = await asyncio.gather(tv_req, movie_req, return_exceptions=True)
+
+            if isinstance(tv_res, httpx.Response) and tv_res.status_code == 200 and not self._tv_genres:
+                data = TMDBPayload.validate_logged(tv_res.json(), "TMDB /genre/tv/list")
+                if data:
+                    self._tv_genres = {g.id: g.name for g in data.genres}
+
+            if isinstance(movie_res, httpx.Response) and movie_res.status_code == 200 and not self._movie_genres:
+                data = TMDBPayload.validate_logged(movie_res.json(), "TMDB /genre/movie/list")
+                if data:
+                    self._movie_genres = {g.id: g.name for g in data.genres}
+
+    def _create_title(self, item: TMDBTitleData, media_type: Literal["tv", "movie"]) -> TMDBTitle:
+        genres_map = self._tv_genres if media_type == "tv" else self._movie_genres
+        mapped_genres = [genres_map[g_id] for g_id in item.genre_ids if g_id in genres_map]
+        inline_genres = [g.name for g in item.genres if g.name]
+        genres = inline_genres or mapped_genres
+        return TMDBTitle(data=item, media_type=media_type, genres=genres)
+
+

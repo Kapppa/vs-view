@@ -1,13 +1,19 @@
 from __future__ import annotations
 
-from contextlib import suppress
+from collections.abc import Iterator
+from contextlib import contextmanager, suppress
 from enum import StrEnum
-from typing import Self
+from pathlib import Path
+from typing import Any, NamedTuple, Self
 
-from PySide6.QtCore import QEvent, QPoint, QSize, Qt, Signal
-from PySide6.QtGui import QImage, QKeyEvent, QMouseEvent, QPixmap
+import jinja2
+from jetpytools import cachedproperty
+from PySide6.QtCore import QBuffer, QCoreApplication, QEvent, QIODevice, QObject, QPoint, QSize, Qt, Signal
+from PySide6.QtGui import QIcon, QImage, QKeyEvent, QMouseEvent, QPixmap, QWheelEvent
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QCheckBox,
     QHBoxLayout,
     QLabel,
@@ -22,10 +28,13 @@ from PySide6.QtWidgets import (
     QWidget,
     QWidgetAction,
 )
-from vapoursynth import RGB24, VideoNode, core
-from vstools import get_prop
+from shiboken6 import Shiboken
+from vapoursynth import RGB24, VideoNode
+from vstools import core, get_prop
 
 from vsview.api import NonClosingMenu, PluginAPI, Time, VideoOutputProxy, run_in_background, run_in_loop
+
+from .models import TMDBTitle
 
 
 class MainCompWidget(QScrollArea):
@@ -381,3 +390,241 @@ class PushButton(QPushButton):
             self.enabledChanged.emit(self.isEnabled())
 
         super().changeEvent(e)
+
+
+class PosterPayload(NamedTuple):
+    result_serial: int
+    row: int
+    url: str
+
+
+class TMDBListPopup(QListWidget):
+    POSTER_URL_PREFIX = "https://image.tmdb.org/t/p/w92"
+
+    def __init__(self, parent: QWidget, target: QLineEdit) -> None:
+        super().__init__(parent)
+        if not (app := QCoreApplication.instance()):
+            raise SystemError
+
+        self._app = app
+        self._target: QLineEdit | None = target
+        self._target_window: QWidget | None = target.window()
+        self.setWindowFlags(Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setIconSize(QSize(32, 45))
+        self.setMaximumHeight(300)
+        self.hide()
+
+        # Incremented on each new result set. Used to ignore stale async replies.
+        self._results_serial = 0
+        self._poster_cache = dict[str, QIcon]()
+        self._poster_replies = dict[QNetworkReply, PosterPayload]()
+        self._poster_loader = QNetworkAccessManager(self)
+        self._poster_loader.finished.connect(self._on_poster_downloaded)
+
+        self._app.installEventFilter(self)
+
+        self._target.installEventFilter(self)
+        self._target_window.installEventFilter(self)
+
+        self._target.destroyed.connect(self._on_target_destroyed)
+        self.destroyed.connect(self._cleanup_event_filters)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if watched is self._app and event.type() == QEvent.Type.MouseButtonPress and isinstance(event, QMouseEvent):
+            self._handle_app_click(event.globalPosition().toPoint())
+
+        if watched in [self._safe_target(), self._target_window]:
+            if event.type() in (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show) and self.isVisible():
+                self.update_geometry()
+            elif event.type() == QEvent.Type.Hide:
+                self.hide()
+
+        return super().eventFilter(watched, event)
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+            delta = event.angleDelta().y() or event.angleDelta().x()
+            self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta)
+            event.accept()
+        else:
+            super().wheelEvent(event)
+
+    @cachedproperty
+    def tool_tip_template(self) -> jinja2.Template:
+        return jinja2.Environment(
+            loader=jinja2.FileSystemLoader(Path(__file__).parent),
+            autoescape=jinja2.select_autoescape(),
+        ).get_template("tmdb_tooltip.html.jinja")
+
+    def show_results(self, results: list[TMDBTitle]) -> None:
+        self._results_serial += 1
+        # Cancel old requests when query/results change.
+        self._cancel_poster_requests()
+        self.clear()
+
+        for row, value in enumerate(results):
+            item = QListWidgetItem(value.name)
+            item.setToolTip(self._get_tmdb_tooltip(value))
+            item.setData(Qt.ItemDataRole.UserRole, value)
+            self.addItem(item)
+
+            if not value.poster_path:
+                continue
+
+            url = f"{self.POSTER_URL_PREFIX}{value.poster_path}"
+            if icon := self._poster_cache.get(url):
+                item.setIcon(icon)
+                continue
+
+            # Load each poster asynchronously so text results appear instantly.
+            reply = self._poster_loader.get(QNetworkRequest(url))
+            self._poster_replies[reply] = PosterPayload(self._results_serial, row, url)
+
+        self.setCurrentRow(0)
+        self.update_geometry()
+        self.show()
+
+    def show_no_results(self) -> None:
+        self._results_serial += 1
+        self._cancel_poster_requests()
+        self.clear()
+        item = QListWidgetItem("No results found")
+        item.setFlags(Qt.ItemFlag.NoItemFlags)
+        item.setData(Qt.ItemDataRole.UserRole, None)
+        self.addItem(item)
+        self.clearSelection()
+        self.setCurrentRow(-1)
+        self.update_geometry()
+        self.show()
+
+    def update_geometry(self) -> None:
+        if not (target := self._safe_target()):
+            self.hide()
+            return
+
+        pos = target.mapToGlobal(QPoint(0, target.height()))
+        self.setFixedWidth(target.width())
+        self.move(pos)
+
+    # Poster network
+    def _cancel_poster_requests(self) -> None:
+        if not self._poster_replies:
+            return
+
+        pending = list(self._poster_replies)
+        self._poster_replies.clear()
+
+        for reply in pending:
+            reply.abort()
+            reply.deleteLater()
+
+    def _on_poster_downloaded(self, reply: QNetworkReply) -> None:
+        if not (payload := self._poster_replies.pop(reply, None)):
+            reply.deleteLater()
+            return
+
+        # Ignore responses from older result sets or failed downloads.
+        if payload.result_serial != self._results_serial or reply.error() != QNetworkReply.NetworkError.NoError:
+            reply.deleteLater()
+            return
+
+        pixmap = QPixmap()
+        pixmap.loadFromData(reply.readAll())
+
+        if pixmap.isNull():
+            reply.deleteLater()
+            return
+
+        icon = QIcon(
+            pixmap.scaled(
+                self.iconSize(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        )
+        self._poster_cache[payload.url] = icon
+
+        if payload.row < self.count():
+            item = self.item(payload.row)
+            item.setIcon(icon)
+            item.setToolTip(self._get_tmdb_tooltip(item.data(Qt.ItemDataRole.UserRole), pixmap_data_uri(pixmap)))
+
+        reply.deleteLater()
+
+    def _get_tmdb_tooltip(self, title: TMDBTitle, poster_data_uri: str | None = None) -> str:
+        rows = [
+            {"label": "Original title", "value": title.tooltip_data.original_name},
+            {"label": "Genres", "value": title.tooltip_data.genres},
+            {"label": "Language", "value": title.tooltip_data.language},
+            {"label": "Country", "value": title.tooltip_data.country},
+            {"label": "Release", "value": title.tooltip_data.release_date},
+            {"label": "Rating", "value": title.tooltip_data.rating},
+            {"label": "Popularity", "value": title.tooltip_data.popularity},
+            {"label": "TMDB ID", "value": title.tooltip_data.tmdb_id},
+        ]
+
+        return self.tool_tip_template.render(
+            header=title.tooltip_data.header,
+            poster_data_uri=poster_data_uri,
+            meta_rows=rows,
+            overview=title.tooltip_data.overview,
+        )
+
+    # App clicks
+    def _handle_app_click(self, global_pos: QPoint) -> None:
+        if not self.isVisible():
+            return
+
+        clicked = QApplication.widgetAt(global_pos)
+        target = self._safe_target()
+
+        is_inside_popup = clicked is self or (clicked and self.isAncestorOf(clicked))
+        is_inside_target = clicked and target and (clicked is target or target.isAncestorOf(clicked))
+
+        if not (is_inside_popup or is_inside_target):
+            self.hide()
+
+    def _safe_target(self) -> QLineEdit | None:
+        if self._target and Shiboken.isValid(self._target):
+            return self._target
+
+        self._target = None
+        return None
+
+    def _on_target_destroyed(self) -> None:
+        self._target = None
+        self._target_window = None
+        self.hide()
+
+    def _cleanup_event_filters(self, *_: Any) -> None:
+        self._cancel_poster_requests()
+
+        if Shiboken.isValid(self._app):
+            self._app.removeEventFilter(self)
+
+        if target := self._safe_target():
+            target.removeEventFilter(self)
+
+        if self._target_window and Shiboken.isValid(self._target_window):
+            self._target_window.removeEventFilter(self)
+
+
+@contextmanager
+def open_qbuffer(mode: QIODevice.OpenModeFlag = QIODevice.OpenModeFlag.WriteOnly) -> Iterator[QBuffer]:
+    buffer = QBuffer()
+    buffer.open(mode)
+    try:
+        yield buffer
+    finally:
+        buffer.close()
+
+
+def pixmap_data_uri(pixmap: QPixmap) -> str:
+    with open_qbuffer() as buffer:
+        pixmap.save(buffer, "PNG", 100)
+
+    b64_str = str(buffer.data().toBase64(), "ascii")  # type: ignore[call-overload]
+
+    return f"data:image/png;base64,{b64_str}"

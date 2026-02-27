@@ -1548,6 +1548,7 @@ name = "vsview-comp"
 source = { editable = "src/plugins/comp" }
 dependencies = [
     { name = "httpx" },
+    { name = "jinja2" },
     { name = "pathvalidate" },
     { name = "vsjetpack" },
     { name = "vsview" },
@@ -1556,6 +1557,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "jinja2", specifier = ">=3.1.6" },
     { name = "pathvalidate" },
     { name = "vsjetpack", specifier = ">=1.0.0" },
     { name = "vsview", editable = "." },

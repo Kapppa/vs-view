@@ -18,7 +18,13 @@ classifiers = [
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
-dependencies = ["vsview", "vsjetpack>=1.0.0", "pathvalidate", "httpx>=0.28.1"]
+dependencies = [
+    "vsview",
+    "vsjetpack>=1.0.0",
+    "httpx>=0.28.1",
+    "pathvalidate",
+    "jinja2>=3.1.6",
+]
 
 [project.entry-points.vsview]
 vsview_comp = "vsview_comp"

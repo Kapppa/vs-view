@@ -44,8 +44,17 @@ from vsview.api import (
     run_in_loop,
 )
 
-from .ui import FrameSourceProvider, FrameThumbnailList, MainCompWidget, OutputDropdown, ProgressBar, PushButton
-from .worker import ExtractFramesWorker
+from .models import TMDBTitle
+from .ui import (
+    FrameSourceProvider,
+    FrameThumbnailList,
+    MainCompWidget,
+    OutputDropdown,
+    ProgressBar,
+    PushButton,
+    TMDBListPopup,
+)
+from .worker import ExtractFramesWorker, SelectFrameWorker, SlowPicsWorker, TMDBWorker
 
 logger = getLogger(__name__)
 
@@ -333,9 +342,21 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         form.addRow("Collection:", self.collection_name)
 
         # Network stuff
+        self.tmdb_title: TMDBTitle | None = None
+        self.tmdb_worker = TMDBWorker()
+
         self.tmdb_name = QLineEdit(section, placeholderText="Search for a movie or TV show...")
         self.tmdb_name.setToolTip("Movie or TV show name to fetch metadata from TMDB")
+        self.tmdb_name.textChanged.connect(self.on_tmdb_text_changed)
+        self.tmdb_name.editingFinished.connect(self.on_tmdb_editing_finished)
         form.addRow("TMDB Name:", self.tmdb_name)
+
+        self.tmdb_popup = TMDBListPopup(section, self.tmdb_name)
+        self.tmdb_popup.itemClicked.connect(self.on_tmdb_item_selected)
+        self.tmdb_popup.itemActivated.connect(self.on_tmdb_item_selected)
+
+        self.tmdb_debounce_timer = QTimer(self, singleShot=True, interval=300)
+        self.tmdb_debounce_timer.timeout.connect(self.perform_tmdb_search)
 
         self.tags = QLineEdit(section, placeholderText="Search for additional informations...")
         self.tags.setToolTip("Additional tags to help find the comparison")
@@ -553,3 +574,63 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             self._pending_select_frames.add_done_callback(prepare_and_extract)
         else:
             prepare_and_extract()
+
+    def on_tmdb_text_changed(self, text: str) -> None:
+        self.tmdb_title = None
+        if not text.strip():
+            self.tmdb_debounce_timer.stop()
+            self.tmdb_popup.hide()
+            return
+
+        self.tmdb_debounce_timer.start()
+
+    def on_tmdb_editing_finished(self) -> None:
+        text = self.tmdb_name.text().strip()
+
+        if not text:
+            self.tmdb_title = None
+            self.tmdb_popup.hide()
+            return
+
+        if self.tmdb_title and self.tmdb_title.name == text:
+            return
+
+        with QSignalBlocker(self.tmdb_name):
+            self.tmdb_name.clear()
+
+        self.tmdb_title = None
+        self.tmdb_popup.hide()
+
+    def perform_tmdb_search(self) -> None:
+        if not (query := self.tmdb_name.text().strip()):
+            self.tmdb_popup.hide()
+            return
+
+        @run_in_loop
+        def on_finished(future: Future[list[TMDBTitle]]) -> None:
+            if future.exception():
+                self.tmdb_popup.hide()
+                return
+
+            if self.tmdb_name.text().strip() != query:
+                return
+
+            results = future.result()
+
+            if not results:
+                self.tmdb_popup.show_no_results()
+            else:
+                self.tmdb_popup.show_results(results)
+
+        future = self.tmdb_worker.search(query)
+        future.add_done_callback(on_finished)
+
+    def on_tmdb_item_selected(self, item: QListWidgetItem) -> None:
+        title: TMDBTitle = item.data(Qt.ItemDataRole.UserRole)
+
+        self.tmdb_popup.hide()
+
+        with QSignalBlocker(self.tmdb_name):
+            self.tmdb_name.setText(title.name)
+
+        self.tmdb_title = title

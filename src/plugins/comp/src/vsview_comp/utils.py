@@ -1,7 +1,16 @@
 import random
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
+from functools import wraps
+from inspect import iscoroutinefunction
+from logging import DEBUG, INFO, LogRecord, getLogger
+
+import httpx
 
 from ._version import __version__
+
+logger = getLogger(__name__)
 
 
 def get_slowpics_headers() -> dict[str, str]:
@@ -16,6 +25,53 @@ def get_slowpics_headers() -> dict[str, str]:
             f"vs-view (https://github.com/Jaded-Encoding-Thaumaturgy/vs-view {__version__})"  # SlowBro asked for this
         ),
     }
+
+
+_demote_httpx_ctx = ContextVar("_demote_httpx_ctx", default=False)
+
+
+def httpx_demote_filter(record: LogRecord) -> bool:
+    if _demote_httpx_ctx.get() and record.levelno == INFO:
+        record.levelno = DEBUG
+        record.levelname = "DEBUG"
+    return True
+
+
+_httpx_logger = getLogger("httpx")
+_httpx_logger.addFilter(httpx_demote_filter)
+
+
+def demote_httpx_logs[**P, R](func: Callable[P, R]) -> Callable[P, R]:
+    if iscoroutinefunction(func):
+
+        @wraps(func)
+        async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            token = _demote_httpx_ctx.set(True)
+            try:
+                return await func(*args, **kwargs)
+            finally:
+                _demote_httpx_ctx.reset(token)
+
+        return async_wrapper  # type: ignore[return-value]
+
+    @wraps(func)
+    def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        token = _demote_httpx_ctx.set(True)
+        try:
+            return func(*args, **kwargs)
+        finally:
+            _demote_httpx_ctx.reset(token)
+
+    return sync_wrapper
+
+
+@asynccontextmanager
+async def suppress_http_errors(ctx_message: str) -> AsyncIterator[None]:
+    try:
+        yield
+    except httpx.HTTPError as e:
+        logger.error("%s failed: %s", ctx_message, e, stacklevel=3)
+        logger.debug("Full traceback", exc_info=True, stacklevel=3)
 
 
 def get_random_number_interval(min_val: int, max_val: int, count: int, index: int, exclude: Sequence[int]) -> int:
