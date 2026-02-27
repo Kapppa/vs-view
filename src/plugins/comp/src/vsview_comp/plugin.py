@@ -7,8 +7,10 @@ from typing import Annotated, Any
 
 from jetpytools import clamp
 from pydantic import BaseModel
-from PySide6.QtCore import QSignalBlocker, Qt, QTime, QTimer
+from PySide6.QtCore import QEvent, QObject, QSignalBlocker, Qt, QTime, QTimer
+from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QFormLayout,
     QGroupBox,
@@ -23,6 +25,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QToolBar,
     QToolButton,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
@@ -126,9 +129,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.progress_bar = ProgressBar(self)
         main_layout.addWidget(self.progress_bar)
 
-        # Disable the whole plugin if we don't have a local storage
-        self.setEnabled(bool(self.api.file_path))
-
         self.api.register_action(
             f"{PLUGIN_ID}.add_current_frame",
             self.add_frame_act,
@@ -136,6 +136,18 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         )
 
         self.api.register_on_destroy(self.init_load.cache_clear)
+
+        # Disable the whole plugin if we don't have a local storage
+        self.setEnabled(has_file := bool(self.api.file_path))
+        if not has_file:
+            self.setToolTip("Plugin disabled: the current workspace doesn't have a local storage.")
+
+        # Install event filter to override child tooltips when disabled
+        if not (app := QApplication.instance()):
+            raise SystemError
+
+        app.installEventFilter(self)
+        self.destroyed.connect(lambda: app.removeEventFilter(self) if (app := QApplication.instance()) else None)
 
     def _setup_clip_options(self, main: MainCompWidget) -> None:
         self.clip_section = Accordion("Clip Options", main)
@@ -418,6 +430,18 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.pict_type_i_cb.setEnabled(value)
         self.pict_type_p_cb.setEnabled(value)
         self.pict_type_b_cb.setEnabled(value)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        # Intercept tooltips for this plugin tree when disabled
+        if (
+            event.type() == QEvent.Type.ToolTip
+            and not self.isEnabled()
+            and isinstance(watched, QWidget)
+            and (watched is self or self.isAncestorOf(watched))
+        ):
+            QToolTip.showText(QCursor.pos(), self.toolTip(), watched)
+            return True
+        return super().eventFilter(watched, event)
 
     @cache
     @run_in_loop(return_future=False)
