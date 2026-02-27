@@ -54,7 +54,6 @@ from .ui import (
     MainCompWidget,
     OutputDropdown,
     ProgressBar,
-    PushButton,
     TagsLineEdit,
     TagsListPopup,
     TMDBListPopup,
@@ -117,6 +116,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self._pending_select_frames: Future[Any] | None = None
         self._pending_extract_frames: Future[Any] | None = None
         self._pending_tags: Future[list[Tag]] | None = None
+        self._extraction_finished = False
 
         # Build UI
         main_layout = QVBoxLayout(self)
@@ -127,6 +127,8 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             self._setup_clip_options(main)
             self._setup_upload_settings(main)
             self._setup_actions(main)
+
+        self._update_buttons_state()
 
         main_layout.addWidget(main)
 
@@ -160,8 +162,9 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         form = self.clip_section.add_form_layout()
 
         self.outputs_dropdown = OutputDropdown(self.clip_section)
-        self.outputs_dropdown.setToolTip("Select and rename outputs.")
         self.outputs_dropdown.populate(self.api.voutputs)
+        self.outputs_dropdown.setToolTip("Select and rename outputs.")
+        self.outputs_dropdown.inclusionChanged.connect(self._update_buttons_state)
         form.addRow(self.outputs_dropdown)
 
         # Current frames + add remove buttons
@@ -338,11 +341,10 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         auto_select_frame_layout.addRow(self.select_frames_btn)
         form.addRow(auto_select_container)
 
-        self.extract_btn = PushButton("Extract", self.clip_section)
+        self.extract_btn = QPushButton("Extract", self.clip_section)
         self.extract_btn.setDisabled(True)
         self.extract_btn.setToolTip("Extract selected frames to disk")
         self.extract_btn.clicked.connect(self.on_extract_btn_clicked)
-        self.extract_btn.enabledChanged.connect(lambda enabled: self.upload_btn.setDisabled(enabled))
         form.addRow(self.extract_btn)
 
         main.add_section(self.clip_section)
@@ -425,7 +427,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         actions_layout.setSpacing(6)
 
         self.do_all_btn = QPushButton("Extract && Upload", actions_widget)
-        self.do_all_btn.setDisabled(True)
         self.do_all_btn.setToolTip("Extract selected frames → Upload")
         actions_layout.addWidget(self.do_all_btn)
 
@@ -500,9 +501,8 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
     def on_list_size_changed(self, delta: int) -> None:
         self.random_frame_count.setMaximum(clamp(self.random_frame_count.maximum() - delta, 0, 40))
-        self.extract_btn.setEnabled(len(self.frames_list.get_data()) > 0)
-        self.upload_btn.setEnabled(False)
-        self.do_all_btn.setEnabled(len(self.frames_list.get_data()) > 0)
+        self._extraction_finished = False
+        self._update_buttons_state()
 
     def on_random_frame_count_changed(self, new: Frame, old: Frame) -> None:
         dark_val = self.dark_frame_count.value()
@@ -522,10 +522,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.dark_frame_count.setMaximum(new - self.light_frame_count.value())
         self.light_frame_count.setMaximum(new - self.dark_frame_count.value())
 
-        if new == 0:
-            self.select_frames_btn.setDisabled(True)
-        else:
-            self.select_frames_btn.setEnabled(True)
+        self._update_buttons_state()
 
     def on_dark_frame_count_changed(self, new: Frame, old: Frame) -> None:
         self.light_frame_count.setMaximum(self.random_frame_count.value() - new)
@@ -560,7 +557,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                 logger.warning("Skipping invalid frame number: %s", f)
 
     def on_select_frames_clicked(self) -> None:
-        self.select_frames_btn.setDisabled(True)
         worker = SelectFrameWorker(self.api, self)
 
         @run_in_loop
@@ -578,13 +574,12 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                     src_provider=src_provider,
                 )
 
-            self.select_frames_btn.setEnabled(True)
-            self.progress_bar.reset_progress()
-
             self._pending_select_frames = None
+            self._update_buttons_state()
 
         self._pending_select_frames = worker.run()
         self._pending_select_frames.add_done_callback(on_finished)
+        self._update_buttons_state()
 
     def on_extract_btn_clicked(self) -> None:
         @run_in_loop
@@ -597,12 +592,14 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
             @run_in_loop
             def on_finished(*_: Any) -> None:
-                self.extract_btn.setDisabled(True)
                 self.clip_section.setEnabled(True)
                 self.progress_bar.reset_progress()
                 self._pending_extract_frames = None
+                self._extraction_finished = True
+                self._update_buttons_state()
 
             self._pending_extract_frames.add_done_callback(on_finished)
+            self._update_buttons_state()
 
         self.clip_section.setDisabled(True)
 
@@ -699,3 +696,14 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.tags.add_tag(value, label)
         self.tags.clear()
         self.on_tags_input_changed()
+
+    def _update_buttons_state(self) -> None:
+        has_outputs = bool(self.outputs_dropdown.included_outputs)
+        has_frames = bool(self.frames_list.get_data())
+        has_random_count = self.random_frame_count.value() > 0
+        is_busy = bool(self._pending_select_frames or self._pending_extract_frames)
+
+        self.select_frames_btn.setEnabled(has_outputs and has_random_count and not is_busy)
+        self.extract_btn.setEnabled(has_outputs and has_frames and not is_busy and not self._extraction_finished)
+        self.upload_btn.setEnabled(has_outputs and has_frames and not is_busy and self._extraction_finished)
+        self.do_all_btn.setEnabled(has_outputs and has_frames and not is_busy and not self._extraction_finished)

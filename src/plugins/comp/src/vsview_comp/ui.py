@@ -386,16 +386,6 @@ class ProgressBar(QProgressBar):
         self.setFormat("%p%")
 
 
-class PushButton(QPushButton):
-    enabledChanged = Signal(bool)
-
-    def changeEvent(self, e: QEvent) -> None:
-        if e.type() == QEvent.Type.EnabledChange:
-            self.enabledChanged.emit(self.isEnabled())
-
-        super().changeEvent(e)
-
-
 class PosterPayload(NamedTuple):
     result_serial: int
     row: int
