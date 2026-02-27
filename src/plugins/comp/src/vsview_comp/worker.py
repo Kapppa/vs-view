@@ -20,7 +20,7 @@ from vsview.api import PluginAPI, PluginSecrets, Time, run_in_background
 
 from .models import TMDBPayload, TMDBTitle, TMDBTitleData
 from .ui import FrameSourceProvider
-from .utils import demote_httpx_logs, get_random_number_interval, get_slowpics_headers, suppress_http_errors
+from .utils import LogHTTPXErrors, demote_httpx_logs, get_random_number_interval, get_slowpics_headers
 
 if TYPE_CHECKING:
     from .plugin import CompPlugin
@@ -270,7 +270,7 @@ class TMDBWorker:
 
         async with (
             httpx.AsyncClient(base_url=self.BASE_URL, timeout=10, headers=api_headers) as client,
-            suppress_http_errors("TMDB search"),
+            LogHTTPXErrors("TMDB search"),
         ):
             await self._ensure_genres_loaded(client)
 

@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 import random
-from collections.abc import AsyncIterator, Callable, Sequence
-from contextlib import asynccontextmanager
+from collections.abc import Callable, Sequence
+from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar
 from functools import wraps
 from inspect import iscoroutinefunction
 from logging import DEBUG, INFO, LogRecord, getLogger
+from types import TracebackType
 
 import httpx
 
@@ -65,13 +68,35 @@ def demote_httpx_logs[**P, R](func: Callable[P, R]) -> Callable[P, R]:
     return sync_wrapper
 
 
-@asynccontextmanager
-async def suppress_http_errors(ctx_message: str) -> AsyncIterator[None]:
-    try:
-        yield
-    except httpx.HTTPError as e:
-        logger.error("%s failed: %s", ctx_message, e, stacklevel=3)
-        logger.debug("Full traceback", exc_info=True, stacklevel=3)
+class LogHTTPXErrors(AbstractContextManager[None], AbstractAsyncContextManager[None]):
+    def __init__(self, ctx_message: str) -> None:
+        self.ctx_message = ctx_message
+
+    def __enter__(self) -> None:
+        return None
+
+    def __exit__(
+        self,
+        exc_t: type[BaseException] | None,
+        exc_val: BaseException | None,
+        tb: TracebackType | None,
+    ) -> bool | None:
+        if isinstance(exc_val, httpx.HTTPError):
+            logger.error("%s failed: %s", self.ctx_message, exc_val, stacklevel=4)
+            logger.debug("Full traceback", exc_info=exc_val, stacklevel=4)
+            return True
+        return None
+
+    async def __aenter__(self) -> None:
+        return None
+
+    async def __aexit__(
+        self,
+        exc_t: type[BaseException] | None,
+        exc_val: BaseException | None,
+        tb: TracebackType | None,
+    ) -> bool | None:
+        return self.__exit__(exc_t, exc_val, tb)
 
 
 def get_random_number_interval(min_val: int, max_val: int, count: int, index: int, exclude: Sequence[int]) -> int:
