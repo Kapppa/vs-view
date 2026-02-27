@@ -7,7 +7,7 @@ from concurrent.futures import Future, wait
 from datetime import datetime
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 import httpx
 from jetpytools import cachedproperty, ndigits
@@ -330,3 +330,24 @@ class TMDBWorker:
         return TMDBTitle(data=item, media_type=media_type, genres=genres)
 
 
+class Tag(NamedTuple):
+    value: str
+    label: str
+
+
+class SlowPicsWorker:
+    BASE_URL = "https://slow.pics"
+
+    def __init__(self, secrets: PluginSecrets) -> None:
+        self.secrets = secrets
+        self.headers = get_slowpics_headers()
+
+    @run_in_background(name="SlowPicsTags")
+    @demote_httpx_logs
+    def get_tags(self) -> list[Tag]:
+        with (
+            httpx.Client(base_url=self.BASE_URL, headers=self.headers) as client,
+            LogHTTPXErrors("Slowpics Tags"),
+        ):
+            tags = client.get("/api/tags").raise_for_status().json()
+            return [Tag(tag["value"], tag["label"].strip()) for tag in tags]

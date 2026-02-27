@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager, suppress
 from enum import StrEnum
 from pathlib import Path
@@ -9,12 +9,13 @@ from typing import Any, NamedTuple, Self
 import jinja2
 from jetpytools import cachedproperty
 from PySide6.QtCore import QBuffer, QCoreApplication, QEvent, QIODevice, QObject, QPoint, QSize, Qt, Signal
-from PySide6.QtGui import QIcon, QImage, QKeyEvent, QMouseEvent, QPixmap, QWheelEvent
+from PySide6.QtGui import QIcon, QImage, QKeyEvent, QMouseEvent, QPainter, QPaintEvent, QPixmap, QWheelEvent
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QCheckBox,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -24,6 +25,9 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
+    QStyle,
+    QStyleOptionFrame,
+    QToolButton,
     QVBoxLayout,
     QWidget,
     QWidgetAction,
@@ -398,33 +402,22 @@ class PosterPayload(NamedTuple):
     url: str
 
 
-class TMDBListPopup(QListWidget):
-    POSTER_URL_PREFIX = "https://image.tmdb.org/t/p/w92"
-
-    def __init__(self, parent: QWidget, target: QLineEdit) -> None:
+class AnchoredListPopup(QListWidget):
+    def __init__(self, parent: QWidget, target: QWidget) -> None:
         super().__init__(parent)
         if not (app := QCoreApplication.instance()):
             raise SystemError
 
-        self._app = app
-        self._target: QLineEdit | None = target
+        self._target: QWidget | None = target
         self._target_window: QWidget | None = target.window()
+
         self.setWindowFlags(Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.setIconSize(QSize(32, 45))
         self.setMaximumHeight(300)
         self.hide()
 
-        # Incremented on each new result set. Used to ignore stale async replies.
-        self._results_serial = 0
-        self._poster_cache = dict[str, QIcon]()
-        self._poster_replies = dict[QNetworkReply, PosterPayload]()
-        self._poster_loader = QNetworkAccessManager(self)
-        self._poster_loader.finished.connect(self._on_poster_downloaded)
-
-        self._app.installEventFilter(self)
-
+        app.installEventFilter(self)
         self._target.installEventFilter(self)
         self._target_window.installEventFilter(self)
 
@@ -432,16 +425,75 @@ class TMDBListPopup(QListWidget):
         self.destroyed.connect(self._cleanup_event_filters)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        if watched is self._app and event.type() == QEvent.Type.MouseButtonPress and isinstance(event, QMouseEvent):
+        if event.type() == QEvent.Type.MouseButtonPress and isinstance(event, QMouseEvent):
             self._handle_app_click(event.globalPosition().toPoint())
 
         if watched in [self._safe_target(), self._target_window]:
-            if event.type() in (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show) and self.isVisible():
+            if event.type() in [QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show] and self.isVisible():
                 self.update_geometry()
-            elif event.type() == QEvent.Type.Hide:
+            elif event.type() in [QEvent.Type.Hide, QEvent.Type.WindowDeactivate]:
                 self.hide()
 
         return super().eventFilter(watched, event)
+
+    def update_geometry(self) -> None:
+        if not (target := self._safe_target()):
+            self.hide()
+            return
+
+        pos = target.mapToGlobal(QPoint(0, target.height()))
+        self.setFixedWidth(target.width())
+        self.move(pos)
+
+    def _handle_app_click(self, global_pos: QPoint) -> None:
+        if not self.isVisible():
+            return
+
+        clicked = QApplication.widgetAt(global_pos)
+        target = self._safe_target()
+
+        is_inside_popup = clicked is self or (clicked and self.isAncestorOf(clicked))
+        is_inside_target = clicked and target and (clicked is target or target.isAncestorOf(clicked))
+
+        if not (is_inside_popup or is_inside_target):
+            self.hide()
+
+    def _safe_target(self) -> QWidget | None:
+        if self._target and Shiboken.isValid(self._target):
+            return self._target
+
+        self._target = None
+        return None
+
+    def _on_target_destroyed(self) -> None:
+        self._target = None
+        self._target_window = None
+        self.hide()
+
+    def _cleanup_event_filters(self, *_: Any) -> None:
+        if (app := QCoreApplication.instance()) and Shiboken.isValid(app):
+            app.removeEventFilter(self)
+
+        if target := self._safe_target():
+            target.removeEventFilter(self)
+
+        if self._target_window and Shiboken.isValid(self._target_window):
+            self._target_window.removeEventFilter(self)
+
+
+class TMDBListPopup(AnchoredListPopup):
+    POSTER_URL_PREFIX = "https://image.tmdb.org/t/p/w92"
+
+    def __init__(self, parent: QWidget, target: QLineEdit) -> None:
+        super().__init__(parent, target)
+        self.setIconSize(QSize(32, 45))
+
+        # Incremented on each new result set. Used to ignore stale async replies.
+        self._results_serial = 0
+        self._poster_cache = dict[str, QIcon]()
+        self._poster_replies = dict[QNetworkReply, PosterPayload]()
+        self._poster_loader = QNetworkAccessManager(self)
+        self._poster_loader.finished.connect(self._on_poster_downloaded)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
@@ -498,15 +550,6 @@ class TMDBListPopup(QListWidget):
         self.setCurrentRow(-1)
         self.update_geometry()
         self.show()
-
-    def update_geometry(self) -> None:
-        if not (target := self._safe_target()):
-            self.hide()
-            return
-
-        pos = target.mapToGlobal(QPoint(0, target.height()))
-        self.setFixedWidth(target.width())
-        self.move(pos)
 
     # Poster network
     def _cancel_poster_requests(self) -> None:
@@ -572,43 +615,9 @@ class TMDBListPopup(QListWidget):
             overview=title.tooltip_data.overview,
         )
 
-    # App clicks
-    def _handle_app_click(self, global_pos: QPoint) -> None:
-        if not self.isVisible():
-            return
-
-        clicked = QApplication.widgetAt(global_pos)
-        target = self._safe_target()
-
-        is_inside_popup = clicked is self or (clicked and self.isAncestorOf(clicked))
-        is_inside_target = clicked and target and (clicked is target or target.isAncestorOf(clicked))
-
-        if not (is_inside_popup or is_inside_target):
-            self.hide()
-
-    def _safe_target(self) -> QLineEdit | None:
-        if self._target and Shiboken.isValid(self._target):
-            return self._target
-
-        self._target = None
-        return None
-
-    def _on_target_destroyed(self) -> None:
-        self._target = None
-        self._target_window = None
-        self.hide()
-
     def _cleanup_event_filters(self, *_: Any) -> None:
         self._cancel_poster_requests()
-
-        if Shiboken.isValid(self._app):
-            self._app.removeEventFilter(self)
-
-        if target := self._safe_target():
-            target.removeEventFilter(self)
-
-        if self._target_window and Shiboken.isValid(self._target_window):
-            self._target_window.removeEventFilter(self)
+        super()._cleanup_event_filters()
 
 
 @contextmanager
@@ -628,3 +637,215 @@ def pixmap_data_uri(pixmap: QPixmap) -> str:
     b64_str = str(buffer.data().toBase64(), "ascii")  # type: ignore[call-overload]
 
     return f"data:image/png;base64,{b64_str}"
+
+
+class TagsLineEdit(QWidget):
+    editingStarted = Signal()
+    inputTextChanged = Signal(str)
+    tagsChanged = Signal()
+
+    STYLESHEET = """
+        QWidget#tagsLineEdit {
+            background: palette(button);
+        }
+        QWidget#tagsLineEdit QLineEdit#tagsInput {
+            border: none;
+            background: transparent;
+            padding: 0px;
+        }
+        QWidget#tagsLineEdit QLineEdit#tagsInput:disabled {
+            color: palette(mid);
+        }
+        QFrame#tagChip,
+        QFrame#tagChip:hover,
+        QFrame#tagChip:pressed {
+            border: 1px solid palette(mid);
+            border-radius: 10px;
+            background: palette(button);
+            color: palette(text);
+        }
+        QFrame#tagChip QLabel {
+            background: transparent;
+            border: none;
+        }
+        QToolButton#tagChipRemove,
+        QToolButton#tagChipRemove:hover,
+        QToolButton#tagChipRemove:pressed {
+            border: none;
+            background: transparent;
+            padding: 0px;
+            margin: 0px;
+            min-width: 14px;
+            max-width: 14px;
+            min-height: 14px;
+            max-height: 14px;
+            color: palette(text);
+        }
+    """
+
+    def __init__(self, parent: QWidget | None = None, *, placeholder_text: str | None = None) -> None:
+        super().__init__(parent)
+        self._chips = dict[str, QWidget]()
+        self._tag_order = list[str]()
+        self.setObjectName("tagsLineEdit")
+
+        self._layout = QHBoxLayout(self)
+        self._layout.setContentsMargins(6, 2, 6, 2)
+        self._layout.setSpacing(4)
+
+        self._input = QLineEdit(self, placeholderText=placeholder_text)
+        self._input.setObjectName("tagsInput")
+        self._input.setFrame(False)
+        self._input.textChanged.connect(self.inputTextChanged.emit)
+        self._input.installEventFilter(self)
+        self._placeholder_text = placeholder_text or ""
+
+        self._layout.addWidget(self._input, 1)
+        self.setFocusProxy(self._input)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setMinimumHeight(self._input.sizeHint().height())
+        self.setStyleSheet(self.STYLESHEET)
+
+        self.tagsChanged.connect(self._on_tags_changed)
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        super().paintEvent(event)
+
+        with QPainter(self) as painter:
+            option = QStyleOptionFrame()
+            option.initFrom(self)
+            option.rect = self.rect()
+            option.lineWidth = self.style().pixelMetric(QStyle.PixelMetric.PM_DefaultFrameWidth, option, self)
+            option.midLineWidth = 0
+            option.state |= QStyle.StateFlag.State_Sunken
+            if self._input.hasFocus():
+                option.state |= QStyle.StateFlag.State_HasFocus
+
+            self.style().drawPrimitive(QStyle.PrimitiveElement.PE_PanelLineEdit, option, painter, self)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if watched is self._input:
+            if event.type() == QEvent.Type.FocusIn:
+                self.editingStarted.emit()
+            elif event.type() == QEvent.Type.KeyPress and isinstance(event, QKeyEvent):
+                if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                    value = self.input_text().strip()
+                    if value:
+                        self.add_tag(value, value)
+                        self.clear()
+                        return True
+                elif event.key() == Qt.Key.Key_Backspace and not self.input_text() and self._tag_order:
+                    self.remove_tag(self._tag_order[-1])
+                    return True
+
+        return super().eventFilter(watched, event)
+
+    def add_tag(self, value: str, label: str) -> bool:
+        value = value.strip()
+        label = label.strip() or value
+
+        if not value or value in self._chips:
+            return False
+
+        chip = QFrame(self)
+        chip.setObjectName("tagChip")
+        chip_layout = QHBoxLayout(chip)
+        chip_layout.setContentsMargins(6, 2, 4, 2)
+        chip_layout.setSpacing(4)
+
+        chip_label = QLabel(label, chip)
+        chip_layout.addWidget(chip_label)
+
+        remove_btn = QToolButton(chip)
+        remove_btn.setObjectName("tagChipRemove")
+        remove_btn.setText("x")
+        remove_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        remove_btn.clicked.connect(lambda: self.remove_tag(value))
+        chip_layout.addWidget(remove_btn)
+
+        self._layout.insertWidget(self._layout.count() - 1, chip)
+
+        self._chips[value] = chip
+        self._tag_order.append(value)
+        self.tagsChanged.emit()
+        return True
+
+    def remove_tag(self, value: str) -> bool:
+        if not (chip := self._chips.pop(value, None)):
+            return False
+
+        if value in self._tag_order:
+            self._tag_order.remove(value)
+
+        self._layout.removeWidget(chip)
+        chip.deleteLater()
+        self.tagsChanged.emit()
+        return True
+
+    def selected_tags(self) -> list[str]:
+        return self._tag_order.copy()
+
+    def text(self) -> str:
+        return ", ".join(self._tag_order)
+
+    def input_text(self) -> str:
+        return self._input.text()
+
+    def clear(self) -> None:
+        self._input.clear()
+
+    def _on_tags_changed(self) -> None:
+        if self._tag_order:
+            self._input.setPlaceholderText("")
+        else:
+            self._input.setPlaceholderText(self._placeholder_text)
+
+
+class TagsListPopup(AnchoredListPopup):
+    tagPicked = Signal(str, str)  # value, label
+
+    def __init__(self, parent: QWidget, target: QWidget) -> None:
+        super().__init__(parent, target)
+        self._all_tags = list[tuple[str, str]]()
+
+        self.itemPressed.connect(self._on_item_selected)
+
+    def set_tags(self, tags: Sequence[tuple[str, str]]) -> None:
+        self._all_tags = list(tags)
+
+    def has_tags(self) -> bool:
+        return bool(self._all_tags)
+
+    def show_filtered(self, query: str, selected: set[str]) -> None:
+        if not self._all_tags:
+            self.hide()
+            return
+
+        q = query.strip().lower()
+        self.clear()
+
+        for value, label in self._all_tags:
+            if value in selected:
+                continue
+
+            if q and q not in label.lower() and q not in value.lower():
+                continue
+
+            item = QListWidgetItem(label)
+            item.setData(Qt.ItemDataRole.UserRole, (value, label))
+            self.addItem(item)
+
+        if self.count() == 0:
+            self.hide()
+            return
+
+        self.setCurrentRow(0)
+        self.update_geometry()
+        self.show()
+
+    def _on_item_selected(self, item: QListWidgetItem) -> None:
+        if not (data := item.data(Qt.ItemDataRole.UserRole)):
+            return
+
+        self.tagPicked.emit(*data)
+        self.hide()

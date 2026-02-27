@@ -55,9 +55,11 @@ from .ui import (
     OutputDropdown,
     ProgressBar,
     PushButton,
+    TagsLineEdit,
+    TagsListPopup,
     TMDBListPopup,
 )
-from .worker import ExtractFramesWorker, SelectFrameWorker, SlowPicsWorker, TMDBWorker
+from .worker import ExtractFramesWorker, SelectFrameWorker, SlowPicsWorker, Tag, TMDBWorker
 
 logger = getLogger(__name__)
 
@@ -114,7 +116,9 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         self._pending_select_frames: Future[Any] | None = None
         self._pending_extract_frames: Future[Any] | None = None
+        self._pending_tags: Future[list[Tag]] | None = None
 
+        # Build UI
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -348,6 +352,8 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         section.setToolTip("Configure upload settings for Slow.pics")
         form = section.add_form_layout()
 
+        self.slowpics_worker = SlowPicsWorker(self.secrets)
+
         # Collection name
         self.collection_name = QLineEdit(section, placeholderText="Name for the image collection")
         self.collection_name.setToolTip("The name of the comparison collection")
@@ -370,9 +376,15 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.tmdb_debounce_timer = QTimer(self, singleShot=True, interval=300)
         self.tmdb_debounce_timer.timeout.connect(self.perform_tmdb_search)
 
-        self.tags = QLineEdit(section, placeholderText="Search for additional informations...")
+        self.tags = TagsLineEdit(section, placeholder_text="Search for additional informations...")
+        self.tags.editingStarted.connect(self.on_tags_editing_started)
+        self.tags.inputTextChanged.connect(self.on_tags_input_changed)
+        self.tags.tagsChanged.connect(self.on_tags_input_changed)
         self.tags.setToolTip("Additional tags to help find the comparison")
         form.addRow("Tags:", self.tags)
+
+        self.tags_popup = TagsListPopup(section, self.tags)
+        self.tags_popup.tagPicked.connect(self.on_tag_item_selected)
 
         # Public / NSFW checkboxes
         flags_widget = QWidget(section)
@@ -658,3 +670,32 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             self.tmdb_name.setText(title.name)
 
         self.tmdb_title = title
+
+    def on_tags_editing_started(self) -> None:
+        if self.tags_popup.has_tags():
+            self.on_tags_input_changed()
+            return
+
+        if self._pending_tags:
+            return
+
+        @run_in_loop
+        def on_finished(future: Future[list[Tag]]) -> None:
+            self._pending_tags = None
+            if future.exception():
+                self.tags_popup.hide()
+                return
+
+            self.tags_popup.set_tags(future.result())
+            self.on_tags_input_changed()
+
+        self._pending_tags = self.slowpics_worker.get_tags()
+        self._pending_tags.add_done_callback(on_finished)
+
+    def on_tags_input_changed(self, *_: Any) -> None:
+        self.tags_popup.show_filtered(self.tags.input_text(), set(self.tags.selected_tags()))
+
+    def on_tag_item_selected(self, value: str, label: str) -> None:
+        self.tags.add_tag(value, label)
+        self.tags.clear()
+        self.on_tags_input_changed()
