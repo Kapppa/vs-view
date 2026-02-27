@@ -1,22 +1,23 @@
 from __future__ import annotations
 
+import importlib.metadata
 import random
 from collections.abc import Callable, Sequence
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar
-from functools import wraps
+from functools import cache, wraps
 from inspect import iscoroutinefunction
 from logging import DEBUG, INFO, LogRecord, getLogger
 from types import TracebackType
 
 import httpx
 
-from ._version import __version__
-
 logger = getLogger(__name__)
 
 
+@cache
 def get_slowpics_headers() -> dict[str, str]:
+    version = importlib.metadata.version("vsview-comp")
     return {
         "Accept": "*/*",
         "Accept-Encoding": "gzip, deflate",
@@ -25,7 +26,7 @@ def get_slowpics_headers() -> dict[str, str]:
         "Origin": "https://slow.pics/",
         "Referer": "https://slow.pics/comparison",
         "User-Agent": (
-            f"vs-view (https://github.com/Jaded-Encoding-Thaumaturgy/vs-view {__version__})"  # SlowBro asked for this
+            f"vs-view (https://github.com/Jaded-Encoding-Thaumaturgy/vs-view {version})"  # SlowBro asked for this
         ),
     }
 

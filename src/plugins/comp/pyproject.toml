@@ -39,6 +39,10 @@ vsview = { workspace = true }
 
 [tool.hatch.version]
 source = "versioningit"
-default-version = "0.0.0"
-next-version = "minor"
-write = { file = "src/vsview_comp/_version.py", template = "__version__ = \"{normalized_version}\"\n__version_tuple__ = {version_tuple}" }
+
+[tool.versioningit.vcs]
+match = ["comp/v*"]
+default-tag = "comp/v0.0.0"
+
+[tool.versioningit.tag2version]
+rmprefix = "comp/v"
