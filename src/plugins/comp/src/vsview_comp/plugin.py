@@ -792,6 +792,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                     QApplication.clipboard().setText(url)
 
                 self._update_buttons_state()
+                self.upload_btn.setDisabled(True)
 
             self._pending_upload.add_done_callback(on_upload_finished)
 
