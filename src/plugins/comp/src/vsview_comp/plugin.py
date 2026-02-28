@@ -45,10 +45,12 @@ from vsview.api import (
     TimeEdit,
     VideoOutputProxy,
     WidgetPluginBase,
+    run_in_background,
     run_in_loop,
 )
 
 from ._metadata import LOGIN_CONTEXT, PLUGIN_DISPLAY, PLUGIN_ID
+from .models import ComparisonImage, ComparisonSource, TMDBTitle
 from .ui import (
     FrameSourceProvider,
     FrameThumbnailList,
@@ -110,6 +112,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         self._pending_select_frames: Future[Any] | None = None
         self._pending_extract_frames: Future[list[tuple[int, Path]]] | None = None
+        self._pending_upload: Future[str] | Future[None] | None = None
         self._pending_tags: Future[list[Tag]] | None = None
         self._extraction_finished = False
         self._extract_paths: list[tuple[int, Path]] | None = None
@@ -131,6 +134,8 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         self.progress_bar = ProgressBar(self)
         main_layout.addWidget(self.progress_bar)
+
+        self.slowpics_worker = SlowPicsWorker(self.api, self.secrets, self.progress_bar)
 
         self.api.register_action(
             f"{PLUGIN_ID}.add_current_frame",
@@ -351,8 +356,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         section.setToolTip("Configure upload settings for Slow.pics")
         form = section.add_form_layout()
 
-        self.slowpics_worker = SlowPicsWorker(self.secrets)
-
         # Collection name
         self.collection_name = QLineEdit(section, placeholderText="Name for the image collection")
         self.collection_name.setToolTip("The name of the comparison collection")
@@ -413,6 +416,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.upload_btn = QPushButton("Upload", section)
         self.upload_btn.setDisabled(True)
         self.upload_btn.setToolTip("Upload extracted frames")
+        self.upload_btn.clicked.connect(self.on_upload_btn_clicked)
         form.addRow(self.upload_btn)
 
         main.add_section(section)
@@ -425,6 +429,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         self.do_all_btn = QPushButton("Extract && Upload", actions_widget)
         self.do_all_btn.setToolTip("Extract selected frames → Upload")
+        self.do_all_btn.clicked.connect(self.on_do_all_btn_clicked)
         actions_layout.addWidget(self.do_all_btn)
 
         main.add_section(actions_widget)
@@ -695,6 +700,112 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.tags.add_tag(value, label)
         self.tags.clear()
         self.on_tags_input_changed()
+
+    def on_upload_btn_clicked(self) -> None:
+        if not self._extract_paths:
+            logger.error("No extracted frames to upload")
+            return
+
+        data = self.frames_list.get_data()
+
+        self._pending_upload = self._prepare_and_upload(data)
+        self._update_buttons_state()
+
+    def on_do_all_btn_clicked(self) -> None:
+        self.on_extract_btn_clicked()
+
+        @run_in_loop
+        def after_extract(future: Future[Any] | None = None) -> None:
+            if future and future.exception():
+                return
+            if self._extraction_finished:
+                self.on_upload_btn_clicked()
+
+        if self._pending_extract_frames:
+            self._pending_extract_frames.add_done_callback(after_extract)
+        else:
+            after_extract()
+
+    @run_in_background
+    def _prepare_and_upload(self, data: list[tuple[Time, str]]) -> None:
+        if not self._extract_paths:
+            logger.error("No extracted frames to upload")
+            self._on_upload_error()
+            return
+
+        # Build sources from the extracted images on disk
+        sources = list[ComparisonSource]()
+        vouputs = {v.vs_index: v for v in self.api.voutputs}
+
+        for index, source_dir in self._extract_paths:
+            images = list[ComparisonImage]()
+            output = vouputs[index]
+
+            for time, pict_type in data:
+                frame = output.time_to_frame(time)
+                image_path = next(source_dir.glob(f"*{frame}.png"), None)
+
+                if not image_path:
+                    logger.error("Missing extracted image for frame %s in %s", frame, source_dir)
+                    self._on_upload_error()
+                    return
+
+                timestamp = time.to_ts("{M:02d}:{S:02d}.{ms:03d}")
+                images.append(ComparisonImage(image_path, pict_type, frame, timestamp))
+
+            sources.append(ComparisonSource(output.vs_name, images))
+
+        if not sources or not any(images for _, images in sources):
+            logger.error("No images found to upload")
+            self._on_upload_error()
+            return
+
+        # Run the upload
+
+        @run_in_loop
+        def on_cookies(future: Future[dict[str, str]]) -> None:
+            if future.exception():
+                self._on_upload_error()
+                return
+
+            # Once we have the cookies, run the upload
+            self._pending_upload = self.slowpics_worker.upload(
+                collection_name=self.collection_name.text() or "Untitled",
+                sources=sources,
+                public=self.public_check.isChecked(),
+                nsfw=self.nsfw_check.isChecked(),
+                tmdb_id=self.tmdb_title.id if self.tmdb_title else None,
+                remove_after=self.remove_after.value(),
+                tags=self.tags.selected_tags(),
+                cookies=future.result(),
+            )
+
+            # Once the upload is finished, reset the progress bar and update the buttons state
+            @run_in_loop
+            def on_upload_finished(f: Future[str]) -> None:
+                self.progress_bar.reset_progress()
+                self._pending_upload = None
+
+                if not f.exception():
+                    url = f.result()
+                    logger.info("Upload complete: %s", url)
+                    QApplication.clipboard().setText(url)
+
+                self._update_buttons_state()
+
+            self._pending_upload.add_done_callback(on_upload_finished)
+
+        # Get the cookies and then upload
+        cookies_future = self.slowpics_worker.get_cookies()
+        cookies_future.add_done_callback(on_cookies)
+
+    @run_in_loop(return_future=False)
+    def _on_upload_error(self) -> None:
+        # Helper to cleanup UI on failure from background
+        self.progress_bar.reset_progress()
+        self.clip_section.setEnabled(True)
+        self._pending_upload = None
+        self._update_buttons_state()
 
     def _update_buttons_state(self) -> None:
         current_outputs = self.outputs_dropdown.included_outputs

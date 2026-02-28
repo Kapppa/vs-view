@@ -1,9 +1,23 @@
+from collections.abc import Sequence
 from logging import getLogger
-from typing import Any, Literal, Self
+from pathlib import Path
+from typing import Any, Literal, NamedTuple, Self
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 logger = getLogger(__name__)
+
+
+class ComparisonImage(NamedTuple):
+    path: Path
+    pict_type: str
+    frame_no: int
+    timestamp: str
+
+
+class ComparisonSource(NamedTuple):
+    name: str
+    images: Sequence[ComparisonImage]
 
 
 class TMDBGenre(BaseModel):

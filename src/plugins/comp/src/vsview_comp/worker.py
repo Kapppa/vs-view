@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Mapping, Sequence
 from concurrent.futures import Future, wait
+from contextlib import aclosing
 from datetime import datetime
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
+from uuid import uuid4
 
 import httpx
 from jetpytools import cachedproperty, ndigits
@@ -18,8 +20,9 @@ from vstools import clip_async_render, clip_data_gather, core, get_prop, remap_f
 
 from vsview.api import PluginAPI, PluginSecrets, Time, run_in_background
 
-from .models import TMDBPayload, TMDBTitle, TMDBTitleData
-from .ui import FrameSourceProvider
+from ._metadata import COOKIE_KEY, LOGIN_CONTEXT
+from .models import ComparisonSource, TMDBPayload, TMDBTitle, TMDBTitleData
+from .ui import FrameSourceProvider, ProgressBar
 from .utils import LogHTTPXErrors, demote_httpx_logs, get_random_number_interval, get_slowpics_headers
 
 if TYPE_CHECKING:
@@ -341,10 +344,19 @@ class Tag(NamedTuple):
 
 class SlowPicsWorker:
     BASE_URL = "https://slow.pics"
+    MAX_CONCURRENT_REQUESTS = 6
 
-    def __init__(self, secrets: PluginSecrets) -> None:
+    def __init__(self, api: PluginAPI, secrets: PluginSecrets, progress_bar: ProgressBar) -> None:
+        self.api = api
         self.secrets = secrets
+        self.progress_bar = progress_bar
+        self.browser_id = str(uuid4())
         self.headers = get_slowpics_headers()
+        self.limits = httpx.Limits(
+            max_connections=self.MAX_CONCURRENT_REQUESTS,
+            max_keepalive_connections=self.MAX_CONCURRENT_REQUESTS,
+        )
+        self.sema = asyncio.Semaphore(self.MAX_CONCURRENT_REQUESTS)
 
     @run_in_background(name="SlowPicsTags")
     @demote_httpx_logs
@@ -355,3 +367,184 @@ class SlowPicsWorker:
         ):
             tags = client.get("/api/tags").raise_for_status().json()
             return [Tag(tag["value"], tag["label"].strip()) for tag in tags]
+
+    @run_in_background(name="SlowPicsLogin")
+    @demote_httpx_logs
+    def get_cookies(self) -> dict[str, str]:
+        if cookies := self.secrets.get_json(COOKIE_KEY, COOKIE_KEY):
+            return cookies
+
+        if not (credentials := self.secrets.get_credential(LOGIN_CONTEXT)):
+            return {}
+
+        try:
+            with httpx.Client(base_url=self.BASE_URL, headers=self.headers, timeout=20) as client:
+                # Grab initial XSRF token
+                client.get("/comparison").raise_for_status()
+                client.headers.update({"X-XSRF-TOKEN": client.cookies.get("XSRF-TOKEN") or ""})
+
+                # Extract CSRF token
+                login_page = client.get("/login").raise_for_status()
+
+                csrf_match = re.search(
+                    r'<input type="hidden" name="_csrf" value="([a-zA-Z0-9-_]+)"\/>', login_page.text
+                )
+                if not csrf_match:
+                    logger.error("No CSRF found; Failed to login.")
+                    return {}
+
+                # Submit login payload
+                data = {
+                    "username": credentials.username,
+                    "password": credentials.password,
+                    "_csrf": csrf_match.group(1),
+                    "remember-me": "on",
+                }
+                client.post("/login", data=data, follow_redirects=True).raise_for_status()
+
+                # Save and return cookies
+                cookies = self._cookies_jar(client.cookies)
+                self.secrets.set_json(COOKIE_KEY, COOKIE_KEY, cookies)
+
+                return cookies
+
+        except httpx.HTTPError as e:
+            logger.error("Login sequence failed: %s", e)
+            logger.debug("Full traceback", exc_info=True)
+            return {}
+
+    @run_in_background(name="SlowPicsUpload")
+    @demote_httpx_logs
+    async def upload(
+        self,
+        *,
+        collection_name: str,
+        sources: list[ComparisonSource],
+        public: bool,
+        nsfw: bool,
+        tmdb_id: str | None,
+        remove_after: int,
+        tags: list[str],
+        cookies: dict[str, str],
+    ) -> str:
+        is_comparison = len(sources) > 1
+        total_images = sum(len(images) for _, images in sources)
+
+        async with (
+            httpx.AsyncClient(base_url=self.BASE_URL, limits=self.limits, headers=self.headers, timeout=20) as client,
+            LogHTTPXErrors("Slowpics Upload"),
+        ):
+            await self._setup_client(client, cookies)
+
+            # Build comparison/collection payload
+            comp_upload = dict[str, str]()
+
+            for i, (source_name, images) in enumerate(sources):
+                for j, image in enumerate(images):
+                    time_str = f"{image.timestamp} / {image.frame_no}"
+
+                    if is_comparison:
+                        comp_upload[f"comparisons[{j}].name"] = time_str
+                        comp_upload[f"comparisons[{j}].imageNames[{i}]"] = (
+                            f"{source_name}{f' - ({image.pict_type} Frame)' if image.pict_type != '?' else ''}"
+                        )
+                    else:
+                        comp_upload[f"imageNames[{j}]"] = f"{time_str} - {source_name}"
+
+            tag_data = {f"tags[{i}]": tag for i, tag in enumerate(tags)} if public else {}
+
+            comp_info = {
+                "collectionName": collection_name,
+                "hentai": str(nsfw).lower(),
+                "optimizeImages": "true",
+                "browserId": self.browser_id,
+                "public": str(public).lower(),
+            }
+
+            if tmdb_id:
+                comp_info["tmdbId"] = tmdb_id
+            if remove_after >= 1:
+                comp_info["removeAfter"] = str(remove_after)
+
+            endpoint = f"/upload/{'comparison' if is_comparison else 'collection'}"
+            comp_data = (await client.post(endpoint, data=comp_upload | tag_data | comp_info)).raise_for_status().json()
+
+            collection_uuid = comp_data["collectionUuid"]
+            key = comp_data["key"]
+            image_ids: list[list[str]] = comp_data["images"]
+
+            logger.debug("Starting upload of: https://slow.pics/c/%s", key)
+
+            # Upload images concurrently
+            self.progress_bar.update_progress(range=(0, total_images), fmt="Uploading images %v / %m", value=0)
+            reqs = list[Awaitable[None]]()
+
+            for i, (_, images) in enumerate(sources):
+                for j, (image_path, *_) in enumerate(images):
+                    image_uuid = image_ids[j][i] if is_comparison else image_ids[0][j]
+                    reqs.append(self._upload_image(client, collection_uuid, image_uuid, image_path))
+
+            for i, coro in enumerate(asyncio.as_completed(reqs), start=1):
+                await coro
+                self.progress_bar.update_progress(value=i)
+
+            self.progress_bar.update_progress(fmt="Finished uploading %v images")
+
+            # Refresh cookies
+            self.secrets.set_json(COOKIE_KEY, COOKIE_KEY, self._cookies_jar(client.cookies))
+
+            return f"https://slow.pics/c/{key}"
+
+    async def _setup_client(self, client: httpx.AsyncClient, cookies: dict[str, str]) -> None:
+        for key, value in cookies.items():
+            client.cookies.set(key, value)
+
+        async with aclosing(await client.get("/comparison")) as homepage:
+            homepage.raise_for_status()
+            client.headers.update({"X-XSRF-TOKEN": client.cookies.get("XSRF-TOKEN") or ""})
+
+            if cookies:
+                if 'id="logoutBtn"' in homepage.text:
+                    logger.debug("Cookies not stale, logged in.")
+                    self.secrets.set_json(COOKIE_KEY, COOKIE_KEY, self._cookies_jar(client.cookies))
+                else:
+                    logger.warning("Cookies have expired, uploading as anonymous")
+
+    async def _upload_image(
+        self,
+        client: httpx.AsyncClient,
+        collection: str,
+        image_uuid: str,
+        image_path: Path,
+    ) -> None:
+        url = f"/upload/image/{image_uuid}"
+        data = {"collectionUuid": collection, "imageUuid": image_uuid, "browserId": self.browser_id}
+
+        # Handle 429 "Too many requests"
+        for retry in range(5):
+            try:
+                async with self.sema:
+                    response = await client.post(
+                        url,
+                        data=data,
+                        files={"file": (image_path.name, image_path.read_bytes(), "image/png")},
+                    )
+
+                if response.status_code == 429:
+                    wait_time = int(response.headers.get("Retry-After", (retry + 1) * 2))
+                    logger.warning("Rate limited for %s. Waiting %ds...", image_path.name, wait_time)
+                    await asyncio.sleep(wait_time)
+                    continue
+
+                response.raise_for_status()
+                return
+            except Exception as e:
+                if retry == 4:
+                    raise
+                logger.error("Error uploading %s (attempt %d) '%s'", image_path.name, retry + 1, e)
+                logger.debug("Traceback:", exc_info=True)
+                await asyncio.sleep((retry + 1) * 2)
+
+    @staticmethod
+    def _cookies_jar(cookies: httpx.Cookies) -> dict[str, str]:
+        return {c.name: c.value or "" for c in cookies.jar}
