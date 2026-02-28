@@ -254,7 +254,7 @@ class ThumbnailItem(QListWidgetItem):
 
 
 class FrameThumbnailList(QListWidget):
-    ICON_SIZE = QSize(112, 63)
+    ICON_SIZE = QSize(119, 67)
 
     listSizeChanged = Signal(int)  # delta
 
@@ -267,7 +267,7 @@ class FrameThumbnailList(QListWidget):
         self.setFlow(QListWidget.Flow.LeftToRight)
         self.setWrapping(False)
         self.setIconSize(self.ICON_SIZE)
-        self.setFixedHeight(116)
+        self.setFixedHeight(125)
         self.setSpacing(4)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setStyleSheet("QListWidget { padding-right: 12px; }")
