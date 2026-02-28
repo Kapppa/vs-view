@@ -128,6 +128,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             self._setup_upload_settings(main)
             self._setup_actions(main)
 
+        self._current_outputs = self.outputs_dropdown.included_outputs
         self._update_buttons_state()
 
         main_layout.addWidget(main)
@@ -698,12 +699,26 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.on_tags_input_changed()
 
     def _update_buttons_state(self) -> None:
-        has_outputs = bool(self.outputs_dropdown.included_outputs)
-        has_frames = bool(self.frames_list.get_data())
-        has_random_count = self.random_frame_count.value() > 0
-        is_busy = bool(self._pending_select_frames or self._pending_extract_frames)
+        current_outputs = self.outputs_dropdown.included_outputs
 
-        self.select_frames_btn.setEnabled(has_outputs and has_random_count and not is_busy)
-        self.extract_btn.setEnabled(has_outputs and has_frames and not is_busy and not self._extraction_finished)
-        self.upload_btn.setEnabled(has_outputs and has_frames and not is_busy and self._extraction_finished)
-        self.do_all_btn.setEnabled(has_outputs and has_frames and not is_busy and not self._extraction_finished)
+        is_idle = not (self._pending_select_frames or self._pending_extract_frames or self._pending_upload)
+        has_outputs = bool(current_outputs)
+        has_frames = bool(self.frames_list.get_data())
+
+        can_operate = has_outputs and is_idle
+        frames_ready = can_operate and has_frames
+
+        # Needs extraction if it's not finished, OR if the outputs have changed since last time
+        needs_extraction = not self._extraction_finished or (current_outputs != self._current_outputs)
+
+        self.select_frames_btn.setEnabled(can_operate and self.random_frame_count.value() > 0)
+
+        # Extract and Do All share the exact same requirements
+        can_extract = frames_ready and needs_extraction
+        self.extract_btn.setEnabled(can_extract)
+        self.do_all_btn.setEnabled(can_extract)
+
+        # Upload is the exact logical opposite of needing an extraction
+        self.upload_btn.setEnabled(frames_ready and not needs_extraction)
+
+        self._current_outputs = current_outputs
