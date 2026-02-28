@@ -8,7 +8,7 @@ from typing import Any, NamedTuple, Self
 
 import jinja2
 from jetpytools import cachedproperty
-from PySide6.QtCore import QBuffer, QCoreApplication, QEvent, QIODevice, QObject, QPoint, QSize, Qt, Signal
+from PySide6.QtCore import QBuffer, QCoreApplication, QEvent, QIODevice, QObject, QPoint, QRect, QSize, Qt, Signal
 from PySide6.QtGui import QIcon, QImage, QKeyEvent, QMouseEvent, QPainter, QPaintEvent, QPixmap, QWheelEvent
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (
@@ -18,6 +18,8 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLayout,
+    QLayoutItem,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
@@ -25,12 +27,14 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QStyle,
     QStyleOptionFrame,
     QToolButton,
     QVBoxLayout,
     QWidget,
     QWidgetAction,
+    QWidgetItem,
 )
 from shiboken6 import Shiboken
 from vapoursynth import RGB24, VideoNode
@@ -674,6 +678,98 @@ def pixmap_data_uri(pixmap: QPixmap) -> str:
     return f"data:image/png;base64,{b64_str}"
 
 
+class FlowLayout(QLayout):
+    """A layout that arranges widgets left-to-right, wrapping to new rows."""
+
+    def __init__(self, parent: QWidget | None = None, margin: int = -1, h_spacing: int = 4, v_spacing: int = 4) -> None:
+        super().__init__(parent)
+        self._items = list[QLayoutItem]()
+        self._h_spacing = h_spacing
+        self._v_spacing = v_spacing
+
+        if margin >= 0:
+            self.setContentsMargins(margin, margin, margin, margin)
+
+    def addItem(self, item: QLayoutItem) -> None:
+        self._items.append(item)
+        self.invalidate()
+
+    def count(self) -> int:
+        return len(self._items)
+
+    def itemAt(self, index: int) -> QLayoutItem | None:
+        if 0 <= index < len(self._items):
+            return self._items[index]
+        return None
+
+    def takeAt(self, index: int) -> QLayoutItem | None:
+        if 0 <= index < len(self._items):
+            return self._items.pop(index)
+        return None
+
+    def expandingDirections(self) -> Qt.Orientation:
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, width: int) -> int:
+        return self._do_layout(QRect(0, 0, width, 0), test_only=True)
+
+    def setGeometry(self, rect: QRect) -> None:
+        super().setGeometry(rect)
+        self._do_layout(rect, test_only=False)
+
+    def sizeHint(self) -> QSize:
+        return self.minimumSize()
+
+    def minimumSize(self) -> QSize:
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        m = self.contentsMargins()
+        size += QSize(m.left() + m.right(), m.top() + m.bottom())
+        return size
+
+    def insert_widget(self, index: int, widget: QWidget) -> None:
+        self.addChildWidget(widget)
+        item = QWidgetItem(widget)
+        self._items.insert(index, item)
+        self.invalidate()
+
+    def _do_layout(self, rect: QRect, *, test_only: bool) -> int:
+        m = self.contentsMargins()
+        effective = rect.adjusted(m.left(), m.top(), -m.right(), -m.bottom())
+        x = effective.x()
+        y = effective.y()
+        row_h = 0
+
+        for item in self._items:
+            wid = item.widget()
+            hint = item.sizeHint()
+            w = hint.width()
+            h = hint.height()
+
+            next_x = x + w + self._h_spacing
+            if next_x - self._h_spacing > effective.right() + 1 and row_h > 0:
+                x = effective.x()
+                y += row_h + self._v_spacing
+                next_x = x + w + self._h_spacing
+                row_h = 0
+
+            if not test_only:
+                # If this is the last item and it's a QLineEdit, stretch it to fill the row.
+                if wid and item is self._items[-1] and isinstance(wid, QLineEdit):
+                    remaining = effective.right() + 1 - x
+                    w = max(w, remaining)
+                item.setGeometry(QRect(QPoint(x, y), QSize(w, h)))
+
+            x = next_x
+            row_h = max(row_h, h)
+
+        return y + row_h - rect.y() + m.bottom()
+
+
 class TagsLineEdit(QWidget):
     editingStarted = Signal()
     inputTextChanged = Signal(str)
@@ -724,21 +820,21 @@ class TagsLineEdit(QWidget):
         self._tag_order = list[str]()
         self.setObjectName("tagsLineEdit")
 
-        self._layout = QHBoxLayout(self)
+        self._layout = FlowLayout(self, h_spacing=4, v_spacing=4)
         self._layout.setContentsMargins(6, 2, 6, 2)
-        self._layout.setSpacing(4)
 
         self._input = QLineEdit(self, placeholderText=placeholder_text)
         self._input.setObjectName("tagsInput")
         self._input.setFrame(False)
+        self._input.setMinimumWidth(80)
         self._input.textChanged.connect(self.inputTextChanged.emit)
         self._input.installEventFilter(self)
         self._placeholder_text = placeholder_text or ""
 
-        self._layout.addWidget(self._input, 1)
+        self._layout.addWidget(self._input)
         self.setFocusProxy(self._input)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setMinimumHeight(self._input.sizeHint().height())
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
         self.setStyleSheet(self.STYLESHEET)
 
         self.tagsChanged.connect(self._on_tags_changed)
@@ -798,11 +894,12 @@ class TagsLineEdit(QWidget):
         remove_btn.clicked.connect(lambda: self.remove_tag(value))
         chip_layout.addWidget(remove_btn)
 
-        self._layout.insertWidget(self._layout.count() - 1, chip)
+        self._layout.insert_widget(self._layout.count() - 1, chip)
 
         self._chips[value] = chip
         self._tag_order.append(value)
         self.tagsChanged.emit()
+        self.updateGeometry()
         return True
 
     def remove_tag(self, value: str) -> bool:
@@ -815,6 +912,7 @@ class TagsLineEdit(QWidget):
         self._layout.removeWidget(chip)
         chip.deleteLater()
         self.tagsChanged.emit()
+        self.updateGeometry()
         return True
 
     def selected_tags(self) -> list[str]:
