@@ -557,10 +557,10 @@ class TMDBListPopup(AnchoredListPopup):
             item.setData(Qt.ItemDataRole.UserRole, value)
             self.addItem(item)
 
-            if not value.poster_path:
+            if not value.data.poster_path:
                 continue
 
-            url = f"{self.POSTER_URL_PREFIX}{value.poster_path}"
+            url = f"{self.POSTER_URL_PREFIX}{value.data.poster_path}"
             if icon := self._poster_cache.get(url):
                 item.setIcon(icon)
                 continue

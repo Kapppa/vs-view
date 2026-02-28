@@ -38,6 +38,7 @@ from vsview.api import (
     FrameEdit,
     IconName,
     IconReloadMixin,
+    LineEdit,
     Login,
     PluginAPI,
     SegmentedControl,
@@ -67,6 +68,18 @@ logger = getLogger(__name__)
 
 
 class GlobalSettings(BaseModel):
+    tmdb_format: Annotated[
+        str,
+        LineEdit(
+            label="TMDB Format name",
+            tooltip="The format used for the 'Collection' name when a TMDB show is selected.\n"
+            'This is only applied if the "Collection" field is currently empty.\n\n'
+            "Available fields:\n"
+            + "\n".join(f'- "{{{fmt}}}": {doc}' for fmt, doc in TMDBTitle.format_hints.items())
+            + '\n- "{vs_names}": Appended outputs names (e.g. "Source VS Encode")',
+        ),
+    ] = "{name} ({year}) - {vs_names}"
+
     login: Annotated[
         str,
         Login(
@@ -76,23 +89,6 @@ class GlobalSettings(BaseModel):
             tooltip="The Slowpoke.pics credentials for login",
         ),
     ]
-
-    # tmdb_movie_format: Annotated[
-    #     str,
-    #     LineEdit("Format to use when selecting a Movie from TMDB"),
-    # ] = "{tmdb_title} ({tmdb_year}) - {video_nodes}"
-    # tmdb_tv_format: Annotated[
-    #     str,
-    #     LineEdit("Format to use when selecting a TV Show from TMDB"),
-    # ] = "{tmdb_title} ({tmdb_year}) - S01E01 - {video_nodes}"
-    # open_comp_automatically: Annotated[
-    #     bool,
-    #     Checkbox(
-    #         label="Open comp links automatically",
-    #         text="",
-    #         tooltip="Will open the link to the comp once it has finished automatically.",
-    #     ),
-    # ] = False
 
     pict_types_i: bool = True
     pict_types_p: bool = True
@@ -671,6 +667,13 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             self.tmdb_name.setText(title.name)
 
         self.tmdb_title = title
+
+        # Automatically set the collection name if it's currently empty
+        if not self.collection_name.text().strip():
+            included = self.outputs_dropdown.included_outputs
+            voutputs = self.api.voutputs
+            vs_names = " VS ".join(v.vs_name for v in voutputs if v.vs_index in included)
+            self.collection_name.setText(title.format_name(self.settings.global_.tmdb_format, vs_names=vs_names))
 
     def on_tags_editing_started(self) -> None:
         if self.tags_popup.has_tags():
