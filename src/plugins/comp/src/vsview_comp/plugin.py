@@ -48,7 +48,7 @@ from vsview.api import (
     run_in_loop,
 )
 
-from .models import TMDBTitle
+from ._metadata import LOGIN_CONTEXT, PLUGIN_DISPLAY, PLUGIN_ID
 from .ui import (
     FrameSourceProvider,
     FrameThumbnailList,
@@ -62,12 +62,6 @@ from .ui import (
 from .worker import ExtractFramesWorker, SelectFrameWorker, SlowPicsWorker, Tag, TMDBWorker
 
 logger = getLogger(__name__)
-
-
-PLUGIN_ID = "jet_vsview_comp"
-PLUGIN_DISPLAY = "Comparison"
-LOGIN_CONTEXT = "slowpicslogin"
-COOKIE_KEY = "cookies.v1"
 
 
 class GlobalSettings(BaseModel):
