@@ -203,10 +203,58 @@ class FrameSourceProvider(StrEnum):
     RANDOM_LIGHT = "Random light"
 
 
+TIME_ROLE = Qt.ItemDataRole.UserRole
+PICT_TYPE_ROLE = Qt.ItemDataRole.UserRole + 1
+
+
+class ThumbnailItem(QListWidgetItem):
+    def __init__(
+        self,
+        time: Time,
+        frame: int,
+        src_provider: FrameSourceProvider,
+        get_pict_type: bool = False,
+        pict_type: str = "?",
+        parent: QListWidget | None = None,
+    ) -> None:
+        self.time = time
+        self.frame = frame
+        self.src_provider = src_provider
+        self.get_pict_type = get_pict_type
+        self.pict_type = pict_type
+
+        super().__init__(self._get_text(), parent)
+
+        self.setData(TIME_ROLE, time)
+        self.setData(PICT_TYPE_ROLE, pict_type)
+        self.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.update_tooltip()
+
+    def _get_text(self) -> str:
+        text = f"{self.time.to_ts('{H:01d}:{M:02d}:{S:02d}.{ms:03d}')} ({self.frame})"
+        if self.pict_type != "?":
+            text += f" ({self.pict_type})"
+        return text
+
+    def update_metadata(self, pict_type: str | None = None) -> None:
+        if pict_type is not None:
+            self.pict_type = pict_type
+            self.setData(PICT_TYPE_ROLE, self.pict_type)
+            self.setText(self._get_text())
+
+        self.update_tooltip()
+
+    def update_tooltip(self) -> None:
+        base_text = f"{self.time.to_ts('{H:01d}:{M:02d}:{S:02d}.{ms:03d}')} ({self.frame})"
+        if self.pict_type != "?":
+            tooltip = f'{base_text} ({self.pict_type} - Frame) from "{self.src_provider}"'
+        else:
+            tooltip = f'{base_text} from "{self.src_provider}"'
+        self.setToolTip(tooltip)
+
+
 class FrameThumbnailList(QListWidget):
     ICON_SIZE = QSize(112, 63)
-    TIME_ROLE = Qt.ItemDataRole.UserRole
-    PICT_TYPE_ROLE = Qt.ItemDataRole.UserRole + 1
 
     listSizeChanged = Signal(int)  # delta
 
@@ -284,21 +332,18 @@ class FrameThumbnailList(QListWidget):
 
         # Reject duplicates
         for i in range(self.count()):
-            if self.item(i).data(self.TIME_ROLE) == time:
+            if self.item(i).data(TIME_ROLE) == time:
                 self.setCurrentRow(i)
                 return
 
-        item = QListWidgetItem(f"{time.to_ts('{H:01d}:{M:02d}:{S:02d}.{ms:03d}')} ({frame})")
-        item.setData(self.TIME_ROLE, time)
-        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        item = ThumbnailItem(time, frame, src_provider, get_pict_type)
         # Ensure the item has space for the icon before it's loaded
         item.setSizeHint(QSize(self.ICON_SIZE.width() + self.spacing() * 2, 92))
-        item.setToolTip(f'{item.text()} from "{src_provider}"')
 
         # Find sorted insertion position
         insert_idx = self.count()
         for i in range(insert_idx):
-            if self.item(i).data(self.TIME_ROLE) > time:
+            if self.item(i).data(TIME_ROLE) > time:
                 insert_idx = i
                 break
 
@@ -306,7 +351,7 @@ class FrameThumbnailList(QListWidget):
         self.scrollToItem(item)
         self.listSizeChanged.emit(1)
 
-        self.fetch_thumbnail(frame, item, get_pict_type)
+        self.fetch_thumbnail(item)
 
     def remove_selected(self) -> None:
         nb = len(self.selectedItems())
@@ -317,27 +362,27 @@ class FrameThumbnailList(QListWidget):
         self.listSizeChanged.emit(-nb)
 
     def get_data(self) -> list[tuple[Time, str]]:
-        return [
-            (self.item(i).data(self.TIME_ROLE), self.item(i).data(self.PICT_TYPE_ROLE)) for i in range(self.count())
-        ]
+        return [(it.time, it.pict_type) for i in range(self.count()) if isinstance(it := self.item(i), ThumbnailItem)]
 
     @run_in_background(name="FetchThumbnail")
-    def fetch_thumbnail(self, n: int, item: QListWidgetItem, get_pict_type: bool) -> None:
-        with self.api.vs_context(), self.thumbnail_clip.get_frame(n) as f:
+    def fetch_thumbnail(self, item: ThumbnailItem) -> None:
+        with self.api.vs_context(), self.thumbnail_clip.get_frame(item.frame) as f:
             self.update_item_icon(
                 item,
                 self.api.packer.frame_to_qimage(f).copy(),
-                get_prop(f, "_PictType", str, default="?", func=self.fetch_thumbnail) if get_pict_type else "?",
+                get_prop(f, "_PictType", str, default="?", func=self.fetch_thumbnail) if item.get_pict_type else "?",
             )
 
     @run_in_loop(return_future=False)
-    def update_item_icon(self, item: QListWidgetItem, image: QImage, pict_type: str) -> None:
+    def update_item_icon(
+        self,
+        item: ThumbnailItem,
+        image: QImage,
+        pict_type: str,
+    ) -> None:
         with suppress(RuntimeError):
             item.setIcon(QPixmap.fromImage(image))
-            item.setData(self.PICT_TYPE_ROLE, pict_type)
-
-            if pict_type != "?":
-                item.setText(item.text() + f"({pict_type})")
+            item.update_metadata(pict_type)
 
     def show_context_menu(self, pos: QPoint) -> None:
         if not self.itemAt(pos):
