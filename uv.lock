@@ -1551,7 +1551,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "pathvalidate" },
     { name = "vsjetpack" },
-    { name = "vsview" },
+    { name = "vsview", extra = ["secrets"] },
 ]
 
 [package.metadata]
@@ -1560,7 +1560,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "pathvalidate" },
     { name = "vsjetpack", specifier = ">=1.0.0" },
-    { name = "vsview", editable = "." },
+    { name = "vsview", extras = ["secrets"], editable = "." },
 ]
 
 [[package]]

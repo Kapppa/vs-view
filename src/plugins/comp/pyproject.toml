@@ -19,7 +19,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "vsview",
+    "vsview[secrets]",
     "vsjetpack>=1.0.0",
     "httpx>=0.28.1",
     "pathvalidate",
