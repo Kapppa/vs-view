@@ -638,7 +638,7 @@ class PluginSettings(Generic[TGlobalSettings, TLocalSettings]):
         return self._plugin.api._get_cached_proxy_settings(self._plugin, "local")
 
 
-class _PluginBase(Generic[TGlobalSettings, TLocalSettings], metaclass=_PluginBaseMeta):  # noqa: UP046
+class _PluginBase(Generic[TGlobalSettings, TLocalSettings], metaclass=_PluginBaseMeta):
     __plugin_base__ = True
 
     identifier: ClassVar[str]
@@ -836,7 +836,7 @@ class PluginGraphicsView(BaseGraphicsView):
 # Node Processing Hooks
 class NodeProcessor(
     _PluginBase[TGlobalSettings, TLocalSettings],
-    Generic[NodeT, TGlobalSettings, TLocalSettings],  # noqa: UP046
+    Generic[NodeT, TGlobalSettings, TLocalSettings],
     metaclass=_PluginBaseMeta,
 ):
     """Interface for objects that process VapourSynth nodes."""
