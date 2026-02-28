@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from concurrent.futures import Future
 from functools import cache
 from logging import getLogger
+from pathlib import Path
 from typing import Annotated, Any
 
 from jetpytools import clamp
@@ -114,9 +115,10 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         super().__init__(parent, api)
 
         self._pending_select_frames: Future[Any] | None = None
-        self._pending_extract_frames: Future[Any] | None = None
+        self._pending_extract_frames: Future[list[tuple[int, Path]]] | None = None
         self._pending_tags: Future[list[Tag]] | None = None
         self._extraction_finished = False
+        self._extract_paths: list[tuple[int, Path]] | None = None
 
         # Build UI
         main_layout = QVBoxLayout(self)
@@ -592,11 +594,13 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             self._pending_extract_frames = worker.run()
 
             @run_in_loop
-            def on_finished(*_: Any) -> None:
+            def on_finished(f: Future[list[tuple[int, Path]]]) -> None:
                 self.clip_section.setEnabled(True)
                 self.progress_bar.reset_progress()
                 self._pending_extract_frames = None
-                self._extraction_finished = True
+                if not f.exception():
+                    self._extract_paths = f.result()
+                    self._extraction_finished = True
                 self._update_buttons_state()
 
             self._pending_extract_frames.add_done_callback(on_finished)

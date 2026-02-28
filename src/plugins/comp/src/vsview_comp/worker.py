@@ -40,7 +40,7 @@ class ExtractFramesWorker:
         self.storage = storage
 
     @run_in_background(name="ExtractFrames")
-    def run(self) -> None:
+    def run(self) -> list[tuple[int, Path]]:
         self.progress_bar.update_progress(
             range=(0, len(self.data) * len(self.included_outputs)),
             fmt="Extracting frames %v / %m",
@@ -49,6 +49,7 @@ class ExtractFramesWorker:
 
         path = self.storage / str(datetime.now())
         workers = list[Future[None]]()
+        images_paths = list[tuple[int, Path]]()
 
         with self.api.vs_context():
             is_fpng_available = hasattr(core, "fpng")
@@ -60,6 +61,7 @@ class ExtractFramesWorker:
                 images_path = path / f"({output.vs_index}) ({output.vs_name})"
                 images_path = sanitize_filepath(images_path, replacement_text="_")
                 images_path.mkdir(parents=True, exist_ok=True)
+                images_paths.append((output.vs_index, images_path))
 
                 clip = self.api.packer.to_rgb_planar(output.vs_output.clip, format=RGB24)
                 frames = [output.time_to_frame(t) for t, _ in self.data]
@@ -74,6 +76,8 @@ class ExtractFramesWorker:
 
             # Wait for workers to finish extracting
             wait(workers)
+
+        return images_paths
 
     @run_in_background(name="ExtractFPNG")
     def _fpng_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
