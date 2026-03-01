@@ -9,6 +9,15 @@ description = "A vsview plugin to make comparison backed by Slowpoke Pics"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12"
+authors = [
+    { name = "Jimbo", email = "17926797+Kapppa@users.noreply.github.com" },
+    { name = "Vardë", email = "ichunjo.le.terrible@gmail.com" },
+]
+maintainers = [
+    { name = "Vardë", email = "ichunjo.le.terrible@gmail.com" },
+    { name = "Jaded Encoding Thaumaturgy", email = "jaded.encoding.thaumaturgy@gmail.com" },
+]
+
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
