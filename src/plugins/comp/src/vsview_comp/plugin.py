@@ -160,7 +160,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         form = self.clip_section.add_form_layout()
 
         self.outputs_dropdown = OutputDropdown(self.clip_section)
-        self.outputs_dropdown.populate(self.api.voutputs)
         self.outputs_dropdown.setToolTip("Select and rename outputs.")
         self.outputs_dropdown.inclusionChanged.connect(self._update_buttons_state)
         form.addRow(self.outputs_dropdown)
@@ -457,7 +456,10 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
     @cache
     @run_in_loop(return_future=False)
     def init_load(self) -> None:
-        shortest_output = min(self.api.voutputs, key=lambda v: v.info.total_duration)
+        vouputs = self.api.voutputs
+        self.outputs_dropdown.populate(vouputs)
+
+        shortest_output = min(vouputs, key=lambda v: v.info.total_duration)
 
         max_frame = shortest_output.info.total_frames - 1
         self.frame_edit_start.setRange(0, max_frame)
