@@ -9,6 +9,12 @@ description = "The next-generation VapourSynth previewer"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12"
+authors = [{ name = "Vardë", email = "ichunjo.le.terrible@gmail.com" }]
+maintainers = [
+    { name = "Vardë", email = "ichunjo.le.terrible@gmail.com" },
+    { name = "Jaded Encoding Thaumaturgy", email = "jaded.encoding.thaumaturgy@gmail.com" },
+]
+
 classifiers = [
     "Topic :: Multimedia :: Graphics",
     "Development Status :: 3 - Alpha",
