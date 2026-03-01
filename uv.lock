@@ -1282,14 +1282,14 @@ wheels = [
 
 [[package]]
 name = "vsjetengine"
-version = "1.1.0"
+version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "vapoursynth" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8f/46/48df69732ccb663eef32572de54489a123fd466d3e544123b1a9b92d342a/vsjetengine-1.1.0.tar.gz", hash = "sha256:5464295595f18d499d4c9e28b78fbfc00993e7469b4259540dad552b24bad32a", size = 36442, upload-time = "2026-02-18T04:12:03.993Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cd/c5/0389f55cdc914005dbf1281d82f16da1cc5ef4696bff0cac8cf2a94b614b/vsjetengine-1.2.0.tar.gz", hash = "sha256:1e19eb83de71f42bf55548e1e1c2fafc1cd23a2c93da9373711868ed7ac90cfd", size = 37375, upload-time = "2026-03-01T17:16:55.405Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f0/5a/775f6f68692e79f230b3532a4d73a53a9d94275b5b65f7c6581469b829d4/vsjetengine-1.1.0-py3-none-any.whl", hash = "sha256:4fa044a0dafc0caafc587c9389803dbf453be7f477a12bec18229501c5bf8869", size = 32505, upload-time = "2026-02-18T04:12:02.472Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/ad/002fd81e426ef6c6fa75c469485f541d3b18e60a77780f479712c252aeed/vsjetengine-1.2.0-py3-none-any.whl", hash = "sha256:caa1bf31fb904f0a9e2bc6dfe498c58296d06057460c99ac134306bf3bdf8498", size = 32847, upload-time = "2026-03-01T17:16:53.956Z" },
 ]
 
 [[package]]
@@ -1414,7 +1414,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.20.0" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'", specifier = ">=4.15.0" },
     { name = "vapoursynth", specifier = ">=69" },
-    { name = "vsjetengine", specifier = ">=1.1.0" },
+    { name = "vsjetengine", specifier = ">=1.2.0" },
     { name = "vspackrgb", editable = "src/vspackrgb" },
     { name = "vsview-frameprops-extended", marker = "extra == 'essential'", editable = "src/plugins/frameprops-extended" },
     { name = "vsview-split-planes", marker = "extra == 'essential'", editable = "src/plugins/split-planes" },
