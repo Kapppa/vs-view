@@ -175,33 +175,26 @@ def run_in_loop(func: Any = None, *, return_future: bool = True) -> Any:
             loop = cast(QtEventLoop, get_loop())
 
             if iscoroutinefunction(fn):
-                import asyncio
-
-                coro = fn(*args, **kwargs)
 
                 def run_coro() -> Any:
-                    try:
-                        existing_loop = asyncio.get_running_loop()
-                    except RuntimeError:
-                        return asyncio.run(coro)
+                    import asyncio
 
-                    return asyncio.run_coroutine_threadsafe(coro, existing_loop).result()
+                    coro = fn(*args, **kwargs)
+                    try:
+                        return asyncio.run(coro)
+                    except RuntimeError:
+                        return asyncio.run_coroutine_threadsafe(coro, asyncio.get_running_loop()).result()
 
                 fut = loop.from_thread(run_coro)
             else:
                 # Delegate to from_thread to marshal execution to the main loop
                 fut = loop.from_thread(fn, *args, **kwargs)
 
-            if return_future:
-                return fut
-            return fut.result()
+            return fut if return_future else fut.result()
 
         return wrapper
 
-    if func is not None:
-        return decorator(func)
-
-    return decorator
+    return decorator if func is None else decorator(func)
 
 
 @overload
@@ -239,30 +232,25 @@ def run_in_background(func: Any = None, *, name: str | None = None) -> Any:
             loop = cast(QtEventLoop, get_loop())
 
             if iscoroutinefunction(fn):
-                import asyncio
-
-                coro = fn(*args, **kwargs)
 
                 def run_coro() -> Any:
+                    import asyncio
+
+                    coro = fn(*args, **kwargs)
                     try:
-                        existing_loop = asyncio.get_running_loop()
-                    except RuntimeError:
                         return asyncio.run(coro)
+                    except RuntimeError:
+                        return asyncio.run_coroutine_threadsafe(coro, asyncio.get_running_loop()).result()
 
-                    return asyncio.run_coroutine_threadsafe(coro, existing_loop).result()
+                return loop.to_thread(run_coro) if name is None else loop.to_thread_named(name, run_coro)
 
-                if name is not None:
-                    return loop.to_thread_named(name, run_coro)
-                return loop.to_thread(run_coro)
-
-            if name is not None:
-                return loop.to_thread_named(name, fn, *args, **kwargs)
-
-            return loop.to_thread(fn, *args, **kwargs)
+            else:
+                return (
+                    loop.to_thread(fn, *args, **kwargs)
+                    if name is None
+                    else loop.to_thread_named(name, fn, *args, **kwargs)
+                )
 
         return wrapper
 
-    if func is not None:
-        return decorator(func)
-
-    return decorator
+    return decorator if func is None else decorator(func)

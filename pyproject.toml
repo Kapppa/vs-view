@@ -9,6 +9,21 @@ description = "The next-generation VapourSynth previewer"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12"
+authors = [{ name = "Vardë", email = "ichunjo.le.terrible@gmail.com" }]
+maintainers = [
+    { name = "Vardë", email = "ichunjo.le.terrible@gmail.com" },
+    { name = "Jaded Encoding Thaumaturgy", email = "jaded.encoding.thaumaturgy@gmail.com" },
+]
+keywords = [
+    "video",
+    "video-processing",
+    "encoding",
+    "previewer",
+    "viewer",
+    "vapoursynth",
+    "vapoursynth-editor",
+    "vapoursynth-preview",
+]
 classifiers = [
     "Topic :: Multimedia :: Graphics",
     "Development Status :: 3 - Alpha",
@@ -23,7 +38,7 @@ classifiers = [
 ]
 dependencies = [
     "vapoursynth>=69",
-    "vsjetengine>=1.1.0",
+    "vsjetengine>=1.2.0",
     "vspackrgb>=1.0.0",
     "pyside6>=6.10.1",
     "jetpytools>=2.2.2",
@@ -52,7 +67,7 @@ test = [
     "pytest-qt>=4.5.0",
     "pytest-xvfb>=3.1.1",
 ]
-doc = ["mkdocstrings[python]>=1.0.3", "zensical==0.0.23", "ruff"]
+doc = ["mkdocstrings[python]>=1.0.3", "zensical==0.0.24", "ruff"]
 plugins = [
     "vsview-split-planes",
     "vsview-fftspectrum",

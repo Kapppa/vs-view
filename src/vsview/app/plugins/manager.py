@@ -219,7 +219,7 @@ class PluginManager(Singleton):
 
                 # Validate existing settings (missing fields will be filled with defaults by Pydantic)
                 try:
-                    validaded = model.model_validate(existing, extra="forbid")
+                    validaded = model.model_validate(existing)
                 except ValidationError:
                     logger.exception("The plugin %r has invalid settings:", plugin.identifier)
                     continue
