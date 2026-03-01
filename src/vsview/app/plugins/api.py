@@ -290,12 +290,12 @@ class TimelineProxy(_TimelineProxy):
 class PlaybackProxy(_PlaybackProxy):
     """Proxy for the playback."""
 
-    def seek(self, frame: int) -> bool:
+    def seek(self, frame_or_time: int | timedelta, /) -> bool:
         """
-        Seek to the given frame.
+        Seek to the given frame or time.
 
         Args:
-            frame: The frame number to seek to.
+            frame_or_time: The frame number or time to seek to.
 
         Returns:
             bool: True if the seek was successful, False otherwise.
@@ -303,6 +303,11 @@ class PlaybackProxy(_PlaybackProxy):
         if self.__workspace.playback.state.is_playing:
             logger.debug("Video is playing, skipping seek request")
             return False
+
+        if isinstance(frame_or_time, timedelta):
+            frame = self.__workspace.api.current_voutput.time_to_frame(frame_or_time)
+        else:
+            frame = frame_or_time
 
         if not 0 <= frame < self.__workspace.api.current_voutput.vs_output.clip.num_frames:
             logger.warning("Requested frame is out of bounds")
