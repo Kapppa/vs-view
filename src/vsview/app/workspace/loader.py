@@ -476,6 +476,7 @@ class LoaderWorkspace[T](BaseWorkspace):
     @run_in_loop(return_future=False)
     def set_loaded_page(self) -> None:
         self.stack.setCurrentWidget(self.loaded_page)
+        self.content_area.setFocus()
 
     @run_in_loop(return_future=False)
     def set_loading_page(self) -> None:
@@ -557,7 +558,6 @@ class LoaderWorkspace[T](BaseWorkspace):
                 if not f.exception():
                     self.loaded_page.setEnabled(True)
                     self.set_loaded_page()
-                    self.content_area.setFocus()
 
                     if cb_render:
                         cb_render(f)
