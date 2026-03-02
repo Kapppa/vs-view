@@ -382,6 +382,7 @@ class LoaderWorkspace[T](BaseWorkspace):
                     return
                 self.content_area.setEnabled(True)
                 self.tab_manager.tabs.setEnabled(True)
+                self.content_area.setFocus()
                 self.playback.can_reload = True
                 self.tab_manager.disable_switch = False
 
@@ -556,6 +557,7 @@ class LoaderWorkspace[T](BaseWorkspace):
                 if not f.exception():
                     self.loaded_page.setEnabled(True)
                     self.set_loaded_page()
+                    self.content_area.setFocus()
 
                     if cb_render:
                         cb_render(f)
