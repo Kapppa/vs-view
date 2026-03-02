@@ -122,7 +122,7 @@ class BaseGraphicsView(QGraphicsView):
         self.setScene(self.graphics_scene)
 
         self._zoom_animation = QVariantAnimation(self)
-        self._zoom_animation.setDuration(150)
+        self._zoom_animation.setDuration(125)
         self._zoom_animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
         self._zoom_animation.valueChanged.connect(self._apply_zoom_value)
 
@@ -274,7 +274,11 @@ class BaseGraphicsView(QGraphicsView):
         if current_scale == target_zoom:
             return
 
-        if animated and min(current_scale, target_zoom) >= self.zoom_factors[0]:
+        if (
+            animated
+            and min(current_scale, target_zoom) >= self.zoom_factors[0]
+            and SettingsManager.global_settings.view.zoom_animation
+        ):
             self._zoom_animation.stop()
             self._zoom_animation.setStartValue(current_scale)
             self._zoom_animation.setEndValue(target_zoom)
