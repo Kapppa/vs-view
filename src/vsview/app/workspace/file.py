@@ -158,17 +158,25 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
 
     @contextmanager
     def _restart_autosave(self) -> Iterator[None]:
-        remaining_time = self._autosave_timer.remainingTime()
-        self.loop.from_thread(self._autosave_timer.stop)
+        @run_in_loop(return_future=False)
+        def stop_timer() -> int:
+            remaining_time = self._autosave_timer.remainingTime()
+            self._autosave_timer.stop()
+            return remaining_time
+
+        remaining_time = stop_timer()
 
         yield
 
-        self.loop.from_thread(
-            self._autosave_timer.start,
-            remaining_time
-            if remaining_time > 0
-            else (self.global_settings.autosave.minute * 60 + self.global_settings.autosave.second) * 1000,
-        )
+        @run_in_loop(return_future=False)
+        def restart_timer() -> None:
+            self._autosave_timer.start(
+                remaining_time
+                if remaining_time > 0
+                else (self.global_settings.autosave.minute * 60 + self.global_settings.autosave.second) * 1000
+            )
+
+        restart_timer()
 
     def _restore_layout(self) -> None:
         layout = self.local_settings.layout
