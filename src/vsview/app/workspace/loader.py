@@ -278,7 +278,6 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         with loader_lock:
             unset_environment()
-            self.env.switch()
             self.init_load(frame, tab_index)
 
             if not (outputs := self._get_outputs()):
@@ -349,8 +348,6 @@ class LoaderWorkspace[T](BaseWorkspace):
 
             # 3. Load New Content
             with loader_lock:
-                self.env.switch()
-
                 if not (outputs := self._get_outputs()):
                     self.clear_failed_load()
                     return
@@ -493,28 +490,29 @@ class LoaderWorkspace[T](BaseWorkspace):
 
     def _get_outputs(self) -> tuple[list[VideoOutput], list[AudioOutput]] | None:
         try:
-            self.loader()
+            with self.env.use():
+                self.loader()
 
-            voutputs = self.outputs_manager.create_voutputs(
-                self.content,
-                self.video_outputs,
-                self.get_output_metadata(),
-                self.api,
-                last_frame=self.playback.state.current_frame,
-            )
+                voutputs = self.outputs_manager.create_voutputs(
+                    self.content,
+                    self.video_outputs,
+                    self.get_output_metadata(),
+                    self.api,
+                    last_frame=self.playback.state.current_frame,
+                )
 
-            if not voutputs:
-                raise RuntimeError
+                if not voutputs:
+                    raise RuntimeError
 
-            aoutputs = self.outputs_manager.create_aoutputs(
-                self.content,
-                self.audio_outputs,
-                self.get_output_metadata(),
-                self.api,
-                delay_s=self.tbar.playback_container.audio_delay,
-            )
+                aoutputs = self.outputs_manager.create_aoutputs(
+                    self.content,
+                    self.audio_outputs,
+                    self.get_output_metadata(),
+                    self.api,
+                    delay_s=self.tbar.playback_container.audio_delay,
+                )
 
-            return voutputs, aoutputs
+                return voutputs, aoutputs
         except Exception:
             return None
 

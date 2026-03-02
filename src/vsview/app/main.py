@@ -38,7 +38,7 @@ from PySide6.QtWidgets import (
 from shiboken6 import Shiboken
 
 from ..assets import IconReloadMixin, app_icon
-from ..vsenv import gc_collect, get_policy, unregister_policy, unset_environment
+from ..vsenv import gc_collect, get_policy, unregister_policy
 from .plugins.manager import PluginManager
 from .settings import ActionID, SettingsManager, ShortcutManager
 from .settings.dialog import SettingsDialog
@@ -518,19 +518,6 @@ class StackedWidget(QStackedWidget):
             return
 
         widget = self.widget(index)
-
-        if isinstance(widget, BaseWorkspace):
-            # Only switch to environment if one already exists.
-            # Accessing widget.env would create a new environment if _env is None,
-            # which causes issues when switching between multiple workspaces that
-            # haven't loaded content yet (e.g., Quick Script before running code).
-            if widget._env and not widget._env.disposed:
-                logger.debug("Switching to environment %r", widget._env._data)
-                unset_environment()
-                widget._env.switch()
-            else:
-                logger.debug("Workspace has no environment yet, just unsetting current")
-                unset_environment()
 
         if isinstance(main_window := self.window(), MainWindow):
             main_window._update_status_connection(widget)
