@@ -691,14 +691,12 @@ class WorkspaceToolButton[WorkspaceT: BaseWorkspace](QToolButton, IconReloadMixi
 
         return self.make_icon(
             {
-                (QIcon.Mode.Normal, QIcon.State.Off): (
-                    workspace.icon,
-                    palette.color(QPalette.ColorRole.Accent),
-                ),
-                (QIcon.Mode.Normal, QIcon.State.On): (
-                    workspace.icon,
-                    palette.color(QPalette.ColorRole.Mid),
-                ),
+                (QIcon.Mode.Normal, QIcon.State.Off): (workspace.icon, palette.color(QPalette.ColorRole.Accent)),
+                (QIcon.Mode.Normal, QIcon.State.On): (workspace.icon, palette.color(QPalette.ColorRole.Base)),
+                (QIcon.Mode.Active, QIcon.State.Off): (workspace.icon, palette.color(QPalette.ColorRole.Accent)),
+                (QIcon.Mode.Active, QIcon.State.On): (workspace.icon, palette.color(QPalette.ColorRole.Base)),
+                (QIcon.Mode.Disabled, QIcon.State.Off): (workspace.icon, palette.color(QPalette.ColorRole.Accent)),
+                (QIcon.Mode.Disabled, QIcon.State.On): (workspace.icon, palette.color(QPalette.ColorRole.Base)),
             },
             size=self.ICON_SIZE,
         )
