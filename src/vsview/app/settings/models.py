@@ -41,6 +41,7 @@ from pydantic import (
     field_validator,
     model_serializer,
 )
+from pygments.styles import get_all_styles as get_pygments_styles
 from PySide6.QtCore import QTime
 from PySide6.QtGui import QColor, QKeySequence
 from PySide6.QtWidgets import (
@@ -549,7 +550,7 @@ class AppearanceSettings(BaseModel):
         str,
         Dropdown(
             label="Icon Provider",
-            items=[],  # Populated dynamically from providers registry
+            items=[(provider.name, provider_id) for provider_id, provider in ICON_PROVIDERS.items()],
             tooltip="Provider for icon rendering",
         ),
     ] = "phosphor"
@@ -567,7 +568,10 @@ class AppearanceSettings(BaseModel):
         str,
         Dropdown(
             label="Editor Theme",
-            items=[],  # Populated dynamically from Pygments styles
+            items=[
+                (style_name.replace("-", " ").replace("_", " ").title(), style_name)
+                for style_name in sorted(get_pygments_styles())
+            ],
             tooltip="Theme for the editor of the Quick Script workspace",
         ),
     ] = "gruvbox-dark"

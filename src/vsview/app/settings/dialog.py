@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Self
 
 from jetpytools import cachedproperty, classproperty
-from pygments.styles import get_all_styles
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
@@ -179,20 +178,7 @@ class SettingsDialog(QDialog, IconReloadMixin):
 
                 # Special handling for icon_provider and icon_weight dropdowns
                 if entry.key == "appearance.icon_provider" and isinstance(widget, QComboBox):
-                    widget.clear()
-                    for provider_id, provider in ICON_PROVIDERS.items():
-                        widget.addItem(provider.name, provider_id)
-
                     widget.currentIndexChanged.connect(self._on_provider_changed)
-                elif entry.key == "appearance.icon_weight":
-                    # Will be populated when provider is loaded/changed
-                    pass
-                elif entry.key == "appearance.editor_theme" and isinstance(widget, QComboBox):
-                    widget.clear()
-                    for style_name in sorted(get_all_styles()):
-                        # Convert style name to title case for display
-                        display_name = style_name.replace("-", " ").replace("_", " ").title()
-                        widget.addItem(display_name, style_name)
 
                 form.addRow(f"{entry.metadata.label}:", widget)
 
