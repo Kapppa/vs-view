@@ -73,13 +73,14 @@ plugins = [
     "vsview-fftspectrum",
     "vsview-frameprops-extended",
     "vsview-audio-convert",
+    "vsview-comp",
 ]
 
 [project.scripts]
 vsview = "vsview.cli:app"
 
 [project.optional-dependencies]
-essential = ["vsview-split-planes", "vsview-frameprops-extended"]
+essential = ["vsview-split-planes", "vsview-frameprops-extended", "vsview-comp"]
 secrets = ["keyring>=25.7.0"]
 
 [project.urls]
@@ -118,6 +119,7 @@ vsview-fftspectrum = { workspace = true }
 vsview-split-planes = { workspace = true }
 vsview-frameprops-extended = { workspace = true }
 vsview-audio-convert = { workspace = true }
+vsview-comp = { workspace = true }
 
 [tool.mypy]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/stubs"

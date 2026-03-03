@@ -19,6 +19,14 @@ Second-party plugins are officially maintained but distributed as separate packa
 
     [:lucide-move-right: Details](#audio-convert) · [:lucide-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/audio-convert)
 
+- :lucide-split-square-horizontal: **Comparison**
+
+    ---
+
+    Select, extract, and upload comparison frames to Slow.pics with TMDB metadata integration.
+
+    [:lucide-move-right: Details](#comparison) · [:lucide-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/comp)
+
 - :lucide-activity: **FFT Spectrum**
 
     ---
@@ -54,7 +62,7 @@ Second-party plugins are officially maintained but distributed as separate Pytho
 We recommend starting with the **Essential Bundle**.
 
 !!! tip "Recommended: Essential Bundle"
-    The `essential` bundle includes **Split Planes** and **FrameProps Extended**, which provide the core analysis tools for most workflows.
+    The `essential` bundle includes **Split Planes**, **FrameProps Extended**, and **Comparison**, which provide the core analysis tools for most workflows.
     
     === "pip"
         ```bash title="Install essential bundle"
@@ -90,6 +98,38 @@ The Audio Convert plugin integrates a specialized [AudioNode](https://www.vapour
 ### VapourSynth Requirements
 - [**ares**](https://github.com/ropagr/VS-AudioResample) (recommended): Required for high-quality resampling and SoX quality presets.
 - [**atools**](https://github.com/ropagr/VS-AudioTools): Fallback for basic sample type conversion if `ares` is not installed.
+
+---
+
+## Comparison [ :lucide-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/comp){ title="Source Code" }
+
+=== "pip"
+    ```bash title="Install Comparison"
+    pip install vsview-comp
+    ```
+=== "uv"
+    ```bash title="Add Comparison"
+    uv add vsview-comp
+    ```
+
+The Comparison plugin provides an integrated workflow for extracting frames and uploading them directly to [Slow.pics](https://slow.pics/).
+
+It features automated frame selection, filtering by picture type, and integration with TMDB.
+
+### Features
+- **Frame Selection**:
+    - Choose frames manually or automatically based on frame count and time range.
+    - Filter by picture types (I/P/B-frames) and combed frames.
+    - Auto-select based on frame brightness (darkest/lightest).
+- **TMDB Integration**:
+    - Search and retrieve metadata from TMDB to automatically populate collection names.
+    - Customize the naming format in the plugin settings.
+- **Direct Upload**:
+    - Upload extracted frames directly to [Slow.pics](https://slow.pics/).
+    - Logging in via the plugin settings is recommended.
+
+### VapourSynth Requirements
+- [**fpng**](https://github.com/Mikewando/vsfpng) (Optional): For slightly faster frame extraction.
 
 ---
 

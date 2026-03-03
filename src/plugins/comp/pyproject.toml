@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling", "versioningit"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vsview-comp"
+dynamic = ["version"]
+description = "A vsview plugin to make comparison backed by Slowpoke Pics"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+authors = [
+    { name = "Jimbo", email = "17926797+Kapppa@users.noreply.github.com" },
+    { name = "Vardë", email = "ichunjo.le.terrible@gmail.com" },
+]
+maintainers = [
+    { name = "Vardë", email = "ichunjo.le.terrible@gmail.com" },
+    { name = "Jaded Encoding Thaumaturgy", email = "jaded.encoding.thaumaturgy@gmail.com" },
+]
+
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+]
+dependencies = [
+    "vsview[secrets]",
+    "vsjetpack>=1.0.0",
+    "httpx>=0.28.1",
+    "pathvalidate",
+    "jinja2>=3.1.6",
+]
+
+[project.entry-points.vsview]
+vsview_comp = "vsview_comp"
+
+[project.urls]
+"Source Code" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/slowpics"
+"Bug Tracker" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/issues"
+"Contact" = "https://discord.gg/XTpc6Fa9eB"
+
+[tool.uv.sources]
+vsview = { workspace = true }
+
+[tool.hatch.version]
+source = "versioningit"
+
+[tool.versioningit.vcs]
+match = ["comp/v*"]
+default-tag = "comp/v0.0.0"
+
+[tool.versioningit.tag2version]
+rmprefix = "comp/v"
