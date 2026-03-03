@@ -88,7 +88,7 @@ class GlobalSettings(BaseModel):
             context=LOGIN_CONTEXT,
             tooltip="The Slowpoke.pics credentials for login",
         ),
-    ]
+    ] = ""
 
     pict_types_i: bool = True
     pict_types_p: bool = True
