@@ -492,9 +492,10 @@ def get_default_script() -> str:
     basic_import = (
         "from vstools import core, vs" if find_spec("vstools") else "import vapoursynth as vs\n\ncore = vs.core"
     )
+    basic_import += "\nfrom vsview import set_output"
 
     script = """
 clip = core.std.BlankClip()
-clip.set_output()
+set_output(clip)
 """
     return basic_import + "\n\n" + script
