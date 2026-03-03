@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 from weakref import WeakKeyDictionary
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QAction, QColor, QFont, QFontDatabase, QIcon, QPainter, QPalette, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication, QToolButton, QWidget
@@ -59,7 +59,7 @@ class IconReloadMixin:
 
         from ..app.settings import SettingsManager
 
-        SettingsManager.signals.globalChanged.connect(self._reload_all_icons)
+        SettingsManager.signals.globalChanged.connect(lambda: QTimer.singleShot(0, self._reload_all_icons))
 
     def deleteLater(self) -> None:
         self._button_reloaders.clear()

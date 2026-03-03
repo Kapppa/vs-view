@@ -68,11 +68,23 @@ class Application(QApplication):
         SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
 
     def _on_global_settings_changed(self) -> None:
-        if (style := SettingsManager.global_settings.appearance.style) and style != self.style().name():
-            self.setStyle(style)
+        refresh_widgets = False
+
+        if (style_name := SettingsManager.global_settings.appearance.style) and style_name != self.style().name():
+            self.setStyle(style_name)
+            refresh_widgets = True
 
         if (theme := SettingsManager.global_settings.appearance.theme) != self.styleHints().colorScheme():
             self.styleHints().setColorScheme(theme)
+            refresh_widgets = True
+
+        if refresh_widgets:
+            style = self.style()
+
+            for widget in self.allWidgets():
+                style.unpolish(widget)
+                widget.ensurePolished()
+                widget.update()
 
 
 class MainWindow(QMainWindow):
@@ -563,8 +575,7 @@ class DraggableNavContainer(QWidget):
         # Drop indicator line
         self._drop_indicator = QFrame(self)
         self._drop_indicator.setFrameShape(QFrame.Shape.HLine)
-        accent = self.palette().color(QPalette.ColorRole.Accent).name()
-        self._drop_indicator.setStyleSheet(f"background-color: {accent}; min-height: 2px; max-height: 2px;")
+        self._drop_indicator.setStyleSheet("background-color: palette(accent); min-height: 2px; max-height: 2px;")
         self._drop_indicator.hide()
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
