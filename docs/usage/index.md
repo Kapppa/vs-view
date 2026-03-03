@@ -1,59 +1,99 @@
-# Usage
+# Usage Overview
 
-This page covers the basic usage of **VSView**: launching the app, opening files, and exposing outputs from scripts.
+This page provides an overview of the **VSView** interface and its core components.
 
-## Quick Start
+## Interface at a Glance
 
-Open **VSView** with default workspaces:
+**VSView** uses a workspace-based layout to organize scripts and files and provides access to integrated tools.
 
-=== "pip"
-    ```bash
-    vsview
-    ```
-=== "uv"
-    ```bash
-    uv run vsview
-    ```
+<figure markdown="span">
+    ![](../../assets/app_overview.png){ .lightboxOn }
+</figure>
 
-Open one or more inputs directly:
+---
 
-=== "pip"
-    ```bash
-    vsview script.vpy
-    vsview video.mkv script.vpy image.png
-    ```
-=== "uv"
-    ```bash
-    uv run vsview script.vpy
-    uv run vsview video.mkv script.vpy image.png
-    ```
+## 1. The Sidebar
 
-## CLI Input Types
+The sidebar on the left is your primary navigation hub. Each open workspace is represented by an icon.
 
-**VSView** detects input type from file extension:
+### Navigation & Management
+- **Switching Workspaces**: Click an icon to switch the main content area to that workspace.
+- **Reordering**: You can click and drag icons to move them up or down.
+- **Context Menu**: Right-click any sidebar icon to access workspace-specific actions:
+    - **Reload**: Refresh the active workspace.
+    - **Clear**: Reset the workspace to its default state.
+    - **Delete**: Close the workspace and free up its resources.
+
+---
+
+## 2. The Menu Bar
+
+The top menu bar provides global controls that affect the entire application.
+
+### `New` Menu
+Bring new content into **VSView**:
+
+- **`Load Script...`**: Open a VapourSynth (`.vpy`) or Python (`.py`) script.
+- **`Load File...`**: Open a video or image file.
+- **Workspace Submenu**: Manually create an empty workspace of a specific type.
+
+### `View` Menu
+Manage your workspace environment:
+
+- **`Tool Docks`**: Toggle the visibility of persistent dock tools.
+- **`Tool Panels`**: Toggle the visibility of tabbed tools.
+
+### `Settings`
+Opens the **Settings Dialog**, where you can customize shortcuts, application and plugin settings.
+
+---
+
+## 3. The Main Content Area
+
+The main area displays the active workspace's content.
+See [Workspaces](workspaces/index.md) for more information.
+
+---
+
+## Quick Start: Launching VSView
+
+### Command Line Interface
+
+**VSView** detects input types automatically based on file extensions.
 
 | Extension                            | Type               |
 | ------------------------------------ | ------------------ |
 | `.py`, `.vpy`                        | VapourSynth script |
 | `.mkv`, `.mp4`, `.png`, `.jpg`, etc. | Video & Image file |
 
-You can mix these in a single command to open multiple sources at once. Each input will create a new workspace.
+=== "uv"
+    ```bash
+    # Open VSView
+    uv run vsview
 
-## Using **VSView** in VapourSynth Scripts
+    # Open specific files
+    uv run vsview script.vpy video.mkv
+    ```
+=== "pip"
+    ```bash
+    # Open VSView
+    vsview
 
-Use `set_output()` to register clips with readable names:
+    # Open specific files
+    vsview script.vpy video.mkv
+    ```
 
-```python
+### Registering Outputs in Scripts
+
+Register clips in VapourSynth scripts using `set_output()`:
+
+```python title="example.vpy"
 import vapoursynth as vs
 from vsview import set_output
 
 core = vs.core
 clip = core.bs.VideoSource("video.mkv")
 
-set_output(clip)
+set_output(clip, "Source")
 set_output(clip.std.Invert(), "Inverted")
 ```
-
-## Keyboard Shortcuts
-
-Keyboard shortcuts are customizable from the settings menu.

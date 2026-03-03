@@ -48,7 +48,7 @@ class TabManager(QWidget, IconReloadMixin):
 
         self.sync_playhead_btn = self.make_tool_button(
             IconName.LINK,
-            "Sync Playhead",
+            "Link playhead between tabs.\nWhen enabled, seeking in one tab updates all tabs to the same frame/time.",
             self,
             checkable=True,
             checked=True,
@@ -56,7 +56,7 @@ class TabManager(QWidget, IconReloadMixin):
         )
         self.sync_zoom_btn = self.make_tool_button(
             IconName.MAGNIFYING_GLASS,
-            "Sync Zoom",
+            "Link zoom between tabs.\nWhen enabled, zooming in one tab applies the same zoom level to all tabs.",
             self,
             checkable=True,
             checked=True,
@@ -64,7 +64,8 @@ class TabManager(QWidget, IconReloadMixin):
         )
         self.sync_scroll_btn = self.make_tool_button(
             IconName.ARROWS_OUT_CARDINAL,
-            "Sync Scroll",
+            "Link pan/scroll between tabs.\n"
+            "When enabled, moving the view in one tab updates the same position in all tabs.",
             self,
             checkable=True,
             checked=True,
@@ -72,7 +73,8 @@ class TabManager(QWidget, IconReloadMixin):
         )
         self.autofit_btn = self.make_tool_button(
             IconName.FRAME_CORNERS,
-            "Autofit All Views",
+            "Auto-fit all tabs to the viewport.\n"
+            "When enabled, each tab automatically fits content to the available view size.",
             self,
             checkable=True,
             checked=False,
@@ -80,7 +82,7 @@ class TabManager(QWidget, IconReloadMixin):
         )
         self.toggle_toolpanel_btn = self.make_tool_button(
             IconName.SIDEBAR,
-            "Toggle Plugin Tool Panel",
+            "Show or hide the Plugin Tool Panel for the current workspace.",
             self,
             checkable=True,
             checked=False,

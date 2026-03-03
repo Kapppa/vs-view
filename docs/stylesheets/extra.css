@@ -184,8 +184,9 @@ a {
     transition: box-shadow 0.3s;
 }
 
-.md-typeset figure img:hover {
-    box-shadow: 0 0 28px rgba(120, 88, 200, 0.4);
+.md-typeset figure img.lightboxOn:hover {
+    box-shadow: 0 0 30px rgba(120, 88, 200, 0.4);
+    cursor: zoom-in !important;
 }
 
 [data-md-color-scheme="slate"] .md-typeset figure img {
@@ -194,4 +195,14 @@ a {
 
 [data-md-color-scheme="slate"] .md-typeset figure img:hover {
     box-shadow: 0 0 32px rgba(168, 136, 232, 0.45);
+}
+
+/* GLightbox Custom Styling */
+.glightbox-container .gslide-title {
+    font-family: var(--md-text-font);
+    font-weight: 700;
+}
+
+.glightbox-container .gslide-desc {
+    font-family: var(--md-text-font);
 }
