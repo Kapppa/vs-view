@@ -16,6 +16,10 @@
 > [!WARNING]
 > **Alpha Software**: This project is currently in early alpha. Features are missing, bugs are expected, and the API is subject to breaking changes.
 
+## Documentation
+
+For comprehensive guides, feature overviews, and detailed usage instructions, visit the **[Official Documentation](https://jaded-encoding-thaumaturgy.github.io/vs-view/)**.
+
 ## Installation
 
 ### Prerequisites
