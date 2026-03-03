@@ -7,7 +7,7 @@ This page provides an overview of the **VSView** interface and its core componen
 **VSView** uses a workspace-based layout to organize scripts and files and provides access to integrated tools.
 
 <figure markdown="span">
-    [![](../assets/app_overview.png){ .lightboxOn }]
+    ![](../assets/app_overview.png){ .lightboxOn }
 </figure>
 
 ---

@@ -17,7 +17,7 @@ These workspaces share the same core interface. The sections below describe beha
 When you load a script or file into a workspace, the interface is split into the following areas:
 
 <figure markdown="span">
-    [![](../../assets/workspace_overview.png){ .lightboxOn }]
+    ![](../../assets/workspace_overview.png){ .lightboxOn }
 </figure>
 
 1. [**Workspace Tabs**](#1-workspace-tabs): Output tabs for the currently loaded script or file.
