@@ -42,7 +42,7 @@ from pydantic import (
     model_serializer,
 )
 from pygments.styles import get_all_styles as get_pygments_styles
-from PySide6.QtCore import QTime
+from PySide6.QtCore import Qt, QTime
 from PySide6.QtGui import QColor, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -52,11 +52,13 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPlainTextEdit,
     QSpinBox,
+    QStyleFactory,
     QTimeEdit,
     QVBoxLayout,
     QWidget,
 )
 
+from ...assets import ICON_PROVIDERS
 from .enums import Resizer
 from .secrets import SecretsManager
 
@@ -545,6 +547,24 @@ class AppearanceSettings(BaseModel):
     """Settings for the application appearance."""
 
     __section__ = "Appearance"
+
+    theme: Annotated[
+        Qt.ColorScheme,
+        Dropdown(
+            label="Theme",
+            items=[
+                ("System Default", Qt.ColorScheme.Unknown),
+                ("Light", Qt.ColorScheme.Light),
+                ("Dark", Qt.ColorScheme.Dark),
+            ],
+            tooltip="Application theme",
+        ),
+    ] = Qt.ColorScheme.Unknown
+
+    style: Annotated[
+        str | None,
+        Dropdown(label="Style", items=[(k.title(), k) for k in QStyleFactory.keys()], tooltip="Application style"),  # noqa: SIM118
+    ] = None
 
     icon_provider: Annotated[
         str,

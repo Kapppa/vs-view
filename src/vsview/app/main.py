@@ -5,6 +5,7 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any, cast
 
+from jetpytools import copy_signature
 from PySide6.QtCore import QEasingCurve, QMimeData, QPoint, QPropertyAnimation, QSignalBlocker, QSize, Qt
 from PySide6.QtGui import (
     QAction,
@@ -54,6 +55,24 @@ from .workspace import (
 )
 
 logger = getLogger(__name__)
+
+
+class Application(QApplication):
+    @copy_signature(QApplication.__init__)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.setStyle(SettingsManager.global_settings.appearance.style or "")
+        self.styleHints().setColorScheme(SettingsManager.global_settings.appearance.theme)
+
+        SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
+
+    def _on_global_settings_changed(self) -> None:
+        if (style := SettingsManager.global_settings.appearance.style) and style != self.style().name():
+            self.setStyle(style)
+
+        if (theme := SettingsManager.global_settings.appearance.theme) != self.styleHints().colorScheme():
+            self.styleHints().setColorScheme(theme)
 
 
 class MainWindow(QMainWindow):

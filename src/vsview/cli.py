@@ -5,11 +5,10 @@ from pathlib import Path
 from signal import SIG_DFL, SIGINT, signal
 from typing import Annotated
 
-from PySide6.QtWidgets import QApplication
 from typer import Argument, Option, Typer
 from vsengine.loops import set_loop
 
-from .app.main import MainWindow
+from .app.main import Application, MainWindow
 from .app.plugins.manager import PluginManager
 from .app.settings import SecretsManager, SettingsManager, ShortcutManager
 from .assets import load_fonts
@@ -58,7 +57,8 @@ def vsview_cli(
     ShortcutManager()
     SecretsManager()
 
-    app = QApplication(sys.argv)
+    app = Application(sys.argv)
+
     PluginManager.load()
     load_fonts()
 
