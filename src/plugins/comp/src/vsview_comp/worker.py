@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import threading
 from collections.abc import Awaitable, Mapping, Sequence
 from concurrent.futures import Future, wait
 from contextlib import aclosing
@@ -14,6 +15,7 @@ from uuid import uuid4
 import httpx
 from jetpytools import cachedproperty, ndigits
 from pathvalidate import sanitize_filepath
+from PySide6.QtCore import QThreadPool
 from PySide6.QtGui import QImage
 from vapoursynth import GRAY8, RGB24, VideoNode
 from vstools import clip_async_render, clip_data_gather, core, get_prop, remap_frames
@@ -98,11 +100,14 @@ class ExtractFramesWorker:
             clip = self.api.packer.to_rgb_packed(clip)
             remapped = remap_frames(clip, frames)
 
+            sema = threading.Semaphore(QThreadPool.globalInstance().maxThreadCount() // 2)
             workers = list[Future[None]]()
 
             for n, vs_frame in zip(frames, remapped.frames(close=True)):
+                sema.acquire()
                 qimage = self.api.packer.frame_to_qimage(vs_frame).copy()
                 f = self._qt_save(qimage, path.with_stem(path.stem % n))
+                f.add_done_callback(lambda _: sema.release())
                 workers.append(f)
 
             wait(workers)
