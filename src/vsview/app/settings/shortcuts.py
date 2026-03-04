@@ -1,16 +1,16 @@
 """Shortcut manager for hot-reloadable keyboard shortcuts."""
 
+from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping
 from logging import getLogger
 from typing import Any, Literal
-from weakref import WeakSet
 
 from jetpytools import Singleton, inject_self
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtWidgets import QWidget
-from shiboken6 import Shiboken
 
+from ..utils import QObjectSet
 from .manager import SettingsManager
 from .models import ActionDefinition, ActionID, ShortcutConfig
 
@@ -43,8 +43,8 @@ class ShortcutManager(Singleton):
 
     def __init__(self) -> None:
         # Storage for registered shortcuts
-        self._actions = dict[str, WeakSet[QAction]]()
-        self._shortcuts = dict[str, WeakSet[QShortcut]]()
+        self._actions = defaultdict[str, QObjectSet[QAction]](QObjectSet)
+        self._shortcuts = defaultdict[str, QObjectSet[QShortcut]](QObjectSet)
         self._definitions = dict[str, ActionDefinition]()
 
         # Pre-register all core actions
@@ -74,10 +74,6 @@ class ShortcutManager(Singleton):
         existing_ids = {s.action_id for s in SettingsManager.global_settings.shortcuts}
 
         for definition in definitions:
-            if definition not in self._actions:
-                self._actions[definition] = WeakSet()
-                self._shortcuts[definition] = WeakSet()
-
             self._definitions[definition] = definition
 
             if definition not in existing_ids:
@@ -103,7 +99,7 @@ class ShortcutManager(Singleton):
         """
         action.setShortcutContext(context)
 
-        self._actions.setdefault(action_id, WeakSet()).add(action)
+        self._actions[action_id].add(action)
         self._update_action(action_id, action)
 
         logger.debug("Registered action for %s: %r", action_id, action.text())
@@ -142,7 +138,7 @@ class ShortcutManager(Singleton):
             )
         )
 
-        self._shortcuts.setdefault(action_id, WeakSet()).add(shortcut)
+        self._shortcuts[action_id].add(shortcut)
         self._update_shortcut(action_id, shortcut)
 
         logger.debug("Registered shortcut for %s in context %r", action_id, context.__class__.__name__)
@@ -186,28 +182,22 @@ class ShortcutManager(Singleton):
         return value
 
     def _update_action(self, action_id: str, action: QAction) -> None:
-        if Shiboken.isValid(action):
-            key = self.get_key(action_id)
-            action.setShortcut(key)
+        key = self.get_key(action_id)
+        action.setShortcut(key)
 
-            if not key:
-                return
+        if not key:
+            return
 
-            native = QKeySequence(key).toString(QKeySequence.SequenceFormat.NativeText)
+        native = QKeySequence(key).toString(QKeySequence.SequenceFormat.NativeText)
 
-            if (original := action.property("original_tooltip")) is None:
-                original = action.toolTip()
-                action.setProperty("original_tooltip", original)
+        if (original := action.property("original_tooltip")) is None:
+            original = action.toolTip()
+            action.setProperty("original_tooltip", original)
 
-            action.setToolTip(f"{original} ({native})" if original else f"({native})")
-        else:
-            del action
+        action.setToolTip(f"{original} ({native})" if original else f"({native})")
 
     def _update_shortcut(self, action_id: str, shortcut: QShortcut) -> None:
-        if Shiboken.isValid(shortcut):
-            shortcut.setKey(QKeySequence(self.get_key(action_id)))
-        else:
-            del shortcut
+        shortcut.setKey(QKeySequence(self.get_key(action_id)))
 
     def _on_settings_changed(self) -> None:
         logger.info("Hot-reloading shortcuts...")

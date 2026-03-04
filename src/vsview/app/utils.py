@@ -6,11 +6,13 @@ import os
 import sys
 import weakref
 from collections import OrderedDict, UserDict
+from collections.abc import Iterator, MutableSet
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 import vapoursynth as vs
+from PySide6.QtCore import QObject
 from shiboken6 import Shiboken
 
 logger = getLogger(__name__)
@@ -145,3 +147,37 @@ if TYPE_CHECKING:
     class ObjectType(type): ...
 else:
     ObjectType = type(Shiboken.Object)
+
+
+class QObjectSet[T: QObject](MutableSet[T]):
+    """
+    A `WeakSet` for QObjects that also hooks the `destroyed` signal for C++ deletion.
+
+    Entries are removed both when the Python wrapper is garbage-collected (via `WeakSet`)
+    and when the C++ object is destroyed by Qt (via `destroyed`).
+    """
+
+    __slots__ = ("_data",)
+
+    def __init__(self) -> None:
+        self._data = weakref.WeakSet[T]()
+
+    def __contains__(self, value: object) -> bool:
+        return value in self._data
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self._data!r})"
+
+    def add(self, value: T) -> None:
+        if value not in self._data:
+            self._data.add(value)
+            value.destroyed.connect(lambda: self.discard(value))
+
+    def discard(self, value: T) -> None:
+        self._data.discard(value)
