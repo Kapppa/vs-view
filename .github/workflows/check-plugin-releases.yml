@@ -65,6 +65,9 @@ jobs:
         run: |
           branch="auto/release-${{ matrix.plugin }}"
 
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           git checkout -b "$branch"
           git commit --allow-empty -m "release: ${{ matrix.plugin }}"
           git push -f origin "$branch"
