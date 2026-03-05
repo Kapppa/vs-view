@@ -289,7 +289,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         tabs = self.tab_manager.create_tabs(voutputs)
 
         with QSignalBlocker(self.tab_manager):
-            self.tab_manager.swap_tabs(tabs, self.outputs_manager.current_video_index)
+            self.tab_manager.swap_tabs(tabs, clamp(self.outputs_manager.current_video_index, 0, len(voutputs) - 1))
 
         self.tbar.playback_container.set_audio_outputs(aoutputs, self.outputs_manager.current_audio_index)
 
@@ -308,7 +308,7 @@ class LoaderWorkspace[T](BaseWorkspace):
             self.tab_manager.disable_switch = False
             self.playback.can_reload = True
 
-        if not self._on_tab_changed(self.outputs_manager.current_video_index, cb_render=on_complete):
+        if not self._on_tab_changed(self.tab_manager.tabs.currentIndex(), cb_render=on_complete):
             logger.error("Failed to load content: %r", self.content)
             self.clear_failed_load()
             return
