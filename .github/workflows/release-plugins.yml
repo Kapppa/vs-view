@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   release:
@@ -22,6 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: Parse and push release tag
+        id: tag
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
@@ -33,7 +35,16 @@ jobs:
             exit 1
           fi
 
+          # Extract plugin name
+          plugin="${tag%%/v*}"
+          echo "plugin=$plugin" >> "$GITHUB_OUTPUT"
+
           python .github/scripts/push_release_tags.py "$tag"
+
+      - name: Trigger publish workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pypipublish.yml -f package=${{ steps.tag.outputs.plugin }}
 
       - name: Post webhook for failure
         if: failure()
