@@ -18,3 +18,5 @@ Plugins are categorized based on their source and maintenance level:
 ## Developing Plugins
 
 See the [Plugin Development](development.md) guide to learn how to create and register your own **VSView** plugins.
+
+You can also use this [plugin template](https://github.com/Ichunjo/vs-view-plugin-template) to quickly scaffold your project.

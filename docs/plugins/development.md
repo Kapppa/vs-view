@@ -7,6 +7,11 @@ title: Plugin Development
 
 This guide covers how to create plugins for VSView, from setting up the basic structure to hooking into the application's lifecycle and rendering loop.
 
+!!! tip "Plugin Template"
+    To jumpstart your development, we provide a template repository that includes the recommended project structure and boilerplate code:
+
+    [:lucide-github: Ichunjo/vs-view-plugin-template](https://github.com/Ichunjo/vs-view-plugin-template)
+
 ## Plugin Architecture
 
 VSView uses [pluggy](https://pluggy.readthedocs.io/) for its plugin system. Plugins are discovered via Python entry points. The application defines specific specifications (hooks) that your plugin can implement to inject its components or react to events.
