@@ -1,0 +1,42 @@
+name: Release Plugin
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Tag and release
+    if: >-
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'release')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Parse and push release tag
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Expected title: "release: <plugin>/v<version>"
+          tag="${PR_TITLE#release: }"
+
+          if [ "$tag" = "$PR_TITLE" ]; then
+            echo "Error: PR title does not start with 'release: '"
+            exit 1
+          fi
+
+          python .github/scripts/push_release_tags.py "$tag"
+
+      - name: Post webhook for failure
+        if: failure()
+        uses: Jaded-Encoding-Thaumaturgy/discord-failure-notifier@v1
+        with:
+          webhook-url: ${{ secrets.WEBHOOK_URL }}

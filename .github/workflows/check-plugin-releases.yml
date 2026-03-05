@@ -1,0 +1,82 @@
+name: Check Plugin Releases
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  detect:
+    name: Detect pending releases
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.detect.outputs.plugins }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect plugin changes
+        id: detect
+        run: |
+          python .github/scripts/detect_plugin_releases.py || exit_code=$?
+
+          if [ "${exit_code:-0}" -eq 2 ]; then
+            echo "No plugins need releasing."
+            echo "plugins=[]" >> "$GITHUB_OUTPUT"
+          elif [ "${exit_code:-0}" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Upload PR bodies
+        if: steps.detect.outputs.plugins != '[]'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-bodies
+          path: .github/releases/*.md
+
+  open-prs:
+    name: PR for ${{ matrix.plugin }}
+    needs: [detect]
+    if: needs.detect.outputs.plugins != '[]'
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        plugin: ${{ fromJson(needs.detect.outputs.plugins) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download PR bodies
+        uses: actions/download-artifact@v8
+        with:
+          name: release-bodies
+          path: release-bodies/
+
+      - name: Create release PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="auto/release-${{ matrix.plugin }}"
+
+          git checkout -b "$branch"
+          git commit --allow-empty -m "release: ${{ matrix.plugin }}"
+          git push -f origin "$branch"
+
+          existing=$(gh pr list --head "$branch" --json number --jq '.[0].number // empty')
+
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" \
+              --body-file "release-bodies/${{ matrix.plugin }}.md"
+          else
+            gh pr create \
+              --title "release: ${{ matrix.plugin }}" \
+              --body-file "release-bodies/${{ matrix.plugin }}.md" \
+              --label release
+          fi
