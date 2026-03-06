@@ -6,8 +6,7 @@
   "dependencyDashboard": true,
   "semanticCommits": "enabled",
   "schedule": [
-    "at 14:00 on Monday",
-    "at 14:00 on Thursday"
+    "0 14 * * 1,4"
   ],
   "packageRules": [
     {
