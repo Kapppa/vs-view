@@ -1,4 +1,5 @@
 import faulthandler
+import os
 import sys
 from logging import DEBUG, getLogger
 from pathlib import Path
@@ -46,6 +47,10 @@ def vsview_cli(
 ) -> None:
     # Enable faulthandler to get stack traces on segfaults
     faulthandler.enable(file=console.file)
+
+    # Setup env vars
+    os.environ["JETPYTOOLS_NO_COLOR"] = "1"
+    os.environ["PYDANTIC_ERRORS_INCLUDE_URL"] = "false"
 
     # -v -> DEBUG, -vv -> DEBUG - 1, -vvv -> DEBUG - 2, etc.
     setup_logging(level=DEBUG - max(0, verbose - 1) if verbose else None)

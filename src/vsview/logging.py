@@ -1,4 +1,3 @@
-import os
 from collections.abc import Callable
 from copy import copy
 from logging import CRITICAL, DEBUG, ERROR, INFO, WARNING, Formatter, LogRecord, captureWarnings, getLogger
@@ -67,7 +66,6 @@ def setup_logging(
     qt_level: int | None = None,
     capture_warnings: bool = True,
 ) -> None:
-    os.environ["JETPYTOOLS_NO_COLOR"] = "1"
     qInstallMessageHandler(_qt_message_handler)
 
     # FIXME: Change that to INFO later

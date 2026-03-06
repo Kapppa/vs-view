@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Callable, Iterable
 from contextlib import suppress
@@ -63,8 +62,6 @@ from .enums import Resizer
 from .secrets import SecretsManager
 
 logger = getLogger(__name__)
-
-os.environ["PYDANTIC_ERRORS_INCLUDE_URL"] = "false"
 
 
 class WidgetMetadataMeta(ABCMeta):
