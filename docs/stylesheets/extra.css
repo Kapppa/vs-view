@@ -206,3 +206,16 @@ a {
 .glightbox-container .gslide-desc {
     font-family: var(--md-text-font);
 }
+
+/* ============================================================================
+ * Back to Top Button
+ * ============================================================================ */
+
+.md-top {
+    transition: background-color 0.3s, color 0.3s, opacity 0.3s, transform 0.3s !important;
+}
+
+.md-top:hover {
+    background-color: var(--md-primary-fg-color);
+    color: var(--md-default-fg-color) !important;
+}
