@@ -112,7 +112,7 @@ no_settings_opt = Option(
 settings_roaming_opt = Option(
     "--settings-roaming",
     help=(
-        "[bold]Windows only[/bold]. Store global settings in [green]%APPDATA%[/green] "
+        "[bold]Windows only[/bold]. Store global settings in [green]%APPDATA%\\\\vsview\\\\[/green] "
         "instead of [green]%LOCALAPPDATA%\\\\vsview\\\\[/green]"
     ),
     envvar="VSVIEW_GLOBAL_SETTINGS_ROAMING",
