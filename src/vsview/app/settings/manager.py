@@ -6,9 +6,10 @@ from pathlib import Path
 
 from jetpytools import Singleton, inject_self
 from pydantic import ValidationError
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QSignalBlocker, Signal
 from rich.pretty import pretty_repr
 
+from ...env import getenv_bool
 from .models import GlobalSettings, LocalSettings
 
 logger = getLogger(__name__)
@@ -24,14 +25,15 @@ class SettingsSignals(QObject):
 class SettingsManager(Singleton):
     """Manages loading and saving of global and local settings."""
 
-    def __init__(self) -> None:
+    def __init__(self, noop: bool = False) -> None:
         self._global_settings = self.default_global_settings
         self._local_settings = dict[str, LocalSettings]()  # Keyed by path hash
         self._signals = SettingsSignals()
 
-        self._load_global()
+        self._noop = noop
 
-        logger.debug("SettingsManager initialized. Global path: %s", GLOBAL_SETTINGS_PATH)
+        self._load_global()
+        logger.debug("SettingsManager initialized")
 
     @inject_self.property
     def signals(self) -> SettingsSignals:
@@ -75,14 +77,16 @@ class SettingsManager(Singleton):
         return self._local_settings.get(path_hash) or self.default_local_settings
 
     @inject_self.cached
-    def save_global(self, settings: GlobalSettings | None = None) -> None:
+    def save_global(self, settings: GlobalSettings | None = None, path: Path | None = None) -> None:
         """Save global settings to disk."""
         self._global_settings = settings if settings is not None else self._global_settings
+        path = path or GlobalSettings.path_env
 
         try:
-            GLOBAL_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-            GLOBAL_SETTINGS_PATH.write_text(self._global_settings.model_dump_json(indent=2), encoding="utf-8")
-            logger.debug("Saved global settings to: %s", GLOBAL_SETTINGS_PATH)
+            if not self._noop:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(self._global_settings.model_dump_json(indent=2), encoding="utf-8")
+                logger.debug("Saved global settings to: %s", path)
             self._signals.globalChanged.emit()
         except Exception:
             logger.exception("Failed to save global settings")
@@ -106,9 +110,10 @@ class SettingsManager(Singleton):
         self._local_settings[path_hash] = settings
 
         try:
-            settings_path.parent.mkdir(parents=True, exist_ok=True)
-            settings_path.write_text(settings.model_dump_json(indent=2), encoding="utf-8")
-            logger.debug("Saved local settings for %s to: %s", script_path, settings_path)
+            if not self._noop:
+                settings_path.parent.mkdir(parents=True, exist_ok=True)
+                settings_path.write_text(settings.model_dump_json(indent=2), encoding="utf-8")
+                logger.debug("Saved local settings for %s to: %s", script_path, settings_path)
             self._signals.localChanged.emit(str(settings_path))
         except Exception:
             logger.exception("Failed to save local settings for %s", script_path)
@@ -129,18 +134,35 @@ class SettingsManager(Singleton):
         return script_path.parent / ".vsjet" / "vsview" / f"{path_to_hash(script_path)}.json"
 
     def _load_global(self) -> None:
-        if not GLOBAL_SETTINGS_PATH.exists():
-            logger.info("Global settings file does not exist. Using defaults.")
+        if self._noop:
+            logger.info("Loading with no config set")
             return
 
+        # Always write the reference global settings file
+        if not GlobalSettings.path.exists():
+            with QSignalBlocker(self._signals):
+                self.save_global(self.default_global_settings, GlobalSettings.path)
+
+        # Determine which file to load (path_env == path when the env var is unset)
+        path = GlobalSettings.path_env
+
+        if not path.exists():
+            # Env-scoped file doesn't exist.
+            # Fallback to the reference file only if COPY is enabled, otherwise keep defaults
+            if not getenv_bool("VSVIEW_GLOBAL_SETTINGS_ENVIRONMENT_COPY"):
+                logger.info("Global settings file does not exist. Using defaults.")
+                return
+
+            path = GlobalSettings.path
+
         try:
-            data = json.loads(GLOBAL_SETTINGS_PATH.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8"))
             self._global_settings = GlobalSettings.model_validate(data)
 
             # Merge in any new shortcuts that don't exist in the loaded settings
             self._merge_default_shortcuts()
 
-            logger.debug("Loaded global settings")
+            logger.debug("Loaded global settings from %s", path)
             logger.log(DEBUG - 1, " %s", lambda: pretty_repr(self._global_settings))
         except ValidationError as e:
             logger.warning("Global settings file is malformed. Using defaults.\nError: %s", e)
@@ -177,6 +199,11 @@ class SettingsManager(Singleton):
         settings_path = self.local_settings_path(script_path)
 
         fallback_settings = self.default_local_settings.model_copy(update={"source_path": str(script_path)})
+
+        if self._noop:
+            logger.info("Loading with no config set")
+            self._local_settings[path_hash] = fallback_settings
+            return
 
         if not settings_path.exists():
             logger.info("Local settings file does not exist for %s. Using defaults.", script_path.name)

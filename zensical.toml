@@ -59,6 +59,7 @@ nav = [
             { "File" = "usage/workspaces/file.md" },
             { "Quick Script" = "usage/workspaces/quick-script.md" },
         ] },
+        { "Configuration & CLI" = "usage/configuration.md" },
     ] },
     { "Plugins" = [
         { "Overview" = "plugins/index.md" },

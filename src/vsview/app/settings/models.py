@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Callable, Iterable
 from contextlib import suppress
@@ -25,7 +27,8 @@ from typing import (
     get_type_hints,
 )
 
-from jetpytools import SupportsRichComparison
+from jetpytools import SPath, SupportsRichComparison, classproperty
+from platformdirs import user_config_path
 from pydantic import (
     BaseModel,
     BeforeValidator,
@@ -58,6 +61,7 @@ from PySide6.QtWidgets import (
 )
 
 from ...assets import ICON_PROVIDERS
+from ...env import getenv_bool
 from .enums import Resizer
 from .secrets import SecretsManager
 
@@ -974,6 +978,7 @@ class GlobalSettings(BaseSettings):
     """
 
     __section__ = "General"
+    model_config = ConfigDict(ignored_types=(classproperty, classproperty.cached))
 
     shortcuts: list[ShortcutConfig] = Field(
         default_factory=lambda: [
@@ -1024,9 +1029,55 @@ class GlobalSettings(BaseSettings):
         """Get the key sequence for a specific action."""
         return next((s.key_sequence for s in self.shortcuts if s.action_id == action_id), "")
 
+    @classproperty.cached
+    @classmethod
+    def config_path(cls) -> SPath:
+        return SPath(
+            user_config_path(
+                "vsview",
+                appauthor=False,
+                roaming=getenv_bool("VSVIEW_GLOBAL_SETTINGS_ROAMING"),
+                ensure_exists=True,
+            )
+        )
 
-# Global settings file location is inside the package directory
-GLOBAL_SETTINGS_PATH = Path(__file__).parent.parent.parent / "global_settings.json"
+    @classproperty.cached
+    @classmethod
+    def path(cls) -> SPath:
+        r"""
+        Get the global settings path.
+
+        Default locations:
+        - Windows: `%LOCALAPPDATA%\vsview\global_settings.json`
+        - Linux:   `~/.config/vsview/global_settings.json`
+        - macOS:   `~/Library/Application Support/vsview/global_settings.json`
+
+        If the `VSVIEW_GLOBAL_SETTINGS_ROAMING` environment variable is set (Windows only),
+        it uses: `%APPDATA%\vsview\global_settings.json`
+        """
+        return cls.config_path / "global_settings.json"
+
+    @classproperty.cached
+    @classmethod
+    def path_env(cls) -> SPath:
+        r"""
+        Get the scoped global settings path.
+
+        If the `VSVIEW_GLOBAL_SETTINGS_ENVIRONMENT` environment variable is set,
+        the path is scoped to the current Python environment using the environment's
+        parent directory name and the executable's modification timestamp:
+        `{base_config_path}\{env_parent_name}\{executable_mtime_ns}\global_settings.json`
+        """
+        if getenv_bool("VSVIEW_GLOBAL_SETTINGS_ENVIRONMENT") and sys.executable:
+            env_dir = Path(sys.prefix)
+
+            # We are inside a virtual environment
+            if sys.prefix != sys.base_prefix:
+                env_dir = env_dir.parent
+
+            return cls.config_path / env_dir.name / str(os.stat(sys.executable).st_mtime_ns) / "global_settings.json"
+
+        return cls.path
 
 
 def fallback_global(attr: str) -> Callable[[Any | None], Any]:

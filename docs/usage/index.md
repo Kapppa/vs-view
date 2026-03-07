@@ -83,6 +83,11 @@ See [Workspaces](workspaces/index.md) for more information.
     vsview script.vpy video.mkv
     ```
 
+!!! tip "Advanced CLI options & environment variables"
+
+    VSView supports additional flags for settings management and environment scoping.
+    See the [Configuration & CLI](configuration.md) page for the full reference.
+
 ### Registering Outputs in Scripts
 
 Register clips in VapourSynth scripts using `set_output()`:
