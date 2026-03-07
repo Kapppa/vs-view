@@ -30,14 +30,14 @@ app = Typer(
 
 def show_settings_path(value: bool) -> None:
     if value:
-        echo(GlobalSettings.path)
+        echo(GlobalSettings.path_env)
 
         raise Exit(0)
 
 
 def wipe_settings(value: bool) -> None:
     if value:
-        GlobalSettings.path.unlink(missing_ok=True)
+        GlobalSettings.path_env.unlink(missing_ok=True)
         echo("Global config file sucessfully deleted.")
 
         raise Exit(0)
@@ -82,7 +82,8 @@ settings_path_opt = Option(
     "--settings-path",
     help=(
         "Print to stdout the resolved [bold]global_settings.json[/bold] path and exit.\n\n"
-        "Defaults to [green]%LOCALAPPDATA%\\\\vsview\\\\[/green] on Windows, "
+        "The resolved path respects environment scoping if [bold]--settings-env[/bold] is active.\n\n"
+        "Default base directory is [green]%LOCALAPPDATA%\\\vsview\\\\[/green] on Windows, "
         "[green]~/.config/vsview/[/green] on Linux, "
         "and [green]~/Library/Application Support/vsview/[/green] on macOS."
     ),
@@ -91,11 +92,7 @@ settings_path_opt = Option(
 )
 settings_wipe_opt = Option(
     "--settings-wipe",
-    help=(
-        "Delete only the [bold]global_settings.json[/bold] file "
-        "(as shown by [bold]--settings-path[/bold]) and exit.\n\n"
-        "Environment-scoped subdirectories are left intact."
-    ),
+    help="Delete the [bold]global_settings.json[/bold] file (as shown by [bold]--settings-path[/bold]) and exit.\n\n",
     is_eager=True,
     callback=wipe_settings,
 )

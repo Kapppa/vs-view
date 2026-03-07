@@ -36,14 +36,16 @@ vsview [OPTIONS] [INPUT ...]
 #### `--settings-path`
 :   Print to stdout the resolved `global_settings.json` path and exit.
 
-    Defaults to:
+    The resolved path respects environment scoping if `--settings-env` is active.
+
+    Default base directory:
 
     - `%LOCALAPPDATA%\\vsview\` on Windows
     - `~/.config/vsview/` on Linux
     - `~/Library/Application Support/vsview/` on macOS
 
 #### `--settings-wipe`
-:   Delete only the `global_settings.json` file and exit. Environment-scoped subdirectories are left intact.
+:   Delete the `global_settings.json` file (as shown by `--settings-path`) and exit.
 
 #### `--settings-wipe-all`
 :   Delete the entire settings directory (including all environment-scoped subdirectories) and exit.
