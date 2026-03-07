@@ -32,6 +32,7 @@ from ..app.views.timeline import Frame, FrameEdit, Time, TimeEdit
 from ..app.views.video import BaseGraphicsView
 from ..assets import IconName, IconReloadMixin
 from ..vsenv import run_in_background, run_in_loop
+from .info import is_preview
 from .output import set_output
 
 __all__ = [
@@ -70,6 +71,7 @@ __all__ = [
     "WidgetPluginBase",
     "WidgetTimeEdit",
     "hookimpl",
+    "is_preview",
     "run_in_background",
     "run_in_loop",
     "set_output",

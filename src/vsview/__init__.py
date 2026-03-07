@@ -1,3 +1,3 @@
-from .api import set_output
+from .api import is_preview, set_output
 
-__all__ = ["set_output"]
+__all__ = ["is_preview", "set_output"]

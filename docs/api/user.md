@@ -11,3 +11,4 @@ The user-facing API is used primarily within VapourSynth scripts to register nod
         heading_level: 3
         members:
            - set_output
+           - is_preview
