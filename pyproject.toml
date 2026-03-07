@@ -43,6 +43,7 @@ dependencies = [
     "pyside6>=6.10.1",
     "jetpytools>=2.2.2",
     "pydantic>=2.0.0",
+    "platformdirs>=4.9.2",
     "typer>=0.20.0",
     "pygments>=2.19.0",
     "pluggy>=1.6.0",

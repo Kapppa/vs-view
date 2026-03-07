@@ -1431,6 +1431,7 @@ name = "vsview"
 source = { editable = "." }
 dependencies = [
     { name = "jetpytools" },
+    { name = "platformdirs" },
     { name = "pluggy" },
     { name = "pydantic" },
     { name = "pygments" },
@@ -1487,6 +1488,7 @@ test = [
 requires-dist = [
     { name = "jetpytools", specifier = ">=2.2.2" },
     { name = "keyring", marker = "extra == 'secrets'", specifier = ">=25.7.0" },
+    { name = "platformdirs", specifier = ">=4.9.2" },
     { name = "pluggy", specifier = ">=1.6.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pygments", specifier = ">=2.19.0" },

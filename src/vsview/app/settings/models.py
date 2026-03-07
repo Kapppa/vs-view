@@ -936,7 +936,8 @@ class QtSettings(BaseModel):
             if (color := QColorDialog.customColor(i)).isValid():
                 new_colors.append(color)
 
-        self.custom_colors = new_colors
+        self.custom_colors.clear()
+        self.custom_colors.extend(new_colors)
 
     @model_serializer(mode="wrap")
     def sync_before_serialize(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -1026,7 +1027,6 @@ class GlobalSettings(BaseSettings):
 
 # Global settings file location is inside the package directory
 GLOBAL_SETTINGS_PATH = Path(__file__).parent.parent.parent / "global_settings.json"
-DEFAULT_GLOBAL_SETTINGS = GlobalSettings()
 
 
 def fallback_global(attr: str) -> Callable[[Any | None], Any]:
@@ -1037,13 +1037,9 @@ def fallback_global(attr: str) -> Callable[[Any | None], Any]:
     def validator(v: Any | None) -> Any:
         if v is not None:
             return v
+        from .manager import SettingsManager
 
-        try:
-            from .manager import SettingsManager
-
-            return getter(SettingsManager.global_settings)
-        except ImportError:
-            return getter(DEFAULT_GLOBAL_SETTINGS)
+        return getter(SettingsManager.global_settings)
 
     return validator
 
@@ -1137,16 +1133,13 @@ class LocalSettings(BaseSettings):
     source_path: str = ""
     last_frame: int = 0
     last_output_tab_index: int = 0
-    playback: LocalPlaybackSettings = LocalPlaybackSettings()
-    timeline: LocalTimelineSettings = LocalTimelineSettings()
-    synchronization: SynchronizationSettings = SynchronizationSettings()
-    layout: LayoutSettings = LayoutSettings()
+    playback: LocalPlaybackSettings = Field(default_factory=lambda: LocalPlaybackSettings())
+    timeline: LocalTimelineSettings = Field(default_factory=lambda: LocalTimelineSettings())
+    synchronization: SynchronizationSettings = Field(default_factory=lambda: SynchronizationSettings())
+    layout: LayoutSettings = Field(default_factory=lambda: LayoutSettings())
     plugins: dict[str, dict[str, Any] | BaseModel] = Field(default_factory=dict)
 
     @field_validator("last_output_tab_index")
     @classmethod
     def validate_last_output_tab_index(cls, i: int) -> int:
         return max(0, i)
-
-
-DEFAULT_LOCAL_SETTINGS = LocalSettings()

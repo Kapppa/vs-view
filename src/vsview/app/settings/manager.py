@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from PySide6.QtCore import QObject, Signal
 from rich.pretty import pretty_repr
 
-from .models import DEFAULT_GLOBAL_SETTINGS, DEFAULT_LOCAL_SETTINGS, GLOBAL_SETTINGS_PATH, GlobalSettings, LocalSettings
+from .models import GlobalSettings, LocalSettings
 
 logger = getLogger(__name__)
 
@@ -22,15 +22,10 @@ class SettingsSignals(QObject):
 
 
 class SettingsManager(Singleton):
-    """
-    Manages loading and saving of global and local settings.
-
-    Global settings are stored in the package directory.
-    Local settings are stored per-script in .vsjet/vsview/{hash}.json.
-    """
+    """Manages loading and saving of global and local settings."""
 
     def __init__(self) -> None:
-        self._global_settings = DEFAULT_GLOBAL_SETTINGS
+        self._global_settings = self.default_global_settings
         self._local_settings = dict[str, LocalSettings]()  # Keyed by path hash
         self._signals = SettingsSignals()
 
@@ -47,6 +42,17 @@ class SettingsManager(Singleton):
     def global_settings(self) -> GlobalSettings:
         """Get the current global settings."""
         return self._global_settings
+
+    @inject_self.cached.property
+    def default_global_settings(self) -> GlobalSettings:
+        """Get the default global settings, lazily initialized."""
+
+        return GlobalSettings()
+
+    @inject_self.cached.property
+    def default_local_settings(self) -> LocalSettings:
+        """Get the default local settings, lazily initialized."""
+        return LocalSettings()
 
     @inject_self.cached
     def get_local_settings(self, script_path: Path) -> LocalSettings:
@@ -66,7 +72,7 @@ class SettingsManager(Singleton):
         if path_hash not in self._local_settings:
             self._load_local(script_path)
 
-        return self._local_settings.get(path_hash, DEFAULT_LOCAL_SETTINGS)
+        return self._local_settings.get(path_hash) or self.default_local_settings
 
     @inject_self.cached
     def save_global(self, settings: GlobalSettings | None = None) -> None:
@@ -148,7 +154,9 @@ class SettingsManager(Singleton):
 
         # Find shortcuts that exist in defaults but not in loaded settings
         missing_shortcuts = [
-            shortcut for shortcut in DEFAULT_GLOBAL_SETTINGS.shortcuts if shortcut.action_id not in existing_action_ids
+            shortcut
+            for shortcut in self.default_global_settings.shortcuts
+            if shortcut.action_id not in existing_action_ids
         ]
 
         if missing_shortcuts:
@@ -168,7 +176,7 @@ class SettingsManager(Singleton):
         path_hash = path_to_hash(script_path)
         settings_path = self.local_settings_path(script_path)
 
-        fallback_settings = DEFAULT_LOCAL_SETTINGS.model_copy(update={"source_path": str(script_path)})
+        fallback_settings = self.default_local_settings.model_copy(update={"source_path": str(script_path)})
 
         if not settings_path.exists():
             logger.info("Local settings file does not exist for %s. Using defaults.", script_path.name)
