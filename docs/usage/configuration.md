@@ -40,7 +40,7 @@ vsview [OPTIONS] [INPUT ...]
 
     Default base directory:
 
-    - `%LOCALAPPDATA%\\vsview\` on Windows
+    - `%LOCALAPPDATA%\vsview\` on Windows
     - `~/.config/vsview/` on Linux
     - `~/Library/Application Support/vsview/` on macOS
 

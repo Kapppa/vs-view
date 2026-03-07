@@ -83,7 +83,7 @@ settings_path_opt = Option(
     help=(
         "Print to stdout the resolved [bold]global_settings.json[/bold] path and exit.\n\n"
         "The resolved path respects environment scoping if [bold]--settings-env[/bold] is active.\n\n"
-        "Default base directory is [green]%LOCALAPPDATA%\\\vsview\\\\[/green] on Windows, "
+        "Default base directory is [green]%LOCALAPPDATA%\\vsview\\\\[/green] on Windows, "
         "[green]~/.config/vsview/[/green] on Linux, "
         "and [green]~/Library/Application Support/vsview/[/green] on macOS."
     ),
@@ -109,8 +109,8 @@ no_settings_opt = Option(
 settings_roaming_opt = Option(
     "--settings-roaming",
     help=(
-        "[bold]Windows only[/bold]. Store global settings in [green]%APPDATA%\\\\vsview\\\\[/green] "
-        "instead of [green]%LOCALAPPDATA%\\\\vsview\\\\[/green]"
+        "[bold]Windows only[/bold]. Store global settings in [green]%APPDATA%\\vsview\\\\[/green] "
+        "instead of [green]%LOCALAPPDATA%\\vsview\\\\[/green]"
     ),
     envvar="VSVIEW_GLOBAL_SETTINGS_ROAMING",
     is_eager=True,
