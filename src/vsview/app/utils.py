@@ -58,7 +58,7 @@ def check_leaks(stage: Literal["before", "after"]) -> None:
     for type_name in vs_types:
         objs = objgraph.by_type(type_name)
         if not objs:
-            return
+            continue
 
         logger.debug("Lingering %s objects: %d", type_name, len(objs))
 
