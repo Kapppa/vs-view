@@ -54,6 +54,7 @@ Install and launch directly from your terminal:
 ## Documentation map
 
 - [Installation](installation.md): Requirements, `pip`/`uv` install, and development setup.
+- [Contributing](contributing.md): Development setup and editor recommendations.
 - [Usage](usage.md): CLI usage, file detection, workspaces, and shortcuts.
 - [Plugins](plugins/index.md): Built-in tools, official plugins, and plugin development.
 - [User API](api/user.md): `set_output` and script-side API usage.

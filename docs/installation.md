@@ -8,7 +8,8 @@
 
 ## Installation
 
-Choose your preferred package manager to install `vsview`. We recommend the **essential** bundle for most users.
+Choose your preferred package manager to install `vsview`.
+We recommend the **[essential](https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/second-party/#installation)** bundle for most users.
 
 === "pip"
     ```bash title="Standard installation"
@@ -16,7 +17,7 @@ Choose your preferred package manager to install `vsview`. We recommend the **es
     ```
 
     ```bash title="Install essential bundle"
-    pip install "vsview[essential]"
+    pip install vsview[essential]
     ```
 === "uv"
     ```bash title="Standard installation"
@@ -27,30 +28,6 @@ Choose your preferred package manager to install `vsview`. We recommend the **es
     uv add vsview --extra essential
     ```
 
-- [FrameProps Extended](plugins/second-party.md#frameprops-extended) — Enhanced frame properties categories and formatting
-- [Split Planes](plugins/second-party.md#split-planes) — View individual clip planes
-
 ## Development Installation
 
-For contributing or local development:
-
-```bash
-git clone --recurse-submodules https://github.com/Jaded-Encoding-Thaumaturgy/vs-view.git
-cd vs-view
-uv sync --all-packages
-```
-
-Run the development version:
-
-```bash
-uv run vsview
-```
-
-!!! note "Cython Extensions"
-
-    If you are in an environment where you cannot compile Cython extensions, in `pyproject.toml`:
-    
-    - Remove `"src/vspackrgb"` from `tool.uv.workspace.members`
-    - Comment out `vspackrgb = { workspace = true }` in `tool.uv.sources`
-  
-    You can now run `uv sync` to use the precompiled version from PyPi.
+For contributing or local development, see the [Contributing](contributing.md) guide.
