@@ -33,6 +33,33 @@ vsview [OPTIONS] [FILES]...
 
 ## Options
 
+#### `--arg` / `-a` `KEY=VALUE`
+:   Pass an argument to the script environment. Can be specified multiple times.
+
+    This follows the same convention as `vspipe --arg`.
+
+    ```bash
+    vsview script.vpy --arg myparam=hello --arg dryrun=true --arg width=1920
+    ```
+
+    The script can then access them via `#!python globals()`:
+
+    ```pycon title="script.vpy"
+    >>> globals()
+    {
+        ...
+        'myparam': 'hello',
+        'dryrun': 'true'
+        'width': '1920',
+        ...
+    }
+    ```
+
+    !!! info
+
+        All values are passed as **strings**.
+        Your script is responsible for any type conversion.
+
 #### `--settings-path`
 :   Print to stdout the resolved `global_settings.json` path and exit.
 
@@ -66,37 +93,6 @@ vsview [OPTIONS] [FILES]...
 
 #### `--verbose` / `-v`
 :   Enable verbose output. Repeat to increase verbosity (`-vv`, `-vvv`).
-
----
-
-## Script Arguments
-
-Any unrecognised `--key value` options are forwarded to `.py` / `.vpy` scripts as keyword arguments.
-Bare `--flag` options (without a value) are passed as `True`.
-
-Dashes in keys are converted to underscores so they can be used as Python identifiers.
-
-```
-vsview script.vpy --my-param hello --width 1920 --dry-run
-```
-
-The script receives these as `**kwargs`:
-
-```pycon title="script.vpy"
->>> globals()
-{
-    ...
-    'my_param': 'hello',
-    'width': '1920',
-    'dry_run': True
-    ...
-}
-```
-
-!!! info
-
-    All values are passed as **strings** (or `True` for bare flags).
-    Your script is responsible for any type conversion.
 
 ---
 

@@ -4,9 +4,9 @@ import sys
 from logging import DEBUG, getLogger
 from pathlib import Path
 from signal import SIG_DFL, SIGINT, signal
-from typing import Annotated, Any
+from typing import Annotated
 
-from typer import Argument, Context, Exit, Option, Typer, echo
+from typer import Argument, BadParameter, Exit, Option, Typer, echo
 from vsengine.loops import set_loop
 
 from .app.main import Application, MainWindow
@@ -72,24 +72,19 @@ def env_settings_copy_callback(value: bool) -> bool:
     return value
 
 
-def parse_extra_args(args: list[str]) -> dict[str, Any]:
-    parsed = dict[str, Any]()
-    i = 0
+def parse_script_args(args: list[str]) -> dict[str, str]:
+    parsed = dict[str, str]()
 
-    while i < len(args):
-        if not args[i].startswith("--"):
-            i += 1
-            continue
+    for item in args:
+        if "=" not in item:
+            raise BadParameter(f"No value specified for argument {item}")
 
-        key = args[i][2:].replace("-", "_")
-        has_value = i + 1 < len(args) and not args[i + 1].startswith("--")
+        key, _, value = item.partition("=")
 
-        if has_value:
-            parsed[key] = args[i + 1]
-            i += 2
-        else:
-            parsed[key] = True
-            i += 1
+        if not key.isidentifier():
+            raise BadParameter(f"Invalid argument name {key!r} (must be a valid Python identifier)")
+
+        parsed[key] = value
 
     return parsed
 
@@ -164,18 +159,18 @@ verbose_opt = Option(
     help="Enable verbose output. Repeat to increase verbosity (-v, -vv, -vvv, ...).",
 )
 
-
-@app.command(
-    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
-    epilog=(
-        "[dim]Any unrecognised [bold]--key value[/bold] options are forwarded to scripts as keyword arguments. "
-        "Bare [bold]--flag[/bold] options are passed as [green]True[/green].[/dim]\n\n"
-        "[dim]Example:[/dim]  vsview script.vpy --my-param hello --some-flag"
-    ),
+script_arg_opt = Option(
+    "--arg",
+    "-a",
+    metavar="KEY=VALUE",
+    help="Argument passed to the script environment. Can be specified multiple times.",
 )
+
+
+@app.command()
 def vsview_cli(
-    ctx: Context,
     files: Annotated[list[Path] | None, input_file_arg] = None,
+    arg: Annotated[list[str] | None, script_arg_opt] = None,
     settings_path: Annotated[bool, settings_path_opt] = False,
     settings_wipe: Annotated[bool, settings_wipe_opt] = False,
     settings_wipe_all: Annotated[bool, settings_wipe_all_opt] = False,
@@ -211,10 +206,11 @@ def vsview_cli(
     main_window.ensurePolished()
 
     if files:
+        extra_args = parse_script_args(arg or [])
         main_window.show()
         for file in files:
             if file.suffix in [".py", ".vpy"]:
-                main_window.load_new_script(file, **parse_extra_args(ctx.args))
+                main_window.load_new_script(file, **extra_args)
             else:
                 main_window.load_new_file(file)
     else:
