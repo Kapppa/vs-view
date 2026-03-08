@@ -9,7 +9,6 @@ from collections.abc import Callable, Iterable, Sequence
 from copy import deepcopy
 from functools import wraps
 from logging import getLogger
-from types import FrameType
 from typing import Any, Literal, assert_never, overload
 
 import vapoursynth as vs
@@ -322,29 +321,18 @@ def catch_output[**P, N: OutputNode](
 
 
 def _resolve_var_name(obj: Any, *, frame_depth: int = 1) -> str | None:
-    import inspect
-
-    frame = inspect.currentframe()
-    frames = list[FrameType]()
-    locals_copy = dict[str, Any]()
+    try:
+        frame = sys._getframe(frame_depth)
+    except ValueError:
+        return None
 
     try:
-        for _ in range(frame_depth):
-            if not frame or not frame.f_back:
-                return None
-
-            frames.append(frame)
-            frame = frame.f_back
-
-        locals_copy = frame.f_locals.copy() if frame else {}
-
         obj_id = id(obj)
 
-        return next((var_name for var_name, value in reversed(locals_copy.items()) if id(value) == obj_id), None)
+        for var_name, value in reversed(list(frame.f_locals.items())):
+            if id(value) == obj_id:
+                return var_name
 
+        return None
     finally:
-        for fr in frames:
-            del fr
         del frame
-        del frames
-        del locals_copy
