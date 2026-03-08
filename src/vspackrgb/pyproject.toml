@@ -60,7 +60,9 @@ dev = ["cython>=3.0.0"]
 packages = ["src/vspackrgb"]
 # Exclude .pyx source files from wheel
 exclude = ["**/*.pyx"]
-sbom-files = ["sboms.json"]
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "../../scripts/hatch_hooks.py"
 
 [tool.hatch.build.targets.wheel.hooks.cython]
 dependencies = ["hatch-cython"]

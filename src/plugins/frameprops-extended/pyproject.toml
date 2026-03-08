@@ -36,8 +36,8 @@ vsview_frameprops_more = "vsview_frameprops_more"
 [tool.uv.sources]
 vsview = { workspace = true }
 
-[tool.hatch.build.targets.wheel]
-sbom-files = ["sboms.json"]
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "../../../scripts/hatch_hooks.py"
 
 [tool.hatch.version]
 source = "versioningit"

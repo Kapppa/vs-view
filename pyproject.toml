@@ -52,6 +52,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "hatchling",
     "vsstubs>=1.0.2; python_version>='3.13'",
     "mypy>=1.19.0, <1.20.0",
     "ruff>=0.15.0, <0.16.0",
@@ -95,7 +96,9 @@ only-include = ["src/vsview", "docs", "scripts", "stubs", ".gitmodules"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/vsview"]
 exclude = ["README.md", "__main__.py"]
-sbom-files = ["sbom.json"]
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "scripts/hatch_hooks.py"
 
 [tool.hatch.version]
 source = "versioningit"
