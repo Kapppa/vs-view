@@ -18,10 +18,10 @@ VSView can be configured through **command-line arguments** and **environment va
 ## Arguments
 
 ```
-vsview [OPTIONS] [INPUT ...]
+vsview [OPTIONS] [FILES]...
 ```
 
-`INPUT`
+`[FILES]...`
 :   One or more file paths to open. VSView detects the type automatically:
 
     - `.py` / `.vpy` files open as VapourSynth scripts
@@ -66,6 +66,37 @@ vsview [OPTIONS] [INPUT ...]
 
 #### `--verbose` / `-v`
 :   Enable verbose output. Repeat to increase verbosity (`-vv`, `-vvv`).
+
+---
+
+## Script Arguments
+
+Any unrecognised `--key value` options are forwarded to `.py` / `.vpy` scripts as keyword arguments.
+Bare `--flag` options (without a value) are passed as `True`.
+
+Dashes in keys are converted to underscores so they can be used as Python identifiers.
+
+```
+vsview script.vpy --my-param hello --width 1920 --dry-run
+```
+
+The script receives these as `**kwargs`:
+
+```pycon
+>>> globals()
+{
+    ...
+    'my_param': 'hello',
+    'width': '1920',
+    'dry_run': True
+    ...
+}
+```
+
+!!! info
+
+    All values are passed as **strings** (or `True` for bare flags).
+    Your script is responsible for any type conversion.
 
 ---
 

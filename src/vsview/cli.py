@@ -4,9 +4,9 @@ import sys
 from logging import DEBUG, getLogger
 from pathlib import Path
 from signal import SIG_DFL, SIGINT, signal
-from typing import Annotated
+from typing import Annotated, Any
 
-from typer import Argument, Exit, Option, Typer, echo
+from typer import Argument, Context, Exit, Option, Typer, echo
 from vsengine.loops import set_loop
 
 from .app.main import Application, MainWindow
@@ -72,9 +72,30 @@ def env_settings_copy_callback(value: bool) -> bool:
     return value
 
 
+def parse_extra_args(args: list[str]) -> dict[str, Any]:
+    parsed = dict[str, Any]()
+    i = 0
+
+    while i < len(args):
+        if not args[i].startswith("--"):
+            i += 1
+            continue
+
+        key = args[i][2:].replace("-", "_")
+        has_value = i + 1 < len(args) and not args[i + 1].startswith("--")
+
+        if has_value:
+            parsed[key] = args[i + 1]
+            i += 2
+        else:
+            parsed[key] = True
+            i += 1
+
+    return parsed
+
+
 input_file_arg = Argument(
     help="Path to input file(s); video(s), image(s) or script(s).",
-    metavar="INPUT",
     resolve_path=True,
 )
 
@@ -144,8 +165,16 @@ verbose_opt = Option(
 )
 
 
-@app.command()
+@app.command(
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+    epilog=(
+        "[dim]Any unrecognised [bold]--key value[/bold] options are forwarded to scripts as keyword arguments. "
+        "Bare [bold]--flag[/bold] options are passed as [green]True[/green].[/dim]\n\n"
+        "[dim]Example:[/dim]  vsview script.vpy --my-param hello --some-flag"
+    ),
+)
 def vsview_cli(
+    ctx: Context,
     files: Annotated[list[Path] | None, input_file_arg] = None,
     settings_path: Annotated[bool, settings_path_opt] = False,
     settings_wipe: Annotated[bool, settings_wipe_opt] = False,
@@ -185,7 +214,7 @@ def vsview_cli(
         main_window.show()
         for file in files:
             if file.suffix in [".py", ".vpy"]:
-                main_window.load_new_script(file)
+                main_window.load_new_script(file, **parse_extra_args(ctx.args))
             else:
                 main_window.load_new_file(file)
     else:
