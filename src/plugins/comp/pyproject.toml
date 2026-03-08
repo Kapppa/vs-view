@@ -46,6 +46,9 @@ vsview_comp = "vsview_comp"
 [tool.uv.sources]
 vsview = { workspace = true }
 
+[tool.hatch.build.targets.wheel]
+sbom-files = ["sboms.json"]
+
 [tool.hatch.version]
 source = "versioningit"
 

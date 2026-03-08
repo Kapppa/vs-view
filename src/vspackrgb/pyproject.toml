@@ -60,6 +60,7 @@ dev = ["cython>=3.0.0"]
 packages = ["src/vspackrgb"]
 # Exclude .pyx source files from wheel
 exclude = ["**/*.pyx"]
+sbom-files = ["sboms.json"]
 
 [tool.hatch.build.targets.wheel.hooks.cython]
 dependencies = ["hatch-cython"]
@@ -91,7 +92,7 @@ build = "cp312-* cp313-* cp314-*"
 skip = "*-win32 *-manylinux_i686 *-musllinux_*"
 # Test would require vapoursynth
 test-skip = "*"
-before-build = "git clean -fdx src/vspackrgb"
+before-build = "git clean -fdx -e sboms.json src/vspackrgb"
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64"]
