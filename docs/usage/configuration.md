@@ -82,7 +82,7 @@ vsview script.vpy --my-param hello --width 1920 --dry-run
 
 The script receives these as `**kwargs`:
 
-```pycon
+```pycon title="script.vpy"
 >>> globals()
 {
     ...
