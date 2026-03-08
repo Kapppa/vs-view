@@ -95,7 +95,6 @@ only-include = ["src/vsview", "docs", "scripts", "stubs", ".gitmodules"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/vsview"]
 exclude = ["README.md", "__main__.py"]
-artifacts = ["src/vsview/global_settings.json"]
 
 [tool.hatch.version]
 source = "versioningit"
