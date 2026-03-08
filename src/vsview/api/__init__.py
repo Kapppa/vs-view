@@ -33,7 +33,7 @@ from ..app.views.video import BaseGraphicsView
 from ..assets import IconName, IconReloadMixin
 from ..vsenv import run_in_background, run_in_loop
 from .info import is_preview
-from .output import set_output
+from .output import catch_output, set_output
 
 __all__ = [
     "AbstractTableModel",
@@ -70,6 +70,7 @@ __all__ = [
     "WidgetMetadata",
     "WidgetPluginBase",
     "WidgetTimeEdit",
+    "catch_output",
     "hookimpl",
     "is_preview",
     "run_in_background",
