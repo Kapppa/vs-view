@@ -537,6 +537,8 @@ class ActionID(StrEnum):
     SWITCH_TAB_7 = "workspace.loader.tab.switch_7", "Switch to Output 7", "8"
     SWITCH_TAB_8 = "workspace.loader.tab.switch_8", "Switch to Output 8", "9"
     SWITCH_TAB_9 = "workspace.loader.tab.switch_9", "Switch to Output 9", "0"
+    SWITCH_PREVIOUS_TAB = "workspace.loader.tab.switch_previous_tab", "Switch to Previous Output", ""
+    SWITCH_NEXT_TAB = "workspace.loader.tab.switch_next_tab", "Switch to Next Output", ""
 
     def __new__(cls, value: str, label: str, default_key: str = "") -> Self:
         obj = str.__new__(cls, value)

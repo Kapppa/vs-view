@@ -4,7 +4,9 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from functools import partial
 from logging import getLogger
+from typing import overload
 
+from jetpytools import fallback
 from PySide6.QtCore import QSignalBlocker, Qt, QTimer, Signal
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
@@ -195,11 +197,16 @@ class TabManager(QWidget, IconReloadMixin):
 
         old_tabs.deleteLater()
 
-    def switch_tab(self, index: int) -> None:
+    @overload
+    def switch_tab(self, index: int, /) -> None: ...
+    @overload
+    def switch_tab(self, *, delta: int) -> None: ...
+    def switch_tab(self, index: int | None = None, delta: int = 0) -> None:
         if self.disable_switch:
             logger.warning("Switching tabs is disabled")
             return
-        self.tabs.setCurrentIndex(index)
+
+        self.tabs.setCurrentIndex(fallback(index, self.tabs.currentIndex() + delta))
 
     @run_in_loop
     def update_current_view(self, image: QImage, sar: float | None = None) -> None:

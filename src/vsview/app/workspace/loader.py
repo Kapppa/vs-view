@@ -224,6 +224,9 @@ class LoaderWorkspace[T](BaseWorkspace):
         for i, action in enumerate(tab_actions):
             sm.register_shortcut(action, partial(self.tab_manager.switch_tab, i), self)
 
+        sm.register_shortcut(ActionID.SWITCH_PREVIOUS_TAB, lambda: self.tab_manager.switch_tab(delta=-1), self)
+        sm.register_shortcut(ActionID.SWITCH_NEXT_TAB, lambda: self.tab_manager.switch_tab(delta=1), self)
+
     def deleteLater(self) -> None:
         logger.debug(
             "%s(%r) deleteLater called, cleaning up resources",
