@@ -6,7 +6,17 @@ from pathlib import Path
 from typing import Any, cast
 
 from jetpytools import copy_signature
-from PySide6.QtCore import QEasingCurve, QMimeData, QPoint, QPropertyAnimation, QSignalBlocker, QSize, Qt
+from PySide6.QtCore import (
+    QEasingCurve,
+    QEvent,
+    QMimeData,
+    QObject,
+    QPoint,
+    QPropertyAnimation,
+    QSignalBlocker,
+    QSize,
+    Qt,
+)
 from PySide6.QtGui import (
     QAction,
     QCloseEvent,
@@ -16,6 +26,7 @@ from PySide6.QtGui import (
     QDragMoveEvent,
     QDropEvent,
     QIcon,
+    QKeyEvent,
     QKeySequence,
     QMouseEvent,
     QPalette,
@@ -42,7 +53,7 @@ from ..assets import IconReloadMixin, app_icon
 from ..vsenv import gc_collect, get_policy, unregister_policy
 from .plugins.manager import PluginManager
 from .settings import ActionID, SettingsManager, ShortcutManager
-from .settings.dialog import SettingsDialog
+from .settings.dialog import SettingsDialog, ShortcutEditor
 from .settings.models import WindowGeometry
 from .views import StatusWidget
 from .workspace import (
@@ -66,6 +77,20 @@ class Application(QApplication):
         self.styleHints().setColorScheme(SettingsManager.global_settings.appearance.theme)
 
         SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
+
+        self.installEventFilter(self)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if (
+            event.type() == QEvent.Type.KeyPress
+            and isinstance(event, QKeyEvent)
+            and event.key() in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab)
+            and not isinstance(self.focusWidget(), ShortcutEditor)
+        ):
+            # Consume the event, completely disabling Tab/Shift+Tab focus
+            return True
+
+        return super().eventFilter(watched, event)
 
     def _on_global_settings_changed(self) -> None:
         refresh_widgets = False

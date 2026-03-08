@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Self
 
 from jetpytools import cachedproperty, classproperty
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QKeyEvent, QKeySequence
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -68,11 +68,27 @@ class SettingsTab(QScrollArea):
         self.container_layout.addStretch(1)
 
 
+class ShortcutEditor(QKeySequenceEdit):
+    """
+    Subclass of QKeySequenceEdit that allows capturing Tab.
+    """
+
+    def event(self, event: QEvent) -> bool:
+        if (
+            event.type() == QEvent.Type.KeyPress
+            and isinstance(event, QKeyEvent)
+            and event.key() in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab)
+        ):
+            self.setKeySequence(QKeySequence(Qt.Key.Key_Tab | event.modifiers().value))
+            return True
+        return super().event(event)
+
+
 @dataclass(slots=True, repr=False, eq=False, match_args=False)
 class ShortcutWidgets:
     """UI widgets and state for shortcut configuration."""
 
-    editors: dict[str, QKeySequenceEdit] = field(default_factory=dict)
+    editors: dict[str, ShortcutEditor] = field(default_factory=dict)
     reset_buttons: dict[str, QToolButton] = field(default_factory=dict)
     conflict_labels: dict[str, QLabel] = field(default_factory=dict)
     original_shortcuts: dict[str, str] = field(default_factory=dict)
@@ -248,7 +264,7 @@ class SettingsDialog(QDialog, IconReloadMixin):
                     row_layout.setContentsMargins(0, 0, 0, 0)
                     row_layout.setSpacing(4)
 
-                    editor = QKeySequenceEdit(
+                    editor = ShortcutEditor(
                         self,
                         keySequence=QKeySequence(current_key),
                         clearButtonEnabled=True,
