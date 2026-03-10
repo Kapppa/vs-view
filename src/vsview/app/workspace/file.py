@@ -227,9 +227,27 @@ class VideoFileWorkspace(GenericFileWorkspace):
     caption = "Open Video File"
     filters = (
         GenericFileWorkspace.FileFilter(
-            "Video Files", ["mp4", "avi", "mkv", "mov", "webm", "flv", "wmv", "m2ts", "ts"]
+            "Video & Image Files",
+            [
+                "mp4",
+                "avi",
+                "mkv",
+                "mov",
+                "webm",
+                "flv",
+                "wmv",
+                "m2ts",
+                "ts",
+                "png",
+                "jpg",
+                "jpeg",
+                "gif",
+                "bmp",
+                "tiff",
+                "webp",
+                "ico",
+            ],
         ),
-        GenericFileWorkspace.FileFilter("Images Files", ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "webp", "ico"]),
     )
 
     def loader(self) -> None:
@@ -261,10 +279,7 @@ class PythonScriptWorkspace(GenericFileWorkspace, VSEngineWorkspace[Path]):
     title = "Script"
     icon = IconName.FILE_TEXT
     caption = "Open VapourSynth Script"
-    filters = (
-        GenericFileWorkspace.FileFilter("Python Files", "py"),
-        GenericFileWorkspace.FileFilter("VapourSynth Files", "vpy"),
-    )
+    filters = (GenericFileWorkspace.FileFilter("Python & VapourSynth Files", ["py", "vpy"]),)
 
     content_type = "script"
 
