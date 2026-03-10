@@ -42,13 +42,14 @@ class VideoOutput:
         self.framedurs = metadata.framedurs if metadata else None
         self._alpha_prop: Literal[True] | None = metadata.alpha_prop if metadata else None
 
-        self.cum_durations = (
-            list(accumulate(self.framedurs))
-            if self.framedurs
-            else list(accumulate([float(1 / self.vs_output.clip.fps)] * self.vs_output.clip.num_frames))
-            if self.vs_output.clip.fps > 0
-            else None
-        )
+        if self.framedurs:
+            self.cum_durations: list[float] | None = list(accumulate(self.framedurs))
+        elif self.vs_output.clip.fps > 0:
+            self.cum_durations = [
+                float(1 / self.vs_output.clip.fps) * i for i in range(1, self.vs_output.clip.num_frames + 1)
+            ]
+        else:
+            self.cum_durations = None
 
         self.props = LRUCache[int, Mapping[str, Any]](
             cache_size=SettingsManager.global_settings.playback.buffer_size * 2
