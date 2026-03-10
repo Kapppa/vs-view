@@ -29,6 +29,7 @@ dependencies = ["vsview"]
 vsview_audio_convert = "vsview_audio_convert"
 
 [project.urls]
+"Documentation" = "https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/second-party/#audio-convert"
 "Source Code" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/audio-convert"
 "Bug Tracker" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/issues"
 "Contact" = "https://discord.gg/XTpc6Fa9eB"

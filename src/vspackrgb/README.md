@@ -1,4 +1,4 @@
-# vspackrgb
+# VSPackRGB
 
 RGB packing for VapourSynth frames.
 
@@ -8,6 +8,20 @@ Converts planar RGB VapourSynth clips into display-ready packed formats:
 - **RGB30 → RGB30** (10-bit packed, 2-bit alpha)
 
 Output is stored in a GRAY32 clip.
+
+## Installation
+
+Prebuilt wheels are provided for most platforms. If a compatible wheel is available, no compilation is required.
+
+```bash
+pip install vspackrgb
+```
+
+With `uv`:
+
+```bash
+uv add vspackrgb
+```
 
 ## Benchmarks
 
@@ -66,4 +80,16 @@ Output is stored in a GRAY32 clip.
 │ vspackrgb (python) │     30 │ 12.055s │   2.49 │
 └────────────────────┴────────┴─────────┴────────┘
 
+```
+
+## Building
+
+You only need a working C compiler/toolchain for your platform:
+
+- Windows: Visual Studio Build Tools (Desktop development with C++)
+- Linux: GCC/Clang and Python headers
+- macOS: Xcode Command Line Tools
+
+```bash
+uv build --sdist --wheel
 ```

@@ -1,15 +1,7 @@
-# vsview-comp
+# Comparison
 
-A [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view) plugin to make comparison backed by Slowpoke Pics.
+A [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view) plugin to create comparisons backed by Slow.pics.
 
-## Requirements
+## Documentation
 
-- [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view)
-- [vsjetpack](https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack) 1.1.0 or later
-- [httpx](https://github.com/encode/httpx)
-
-## Installation
-
-```bash
-pip install vsview-comp
-```
+Usage and configuration details are available in the [documentation](https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/second-party/#comparison)

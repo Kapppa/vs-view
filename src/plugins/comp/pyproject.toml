@@ -39,7 +39,8 @@ dependencies = [
 vsview_comp = "vsview_comp"
 
 [project.urls]
-"Source Code" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/slowpics"
+"Documentation" = "https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/second-party/#comparison"
+"Source Code" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/comp"
 "Bug Tracker" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/issues"
 "Contact" = "https://discord.gg/XTpc6Fa9eB"
 

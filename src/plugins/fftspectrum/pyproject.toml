@@ -29,6 +29,7 @@ dependencies = ["vsview", "vsjetpack>=1.1.0"]
 vsview_fftspectrum = "vsview_fftspectrum"
 
 [project.urls]
+"Documentation" = "https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/second-party/#fft-spectrum"
 "Source Code" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/fftspectrum"
 "Bug Tracker" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/issues"
 "Contact" = "https://discord.gg/XTpc6Fa9eB"

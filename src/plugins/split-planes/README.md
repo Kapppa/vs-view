@@ -1,15 +1,7 @@
-# vsview-split-planes
+# Split Planes
 
 A [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view) plugin displaying video clips' constituent planes.
 
-## Requirements
+## Documentation
 
-- [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view)
-- [vsjetpack](https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack) 1.1.0 or later
-- [akarin](https://github.com/Jaded-Encoding-Thaumaturgy/akarin-vapoursynth-plugin)
-
-## Installation
-
-```bash
-pip install vsview-split-planes
-```
+Usage and configuration details are available in the [documentation](https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/second-party/#split-planes)

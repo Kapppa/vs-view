@@ -1,13 +1,7 @@
-# vsview-frameprops-extended
+# FrameProps Extended
 
-A [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view) plugin adding more categories and formatters to the built-in vsview frameprops tool.
+A [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view) plugin adding more categories and formatters to the built-in frameprops tool.
 
-## Requirements
+## Documentation
 
-- [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view)
-
-## Installation
-
-```bash
-pip install vsview-frameprops-extended
-```
+Usage and configuration details are available in the [documentation](https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/second-party/#frameprops-extended)

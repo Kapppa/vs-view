@@ -21,42 +21,7 @@ Modern, extensible previewer for [VapourSynth](https://github.com/vapoursynth/va
 ## Documentation
 
 For comprehensive guides, feature overviews, and detailed usage instructions, visit the **[Official Documentation](https://jaded-encoding-thaumaturgy.github.io/vs-view/)**.
-
-## Installation
-
-### Prerequisites
-
-- **[Python](https://www.python.org/)** `>=3.12`
-- **[VapourSynth](https://www.vapoursynth.com/)** `R69+`
-    - **[BestSource](https://github.com/vapoursynth/bestsource)** (optional)
-
-### Install with pip
-
-The quickest way to install `vsview`:
-
-```bash
-pip install vsview
-```
-
-For the recommended setup with commonly used plugins:
-
-```bash
-pip install vsview[essential]
-```
-
-### Install with uv
-
-If you use [uv](https://docs.astral.sh/uv/) for package management:
-
-```bash
-uv add vsview
-```
-
-With essential plugins:
-
-```bash
-uv add vsview --extra essential
-```
+For the plugin catalog and installation details, see **[Plugins Documentation](https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/)**.
 
 ## Contributing
 

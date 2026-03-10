@@ -29,6 +29,7 @@ dependencies = ["vsview", "vsjetpack>=1.1.0"]
 vsview_split_planes = "vsview_split_planes"
 
 [project.urls]
+"Documentation" = "https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/second-party/#split-planes"
 "Source Code" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/split-planes"
 "Bug Tracker" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/issues"
 "Contact" = "https://discord.gg/XTpc6Fa9eB"

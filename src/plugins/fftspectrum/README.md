@@ -1,15 +1,7 @@
-# vsview-fftspectrum
+# FFT Spectrum
 
 A [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view) plugin that displays the Fast Fourier Transform (FFT) spectrum of video clips.
 
-## Requirements
+## Documentation
 
-- [vsview](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view)
-- [vsjetpack](https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack) 1.1.0 or later
-- [fftspectrum_rs](https://github.com/sgt0/vapoursynth-fftspectrum-rs) VapourSynth plugin
-
-## Installation
-
-```bash
-pip install vsview-fftspectrum
-```
+Usage and configuration details are available in the [documentation](https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/second-party/#fft-spectrum)
