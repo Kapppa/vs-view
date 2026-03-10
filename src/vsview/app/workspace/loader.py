@@ -268,7 +268,8 @@ class LoaderWorkspace[T](BaseWorkspace):
     @abstractmethod
     def loader(self) -> None: ...
 
-    def init_load(self, frame: int | None = None, tab_index: int | None = None) -> None: ...
+    def init_load(self, frame: int | None = None, tab_index: int | None = None) -> None:
+        PluginManager.wait_for_loaded()
 
     @run_in_background(name="LoadContent")
     def load_content(self, content: T, /, frame: int | None = None, tab_index: int | None = None) -> None:
@@ -298,7 +299,6 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         # Load plugins in the load_content function so the plugins can get the file_path
         # and do VS things in the init since the environment is already created.
-        PluginManager.wait_for_loaded()
         self.load_plugins()
 
         @run_in_loop(return_future=False)

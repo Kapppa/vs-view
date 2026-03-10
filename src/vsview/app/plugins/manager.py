@@ -3,12 +3,13 @@ from __future__ import annotations
 import weakref
 from collections.abc import Callable
 from concurrent.futures import Future
+from functools import wraps
 from importlib import import_module
 from inspect import ismethod
 from logging import getLogger
 from pathlib import Path
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Concatenate, Literal
 
 import pluggy
 from jetpytools import Singleton, inject_self
@@ -55,31 +56,57 @@ class Notifier:
                 loop.from_thread(cb)
 
 
+def ensure_loaded[T: PluginManager, **P, R](
+    action: str,
+) -> Callable[[Callable[Concatenate[T, P], R]], Callable[Concatenate[T, P], R]]:
+
+    def decorator(func: Callable[Concatenate[T, P], R]) -> Callable[Concatenate[T, P], R]:
+        @wraps(func)
+        def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+            if action == "wait" and not self.loaded:
+                self.load()
+                self.wait_for_loaded()
+            elif action == "entrypoints" and not self._entry_points_loaded:
+                raise RuntimeError("PluginManager is not loaded yet")
+
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 class PluginManager(Singleton):
     def __init__(self) -> None:
         self.manager = pluggy.PluginManager("vsview")
         self._notifier = Notifier()
         self._settings_extracted = False
+        self._entry_points_loaded = False
         self._load_future: Future[None] | None = None
         self._lock = Lock()
 
     @inject_self.cached.property
+    @ensure_loaded("entrypoints")
     def tooldocks(self) -> list[type[WidgetPluginBase]]:
         return self.manager.hook.vsview_register_tooldock()
 
     @inject_self.cached.property
+    @ensure_loaded("entrypoints")
     def toolpanels(self) -> list[type[WidgetPluginBase]]:
         return self.manager.hook.vsview_register_toolpanel()
 
     @inject_self.cached.property
+    @ensure_loaded("entrypoints")
     def video_processor(self) -> type[NodeProcessor[VideoNode]] | None:
         return self.manager.hook.vsview_get_video_processor()
 
     @inject_self.cached.property
+    @ensure_loaded("entrypoints")
     def audio_processor(self) -> type[NodeProcessor[AudioNode]] | None:
         return self.manager.hook.vsview_get_audio_processor()
 
     @inject_self.property
+    @ensure_loaded("entrypoints")
     def all_plugins(self) -> set[type[WidgetPluginBase | NodeProcessor[Any]]]:
         all_plugins: set[Any] = {*self.tooldocks, *self.toolpanels}
 
@@ -123,6 +150,7 @@ class PluginManager(Singleton):
         logger.debug("Loading entrypoints...")
         n = self.manager.load_setuptools_entrypoints("vsview")
         logger.debug("Loaded %d second/third party plugins", n)
+        self._entry_points_loaded = True
 
         self._register_shortcuts()
         self._construct_settings_registry()
@@ -190,7 +218,7 @@ class PluginManager(Singleton):
             if local_model is not None:
                 local_entries.extend(extract_plugin_settings(local_model, identifier, section))
 
-        self.populate_default_settings("global")
+        self._populate_default_settings("global")
 
         # Extend dialog registries
         SettingsDialog.global_settings_registry.extend(global_entries)
@@ -199,7 +227,11 @@ class PluginManager(Singleton):
         logger.debug("Plugin settings extracted")
 
     @inject_self
+    @ensure_loaded("wait")
     def populate_default_settings(self, scope: Literal["global", "local"], file_path: Path | None = None) -> None:
+        self._populate_default_settings(scope, file_path)
+
+    def _populate_default_settings(self, scope: Literal["global", "local"], file_path: Path | None = None) -> None:
         from ..settings import SettingsManager
 
         if scope == "local" and file_path is not None:
