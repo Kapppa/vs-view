@@ -8,7 +8,7 @@ icon: lucide/file-stack
 
 - [**Script Workspace**](script.md): The primary environment for VapourSynth script development and previewing.
 - [**File Workspace**](file.md): For directly previewing media files without a script (requires the **[BestSource](https://github.com/vapoursynth/bestsource)** plugin).
-- [**Quick Script**](quick-script.md): A specialized workspace for rapid, one-off testing and experiments using an integrated code editor.
+- [**Quick Script**](quick-script.md): A workspace for one-off testing and experiments using an integrated code editor.
 
 These workspaces share the same core interface. The sections below describe behavior that applies to all three unless stated otherwise.
 

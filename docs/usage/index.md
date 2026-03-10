@@ -14,7 +14,7 @@ This page provides an overview of the **VSView** interface and its core componen
 
 ## 1. The Sidebar
 
-The sidebar on the left is your primary navigation hub. Each open workspace is represented by an icon.
+The sidebar on the left is the main navigation area. Each open workspace is represented by an icon.
 
 ### Navigation & Management
 - **Switching Workspaces**: Click an icon to switch the main content area to that workspace.

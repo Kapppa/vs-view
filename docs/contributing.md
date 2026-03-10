@@ -2,7 +2,7 @@
 
 ## Development Installation
 
-**[uv](https://github.com/astral-sh/uv)** is the recommended tool for development.
+**[uv](https://github.com/astral-sh/uv)** is the default tool used for development in this repository.
 
 Clone the repository and sync all packages:
 

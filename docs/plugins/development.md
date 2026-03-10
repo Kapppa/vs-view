@@ -8,7 +8,7 @@ title: Plugin Development
 This guide covers how to create plugins for VSView, from setting up the basic structure to hooking into the application's lifecycle and rendering loop.
 
 !!! tip "Plugin Template"
-    To jumpstart your development, we provide a template repository that includes the recommended project structure and boilerplate code:
+    A template repository is available with a standard project structure and starter code:
 
     [:lucide-github: Ichunjo/vs-view-plugin-template](https://github.com/Ichunjo/vs-view-plugin-template)
 
@@ -60,7 +60,7 @@ class MyPluginHooks:
 
 ## The Hook System
 
-`WidgetPluginBase` provides a robust event hook system that allows your plugin to seamlessly react to interactions and state changes within VSView. You simply override the provided methods in your derived class.
+`WidgetPluginBase` provides an event hook system so your plugin can react to interactions and state changes within VSView. Override the relevant methods in your derived class.
 
 These are just some of the most common hooks available in `WidgetPluginBase`. For a complete list and detailed specifications of all available hooks, see the [API Reference](../api/developer/index.md#vsview.api.WidgetPluginBase).
 
@@ -135,7 +135,7 @@ class MyPlugin(WidgetPluginBase[GlobalSettings, LocalSettings]): # (3)!
 
 ## Keyboard Shortcuts
 
-Plugins can easily register custom keyboard shortcuts that integrate with VSView's central shortcut manager. This ensures shortcuts are user-configurable and hot-reloadable.
+Plugins can register custom keyboard shortcuts with VSView's central shortcut manager. Shortcuts remain user-configurable and hot-reloadable.
 
 First, define your shortcuts using `ActionDefinition`. It's easier to group them in an `Enum` or `StrEnum` for readability and type safety:
 

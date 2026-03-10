@@ -59,10 +59,10 @@ Second-party plugins are officially maintained but distributed as separate packa
 
 Second-party plugins are officially maintained but distributed as separate Python packages. Note that many of these also require specific **native VapourSynth plugins** to be installed in your VapourSynth environment.
 
-We recommend starting with the **Essential Bundle**.
+You can start with the **Essential Bundle**.
 
-!!! tip "Recommended: Essential Bundle"
-    The `essential` bundle includes **Split Planes**, **FrameProps Extended**, and **Comparison**, which provide the core analysis tools for most workflows.
+!!! tip "Optional: Essential Bundle"
+    The `essential` bundle includes **Split Planes**, **FrameProps Extended**, and **Comparison**.
     
     === "pip"
         ```bash title="Install essential bundle"
@@ -88,7 +88,7 @@ Detailed installation for individual packages can be found in their respective s
     uv add vsview-audio-convert
     ```
 
-The Audio Convert plugin integrates a specialized [AudioNode](https://www.vapoursynth.com/doc/pythonreference.html#vapoursynth.AudioNode) processor into the **VSView** pipeline. It is the go-to tool for reconciling differences between your script's audio and your system's playback capabilities.
+The Audio Convert plugin integrates a specialized [AudioNode](https://www.vapoursynth.com/doc/pythonreference.html#vapoursynth.AudioNode) processor into the **VSView** pipeline for reconciling differences between script audio and system playback capabilities.
 
 ### Available Options
 - Sample type conversion
@@ -96,7 +96,7 @@ The Audio Convert plugin integrates a specialized [AudioNode](https://www.vapour
 - SoX Quality presets
 
 ### VapourSynth Requirements
-- [**ares**](https://github.com/ropagr/VS-AudioResample) (recommended): Required for high-quality resampling and SoX quality presets.
+- [**ares**](https://github.com/ropagr/VS-AudioResample): Required for SoX quality presets and higher-quality resampling.
 - [**atools**](https://github.com/ropagr/VS-AudioTools): Fallback for basic sample type conversion if `ares` is not installed.
 
 ---
@@ -126,7 +126,7 @@ It features automated frame selection, filtering by picture type, and integratio
     - Customize the naming format in the plugin settings.
 - **Direct Upload**:
     - Upload extracted frames directly to [Slow.pics](https://slow.pics/).
-    - Logging in via the plugin settings is recommended.
+    - Configure login in the plugin settings to upload directly.
 
 ### VapourSynth Requirements
 - [**fpng**](https://github.com/Mikewando/vsfpng) (Optional): For slightly faster frame extraction.
@@ -177,7 +177,7 @@ This plugin adds more categories and formatters to the built-in [Frame Propertie
     uv add vsview-split-planes
     ```
 
-Split Planes is an essential previewing tool that splits a video clip into its individual planes.
+Split Planes splits a video clip into its individual planes for inspection.
 
 ### Features
 - Extends the Graphics View's default context menu to provide a way to offset chroma plane values.

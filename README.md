@@ -12,6 +12,8 @@
 
 </div>
 
+Modern, extensible previewer for [VapourSynth](https://github.com/vapoursynth/vapoursynth), **VSView** lets you open scripts, videos or images in one interface, making it easier to preview, inspect and compare sources without switching tools.
+
 <!-- prettier-ignore -->
 > [!WARNING]
 > **Beta Software**: This project is currently in early beta. Features are missing, bugs are expected, and the API is subject to breaking changes.
@@ -53,31 +55,11 @@ uv add vsview
 With essential plugins:
 
 ```bash
-uv add "vsview[essential]"
+uv add vsview --extra essential
 ```
 
 ## Contributing
 
 Contributions are welcome! Please check the [Discord server](https://discord.gg/XTpc6Fa9eB) or open an issue to discuss planned features.
 
-## Development Installation
-
-For contributing or local development:
-
-```bash
-git clone --recurse-submodules https://github.com/Jaded-Encoding-Thaumaturgy/vs-view.git
-cd vs-view
-uv sync --all-packages
-```
-
-Run the development version:
-
-```bash
-uv run vsview
-```
-
-<!-- prettier-ignore -->
-> [!NOTE]
-> If you are in an environment where you cannot compile Cython extensions, remove `"src/vspackrgb"` from `members`
-> and comment out `vspackrgb = { workspace = true }` in `pyproject.toml` before running `uv sync`
->  to use the precompiled version from PyPI.
+For guidance on setting up a development environment, see [Contributing](https://jaded-encoding-thaumaturgy.github.io/vs-view/contributing/).

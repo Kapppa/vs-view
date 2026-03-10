@@ -5,7 +5,7 @@ title: First-Party Plugins
 
 # First-Party Plugins
 
-First-party plugins are official components integrated directly into the **VSView** source code, providing essential analysis tools that are guaranteed to be compatible with every release.
+First-party plugins are official components integrated directly into the **VSView** source code and distributed with each release.
 
 <div class="grid cards" markdown>
 
@@ -29,7 +29,7 @@ First-party plugins are official components integrated directly into the **VSVie
 
     ---
 
-    Create, manage, and export scene ranges. Supports custom parsers and serializers for professional workflows.
+    Create, manage, and export scene ranges. Supports custom parsers and serializers.
 
     [:lucide-move-right: Explore Scening](#scening)
 
@@ -73,7 +73,7 @@ The Frame Properties panel displays metadata attached to each frame by VapourSyn
 - **Context Menu:** Right-click a property to display a context menu with options to copy the property value or its key.
 
 !!! Abstract "Extended Functionality"
-    If you need even more detailed property tracking, check out the [FrameProps Extended](second-party.md#frameprops-extended) second-party plugin.
+    For additional property categories and formatters, see [FrameProps Extended](second-party.md#frameprops-extended).
 
 ---
 
