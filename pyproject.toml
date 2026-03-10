@@ -110,10 +110,15 @@ default-tag = "vsview/v0.0.0"
 [tool.versioningit.tag2version]
 rmprefix = "vsview/v"
 
+[tool.uv]
+override-dependencies = ["jetpytools"]
+
 [tool.uv.workspace]
 members = ["src/vspackrgb", "src/plugins/*"]
 
 [tool.uv.sources]
+vsjetpack = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack", branch = "main" }
+jetpytools = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/jetpytools", branch = "main" }
 vspackrgb = { workspace = true }
 vsview-fftspectrum = { workspace = true }
 vsview-split-planes = { workspace = true }

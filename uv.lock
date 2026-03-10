@@ -16,6 +16,7 @@ members = [
     "vsview-frameprops-extended",
     "vsview-split-planes",
 ]
+overrides = [{ name = "jetpytools", git = "https://github.com/Jaded-Encoding-Thaumaturgy/jetpytools?branch=main" }]
 
 [[package]]
 name = "annotated-doc"
@@ -425,14 +426,10 @@ wheels = [
 
 [[package]]
 name = "jetpytools"
-version = "2.2.5"
-source = { registry = "https://pypi.org/simple" }
+version = "2.3.0.dev4+g27dd696"
+source = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/jetpytools?branch=main#27dd696a82822397d6614530af2505fcb9e7ea31" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a3/d7/bc9af7784e52e7c755707b6495d8256ea434663c6f1615dd65ddf94e198d/jetpytools-2.2.5.tar.gz", hash = "sha256:e6c2cf2edc3e148b8ab76c01a98ac8e2f13734aa726fafd041f5a5468b48b4c4", size = 28216, upload-time = "2026-01-23T18:19:58.292Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b0/60/8b78677077292be302ac84284987565a804ad25420cb08474b7405a70670/jetpytools-2.2.5-py3-none-any.whl", hash = "sha256:5fec12c798d12e7f4c3b7e4916303d382b82293e71d6f9aba59e729e00626bc4", size = 32333, upload-time = "2026-01-23T18:19:56.932Z" },
 ]
 
 [[package]]
@@ -1372,17 +1369,13 @@ wheels = [
 
 [[package]]
 name = "vsjetpack"
-version = "1.2.1"
-source = { registry = "https://pypi.org/simple" }
+version = "1.3.0.dev8+g31bdf8a2"
+source = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack?branch=main#31bdf8a266b3970716d1d7ac13229ed010864414" }
 dependencies = [
     { name = "jetpytools" },
     { name = "numpy" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
     { name = "vapoursynth" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/af/e0/1868cd2ab9166cef8d364a0980d9b98fa7da901420082e32395f749ea3a2/vsjetpack-1.2.1.tar.gz", hash = "sha256:9abf15598205c5726879ed2ab77a0c3c80612a3100ebdd81407453475179e6f4", size = 371375, upload-time = "2026-03-02T02:42:34.918Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/87/54/72eda2144397708d6566b8ae4b462a1f820ddcf6776de400108739619f75/vsjetpack-1.2.1-py3-none-any.whl", hash = "sha256:fc1c9c78019ddfdfc641694dadda6b616a0b39c6a923ddc6f88ff2b4670948b6", size = 407676, upload-time = "2026-03-02T02:42:33.469Z" },
 ]
 
 [[package]]
@@ -1486,7 +1479,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "jetpytools", specifier = ">=2.2.2" },
+    { name = "jetpytools", git = "https://github.com/Jaded-Encoding-Thaumaturgy/jetpytools?branch=main" },
     { name = "keyring", marker = "extra == 'secrets'", specifier = ">=25.7.0" },
     { name = "platformdirs", specifier = ">=4.9.2" },
     { name = "pluggy", specifier = ">=1.6.0" },
@@ -1561,7 +1554,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "pathvalidate", specifier = ">=3.3.1" },
-    { name = "vsjetpack", specifier = ">=1.0.0" },
+    { name = "vsjetpack", git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack?branch=main" },
     { name = "vsview", extras = ["secrets"], editable = "." },
 ]
 
@@ -1575,7 +1568,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "vsjetpack", specifier = ">=1.1.0" },
+    { name = "vsjetpack", git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack?branch=main" },
     { name = "vsview", editable = "." },
 ]
 
@@ -1589,7 +1582,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "vsjetpack", specifier = ">=1.0.0" },
+    { name = "vsjetpack", git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack?branch=main" },
     { name = "vsview", editable = "." },
 ]
 
@@ -1603,7 +1596,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "vsjetpack", specifier = ">=1.1.0" },
+    { name = "vsjetpack", git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack?branch=main" },
     { name = "vsview", editable = "." },
 ]
 
