@@ -296,6 +296,11 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         self.tbar.playback_container.set_audio_outputs(aoutputs, self.outputs_manager.current_audio_index)
 
+        # Load plugins in the load_content function so the plugins can get the file_path
+        # and do VS things in the init since the environment is already created.
+        PluginManager.wait_for_loaded()
+        self.load_plugins()
+
         @run_in_loop(return_future=False)
         def on_complete(f: Future[None]) -> None:
             if f.exception():
@@ -310,11 +315,6 @@ class LoaderWorkspace[T](BaseWorkspace):
             logger.error("Failed to load content: %r", self.content)
             self.clear_failed_load()
             return
-
-        # Load plugins in the load_content function so the plugins can get the file_path
-        # and do VS things in the init since the environment is already created.
-        PluginManager.wait_for_loaded()
-        self.load_plugins()
 
         logger.info("Content loaded successfully: %r", self.content)
         self.statusLoadingFinished.emit("Completed")
