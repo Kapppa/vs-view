@@ -21,6 +21,7 @@ Modern, extensible previewer for [VapourSynth](https://github.com/vapoursynth/va
 ## Documentation
 
 For comprehensive guides, feature overviews, and detailed usage instructions, visit the **[Official Documentation](https://jaded-encoding-thaumaturgy.github.io/vs-view/)**.
+
 For the plugin catalog and installation details, see **[Plugins Documentation](https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/)**.
 
 ## Contributing
