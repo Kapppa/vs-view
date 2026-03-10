@@ -7,8 +7,9 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any, ClassVar, NamedTuple
 
-from jetpytools import to_arr
+from jetpytools import cachedproperty, to_arr
 from PySide6.QtCore import QByteArray, Qt, QTimer
+from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
 from PySide6.QtWidgets import QFileDialog, QWidget
 
 from ...api._helpers import output_metadata
@@ -38,6 +39,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setAcceptDrops(True)
 
         self._autosave_timer = QTimer(self, timerType=Qt.TimerType.VeryCoarseTimer)
         self._autosave_timer.timeout.connect(self.save_settings)
@@ -60,6 +62,28 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.tbar.playback_container.settingsChanged.connect(self._on_playback_settings_changed)
         SettingsManager.signals.localChanged.connect(self._on_local_settings_changed)
 
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        if self._get_supported_drop_file(event) is not None:
+            event.acceptProposedAction()
+            return
+
+        event.ignore()
+
+    def dragMoveEvent(self, event: QDragMoveEvent) -> None:
+        if self._get_supported_drop_file(event) is not None:
+            event.acceptProposedAction()
+            return
+
+        event.ignore()
+
+    def dropEvent(self, event: QDropEvent) -> None:
+        if (dropped_file := self._get_supported_drop_file(event)) is None:
+            event.ignore()
+            return
+
+        self.load_content(dropped_file)
+        event.acceptProposedAction()
+
     def deleteLater(self) -> None:
         self._autosave_timer.stop()
         self.playback.stop()
@@ -73,6 +97,12 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
     def local_settings(self) -> LocalSettings:
         """Return the local settings for this workspace."""
         return SettingsManager.get_local_settings(self.content)
+
+    @cachedproperty
+    def supported_suffixes(self) -> frozenset[str]:
+        return frozenset(
+            suffix.lower() for file_filter in self.filters for suffix in to_arr(file_filter.suffix) if suffix != "*"
+        )
 
     def save_settings(self) -> Future[None]:
         self.local_settings.last_frame = self.playback.state.current_frame
@@ -191,6 +221,15 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
             self.dock_container.restoreState(QByteArray(b64decode(layout.dock_state)))
 
         self.dock_toggle_btn.setChecked(any(not dock.isHidden() for dock in self.docks))
+
+    def _get_supported_drop_file(self, event: QDropEvent) -> Path | None:
+        if (mime_data := event.mimeData()).hasUrls():
+            for url in mime_data.urls():
+                file_path = Path(url.toLocalFile())
+                if file_path.is_file() and file_path.suffix.lower().removeprefix(".") in self.supported_suffixes:
+                    return file_path
+
+        return None
 
     def _on_open_file_button_clicked(self) -> None:
         file_path_str, _ = QFileDialog.getOpenFileName(
