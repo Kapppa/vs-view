@@ -525,6 +525,8 @@ class ActionID(StrEnum):
     SEEK_NEXT_FRAME = "workspace.loader.timeline.seek_next_frame", "Seek Next Frame", "Right"
     SEEK_N_FRAMES_BACK = "workspace.loader.timeline.seek_n_frames_back", "Seek N Frames Back", "Shift+Left"
     SEEK_N_FRAMES_FORWARD = "workspace.loader.timeline.seek_n_frames_forward", "Seek N Frames Forward", "Shift+Right"
+    SEEK_FIRST_FRAME = "workspace.loader.timeline.seek_first_frame", "Seek First Frame", ""
+    SEEK_LAST_FRAME = "workspace.loader.timeline.seek_last_frame", "Seek Last Frame", ""
 
     # Tab switching
     SWITCH_TAB_0 = "workspace.loader.tab.switch_0", "Switch to Output 0", "1"

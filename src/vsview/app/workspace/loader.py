@@ -204,6 +204,20 @@ class LoaderWorkspace[T](BaseWorkspace):
             self.tbar.playback_container.seek_n_fwd_btn.click,
             self.loaded_page,
         )
+        sm.register_shortcut(
+            ActionID.SEEK_FIRST_FRAME,
+            lambda: self.playback.request_frame(0),
+            self.loaded_page,
+        )
+        sm.register_shortcut(
+            ActionID.SEEK_LAST_FRAME,
+            lambda: (
+                self.playback.request_frame(v.vs_output.clip.num_frames - 1)
+                if (v := self.outputs_manager.current_voutput)
+                else None
+            ),
+            self.loaded_page,
+        )
         sm.register_shortcut(ActionID.RELOAD, self.reload_content, self.loaded_page)
         sm.register_shortcut(ActionID.RELOAD, self.reload_btn.click, self.error_page)
         sm.register_shortcut(ActionID.COPY_CURRENT_FRAME, self._copy_current_frame_to_clipboard, self.loaded_page)
