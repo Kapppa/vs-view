@@ -211,11 +211,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         )
         sm.register_shortcut(
             ActionID.SEEK_LAST_FRAME,
-            lambda: (
-                self.playback.request_frame(v.vs_output.clip.num_frames - 1)
-                if (v := self.outputs_manager.current_voutput)
-                else None
-            ),
+            lambda: self.playback.request_frame(0x7FFFFFFF),
             self.loaded_page,
         )
         sm.register_shortcut(ActionID.RELOAD, self.reload_content, self.loaded_page)

@@ -217,6 +217,8 @@ class PlaybackManager(QObject):
         if not (voutput := self._outputs_manager.current_voutput):
             return
 
+        n = clamp(n, 0, voutput.vs_output.clip.num_frames - 1)
+
         fut = self._render_frame(n)
 
         def on_complete(f: Future[None]) -> None:
