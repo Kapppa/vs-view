@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import sys
 from abc import ABC, ABCMeta, abstractmethod
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager, suppress
 from dataclasses import KW_ONLY, dataclass, field
 from datetime import time
@@ -27,7 +27,7 @@ from typing import (
     get_type_hints,
 )
 
-from jetpytools import SPath, SupportsRichComparison, classproperty
+from jetpytools import SPath, SupportsRichComparison, classproperty, to_arr
 from platformdirs import user_config_path
 from pydantic import (
     BaseModel,
@@ -51,8 +51,12 @@ from PySide6.QtWidgets import (
     QColorDialog,
     QComboBox,
     QDoubleSpinBox,
+    QHBoxLayout,
+    QInputDialog,
     QLineEdit,
+    QListWidget,
     QPlainTextEdit,
+    QSizePolicy,
     QSpinBox,
     QStyleFactory,
     QTimeEdit,
@@ -60,7 +64,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ...assets import ICON_PROVIDERS
+from ...assets import ICON_PROVIDERS, IconName, IconReloadMixin
 from ...env import getenv_bool
 from .enums import Resizer
 from .secrets import SecretsManager
@@ -388,6 +392,101 @@ class PlainTextEdit[T: SupportsRichComparison](WidgetMetadata[QPlainTextEdit]):
             return [self.default_value]
 
         raise ValueError("Default value is required for PlainTextEdit widget")
+
+
+class ListEditWidget[T](QWidget, IconReloadMixin):
+    """Structured list editor with Add/Remove buttons."""
+
+    def __init__(
+        self, value_type: type[T], parent: QWidget | None = None, default_value: T | Sequence[T] | None = None
+    ) -> None:
+        super().__init__(parent)
+        self.value_type = value_type
+        self.adapter = TypeAdapter[T](value_type)
+        self.default_value = default_value
+
+        self.setLayout(layout := QVBoxLayout(self))
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        self.list_widget = QListWidget(self)
+        self.list_widget.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.list_widget.setAlternatingRowColors(True)
+        self.list_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding)
+        self.list_widget.setMaximumHeight(100)
+        layout.addWidget(self.list_widget)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(4)
+
+        self.add_btn = self.make_tool_button(IconName.PLUS, "Add Item", self)
+        self.add_btn.clicked.connect(self._add_item)
+
+        self.remove_btn = self.make_tool_button(IconName.MINUS, "Remove Item", self)
+        self.remove_btn.clicked.connect(self._remove_selected)
+
+        btn_layout.addWidget(self.add_btn)
+        btn_layout.addWidget(self.remove_btn)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+    def _add_item(self) -> None:
+        text, ok = QInputDialog.getText(self, "Add Item", f"Enter {self.value_type.__name__}:")
+        if ok and text:
+            try:
+                self.adapter.validate_python(text)
+                self.list_widget.addItem(text)
+            except ValidationError as e:
+                logger.error("Invalid value: %s", e)
+
+    def _remove_selected(self) -> None:
+        for item in self.list_widget.selectedItems():
+            self.list_widget.takeItem(self.list_widget.row(item))
+
+    def get_values(self) -> list[T]:
+        values = []
+        for i in range(self.list_widget.count()):
+            text = self.list_widget.item(i).text()
+            try:
+                values.append(self.adapter.validate_python(text))
+            except ValidationError as e:
+                logger.warning("Invalid value: %s", e)
+
+        if not values and self.default_value:
+            return to_arr(self.default_value)
+
+        return values
+
+    def set_values(self, values: list[T]) -> None:
+        self.list_widget.clear()
+
+        if not values and self.default_value:
+            values = to_arr(self.default_value)
+
+        for v in values:
+            self.list_widget.addItem(str(v))
+
+
+@dataclass(frozen=True, slots=True)
+class ListEdit[T: SupportsRichComparison](WidgetMetadata[ListEditWidget[T]]):
+    """ListEdit widget metadata using a QListWidget."""
+
+    value_type: type[T]
+    """Type of values in the list."""
+
+    default_value: T | Sequence[T] | None = field(default=None, kw_only=True)
+    """Default value for the setting."""
+
+    def create_widget(self, parent: QWidget | None = None) -> ListEditWidget[T]:
+        return ListEditWidget(self.value_type, parent)
+
+    def load_value(self, widget: ListEditWidget[T], value: Any) -> None:
+        with self.apply_transform(value, self.to_ui) as value:
+            widget.set_values(value)
+
+    def get_value(self, widget: ListEditWidget[T]) -> Any:
+        with self.apply_transform(widget.get_values(), self.from_ui) as value:
+            return sorted(set(value)) if isinstance(value, list) else value
 
 
 @dataclass(frozen=True, slots=True)
@@ -872,11 +971,11 @@ class ViewSettings(BaseModel):
 
     zoom_factors: Annotated[
         list[float],
-        PlainTextEdit(
+        LineEdit(
             label="Zoom Factors",
-            value_type=float,
-            max_height=100,
-            tooltip="Zoom factors for the views\nPut one factor per line",
+            tooltip="Zoom factors for the views.\nSeparate factors with commas.",
+            to_ui=lambda v: ", ".join(map(str, v)),
+            from_ui=lambda v: [float(x) for x in v.split(",") if x.strip()],
         ),
     ] = [0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0]
 
