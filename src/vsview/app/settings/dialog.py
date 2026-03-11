@@ -366,8 +366,12 @@ class SettingsDialog(QDialog, IconReloadMixin):
 
         for entry in self.global_settings_registry:
             widget = self._global_widgets[entry.key]
-            value = entry.metadata.get_value(widget)
-            GlobalSettings.set_nested_value(data, entry.key, value)
+            try:
+                value = entry.metadata.get_value(widget)
+                GlobalSettings.set_nested_value(data, entry.key, value)
+            except Exception:
+                logger.error("Failed to get value for %s", entry.key)
+                raise
 
         # Add shortcuts (not in registry) and build settings dynamically
         data["shortcuts"] = shortcuts
@@ -385,17 +389,29 @@ class SettingsDialog(QDialog, IconReloadMixin):
 
         for entry in self.local_settings_registry:
             widget = self._local_widgets[entry.key]
-            value = entry.metadata.get_value(widget)
-            LocalSettings.set_nested_value(data, entry.key, value)
+            try:
+                value = entry.metadata.get_value(widget)
+                LocalSettings.set_nested_value(data, entry.key, value)
+            except Exception:
+                logger.error("Failed to get value for %s", entry.key)
+                raise
 
         return LocalSettings.model_validate(data)
 
     def _on_apply(self) -> None:
-        global_settings = self._get_global_settings_from_ui()
-        SettingsManager.save_global(global_settings)
+        try:
+            global_settings = self._get_global_settings_from_ui()
+            SettingsManager.save_global(global_settings)
+        except Exception:
+            logger.error("Failed to save global settings")
+            return
 
         if self._script_path:
-            SettingsManager.save_local(self._script_path, self._get_local_settings_from_ui())
+            try:
+                SettingsManager.save_local(self._script_path, self._get_local_settings_from_ui())
+            except Exception:
+                logger.error("Failed to save local settings")
+                return
 
         self.accept()
 

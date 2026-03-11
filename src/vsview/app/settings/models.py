@@ -5,8 +5,8 @@ from __future__ import annotations
 import os
 import sys
 from abc import ABC, ABCMeta, abstractmethod
-from collections.abc import Callable, Iterable
-from contextlib import suppress
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager, suppress
 from dataclasses import KW_ONLY, dataclass, field
 from datetime import time
 from enum import StrEnum
@@ -139,6 +139,17 @@ class WidgetMetadata[W: QWidget](ABC, metaclass=WidgetMetadataMeta):
     def get_value(self, widget: W) -> Any:
         """Get the current value from the widget."""
 
+    @contextmanager
+    def apply_transform(self, value: Any, transform: Callable[[Any], Any] | None) -> Iterator[Any]:
+        if transform:
+            try:
+                yield transform(value)
+            except Exception as e:
+                logger.error("Failed to convert value: %r with error: %s", value, e)
+                raise
+        else:
+            yield value
+
 
 class LoginCredentialsInput(QWidget):
     """Widget for entering login credentials."""
@@ -225,13 +236,12 @@ class Checkbox(WidgetMetadata[QCheckBox]):
         return widget
 
     def load_value(self, widget: QCheckBox, value: Any) -> None:
-        if self.to_ui:
-            value = self.to_ui(value)
-        widget.setChecked(not not value)  # noqa: SIM208
+        with self.apply_transform(value, self.to_ui) as value:
+            widget.setChecked(not not value)  # noqa: SIM208
 
     def get_value(self, widget: QCheckBox) -> Any:
-        value = widget.isChecked()
-        return self.from_ui(value) if self.from_ui else value
+        with self.apply_transform(widget.isChecked(), self.from_ui) as value:
+            return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -243,13 +253,12 @@ class LineEdit(WidgetMetadata[QLineEdit]):
         return widget
 
     def load_value(self, widget: QLineEdit, value: Any) -> None:
-        if self.to_ui:
-            value = self.to_ui(value)
-        widget.setText(value)
+        with self.apply_transform(value, self.to_ui) as value:
+            widget.setText(value)
 
     def get_value(self, widget: QLineEdit) -> Any:
-        value = widget.text()
-        return self.from_ui(value) if self.from_ui else value
+        with self.apply_transform(widget.text(), self.from_ui) as value:
+            return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -266,15 +275,14 @@ class Dropdown(WidgetMetadata[QComboBox]):
         return widget
 
     def load_value(self, widget: QComboBox, value: Any) -> None:
-        if self.to_ui:
-            value = self.to_ui(value)
-        index = widget.findData(value)
-        if index >= 0:
-            widget.setCurrentIndex(index)
+        with self.apply_transform(value, self.to_ui) as value:
+            index = widget.findData(value)
+            if index >= 0:
+                widget.setCurrentIndex(index)
 
     def get_value(self, widget: QComboBox) -> Any:
-        value = widget.currentData()
-        return self.from_ui(value) if self.from_ui else value
+        with self.apply_transform(widget.currentData(), self.from_ui) as value:
+            return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -293,13 +301,12 @@ class Spin(WidgetMetadata[QSpinBox]):
         return widget
 
     def load_value(self, widget: QSpinBox, value: Any) -> None:
-        if self.to_ui:
-            value = self.to_ui(value)
-        widget.setValue(value)
+        with self.apply_transform(value, self.to_ui) as value:
+            widget.setValue(value)
 
     def get_value(self, widget: QSpinBox) -> Any:
-        value = widget.value()
-        return self.from_ui(value) if self.from_ui else value
+        with self.apply_transform(widget.value(), self.from_ui) as value:
+            return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -320,13 +327,12 @@ class DoubleSpin(WidgetMetadata[QDoubleSpinBox]):
         return widget
 
     def load_value(self, widget: QDoubleSpinBox, value: Any) -> None:
-        if self.to_ui:
-            value = self.to_ui(value)
-        widget.setValue(value)
+        with self.apply_transform(value, self.to_ui) as value:
+            widget.setValue(value)
 
     def get_value(self, widget: QDoubleSpinBox) -> Any:
-        value = widget.value()
-        return self.from_ui(value) if self.from_ui else value
+        with self.apply_transform(widget.value(), self.from_ui) as value:
+            return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -353,13 +359,12 @@ class PlainTextEdit[T: SupportsRichComparison](WidgetMetadata[QPlainTextEdit]):
         return widget
 
     def load_value(self, widget: QPlainTextEdit, value: Any) -> None:
-        if self.to_ui:
-            value = self.to_ui(value)
-        widget.setPlainText(str(value))
+        with self.apply_transform(value, self.to_ui) as value:
+            widget.setPlainText(str(value))
 
     def get_value(self, widget: QPlainTextEdit) -> Any:
-        value = widget.toPlainText()
-        return self.from_ui(value) if self.from_ui else value
+        with self.apply_transform(widget.toPlainText(), self.from_ui) as value:
+            return value
 
     def _list_to_ui(self, values: list[T]) -> str:
         return "\n".join(str(v) for v in values)
@@ -413,13 +418,12 @@ class WidgetTimeEdit(WidgetMetadata[QTimeEdit]):
         return widget
 
     def load_value(self, widget: QTimeEdit, value: Any) -> None:
-        if self.to_ui:
-            value = self.to_ui(value)
-        widget.setTime(QTime(value))
+        with self.apply_transform(value, self.to_ui) as value:
+            widget.setTime(QTime(value))
 
     def get_value(self, widget: QTimeEdit) -> Any:
-        value = widget.time()
-        return self.from_ui(value) if self.from_ui else value
+        with self.apply_transform(widget.time(), self.from_ui) as value:
+            return value
 
 
 class SettingEntry(NamedTuple):
