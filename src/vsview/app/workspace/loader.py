@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterator
 from concurrent.futures import Future
 from contextlib import contextmanager
 from functools import partial
-from logging import getLogger
+from logging import DEBUG, getLogger
 from pathlib import Path
 from threading import Lock
 from types import ModuleType
@@ -527,6 +527,7 @@ class LoaderWorkspace[T](BaseWorkspace):
 
                 return voutputs, aoutputs
         except Exception:
+            logger.log(DEBUG - 1, "Full traceback:", exc_info=True)
             return None
 
     def _on_tab_changed(
@@ -760,7 +761,14 @@ class VSEngineWorkspace[T](LoaderWorkspace[T]):
 
         match self.content_type:
             case "script":
-                self.script = load_script(self._script_content, self.env, module=module, **self._script_kwargs)
+                chdir = Path(self._user_script_path).parent if self.global_settings.chdir else None
+                self.script = load_script(
+                    self._script_content,
+                    self.env,
+                    module=module,
+                    chdir=chdir,
+                    **self._script_kwargs,
+                )
             case "code":
                 self.script = load_code(self._script_content, self.env, module=module, **self._script_kwargs)
             case _:

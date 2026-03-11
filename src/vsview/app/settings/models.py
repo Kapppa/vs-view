@@ -1017,6 +1017,20 @@ class GlobalSettings(BaseSettings):
         ),
     ] = 5000
 
+    chdir: Annotated[
+        bool,
+        Checkbox(
+            label="Change directory",
+            text="Change working directory on script load",
+            tooltip="Change the current working directory to the script's directory upon loading.\n\n"
+            "Note:\n"
+            "The working directory is a process-level attribute.\n"
+            "Changing it is not thread-safe and may cause unexpected behavior\n"
+            "if background tasks attempt to access files using relative paths.\n"
+            "Leave this disabled unless a script explicitly relies on the working directory.",
+        ),
+    ] = False
+
     appearance: AppearanceSettings = AppearanceSettings()
     timeline: TimelineSettings = TimelineSettings()
     playback: PlaybackSettings = PlaybackSettings()
