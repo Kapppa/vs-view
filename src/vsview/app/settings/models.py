@@ -30,6 +30,7 @@ from typing import (
 from jetpytools import SPath, SupportsRichComparison, classproperty, to_arr
 from platformdirs import user_config_path
 from pydantic import (
+    AfterValidator,
     BaseModel,
     BeforeValidator,
     ConfigDict,
@@ -39,8 +40,6 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     TypeAdapter,
     ValidationError,
-    field_serializer,
-    field_validator,
     model_serializer,
 )
 from pygments.styles import get_all_styles as get_pygments_styles
@@ -656,17 +655,7 @@ class ShortcutConfig(BaseModel):
     """Configuration for a single keyboard shortcut."""
 
     action_id: str
-    key_sequence: str
-
-    @field_validator("key_sequence")
-    @classmethod
-    def validate_sequence(cls, v: str) -> str:
-        seq = QKeySequence(v)
-
-        if seq.isEmpty() and v:  # Allow empty for unassigned, but not invalid garbage
-            raise ValueError(f"Invalid key sequence: {v}")
-
-        return v
+    key_sequence: Annotated[str, AfterValidator(lambda v: v if not QKeySequence(v).isEmpty() else "")]
 
 
 class AppearanceSettings(BaseModel):
@@ -1072,9 +1061,14 @@ class BaseSettings(BaseModel):
             data = data.setdefault(part, {})
         data[parts[-1]] = value
 
-    @field_serializer("plugins", check_fields=False)
-    def _serialize_plugins(self, value: dict[str, dict[str, Any] | BaseModel]) -> dict[str, dict[str, Any]]:
-        return {k: v.model_dump() if isinstance(v, BaseModel) else v for k, v in value.items()}
+
+PluginsType = Annotated[
+    dict[str, dict[str, Any] | BaseModel],
+    PlainSerializer(
+        lambda d: {k: v.model_dump() if isinstance(v, BaseModel) else v for k, v in d.items()},
+        return_type=dict[str, dict[str, Any]],
+    ),
+]
 
 
 class GlobalSettings(BaseSettings):
@@ -1139,7 +1133,7 @@ class GlobalSettings(BaseSettings):
     playback: PlaybackSettings = PlaybackSettings()
     view: ViewSettings = ViewSettings()
 
-    plugins: dict[str, dict[str, Any] | BaseModel] = Field(default_factory=dict)
+    plugins: PluginsType = Field(default_factory=dict)
 
     # Hidden
     window_geometry: WindowGeometry = WindowGeometry()
@@ -1304,14 +1298,9 @@ class LocalSettings(BaseSettings):
 
     source_path: str = ""
     last_frame: int = 0
-    last_output_tab_index: int = 0
+    last_output_tab_index: Annotated[int, AfterValidator(lambda i: max(0, i))] = 0
     playback: LocalPlaybackSettings = Field(default_factory=lambda: LocalPlaybackSettings())
     timeline: LocalTimelineSettings = Field(default_factory=lambda: LocalTimelineSettings())
     synchronization: SynchronizationSettings = Field(default_factory=lambda: SynchronizationSettings())
     layout: LayoutSettings = Field(default_factory=lambda: LayoutSettings())
-    plugins: dict[str, dict[str, Any] | BaseModel] = Field(default_factory=dict)
-
-    @field_validator("last_output_tab_index")
-    @classmethod
-    def validate_last_output_tab_index(cls, i: int) -> int:
-        return max(0, i)
+    plugins: PluginsType = Field(default_factory=dict)
