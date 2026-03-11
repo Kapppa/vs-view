@@ -192,12 +192,12 @@ def vsview_cli(
 
     # Set signal handler to default to allow Ctrl+C to work
     signal(SIGINT, SIG_DFL)
+    app = Application(sys.argv)
+
     set_loop(QtEventLoop())
     SettingsManager(noop=no_settings)
     ShortcutManager()
     SecretsManager()
-
-    app = Application(sys.argv)
 
     PluginManager.load()
     load_fonts()
