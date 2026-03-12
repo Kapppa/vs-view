@@ -9,6 +9,27 @@ from vsview.app.plugins.api import LocalSettingsModel
 
 
 # Mock models for testing
+class MockNestedModel(BaseModel):
+    nest_attr: str = "nest_default"
+
+
+class MockParentModel(BaseModel):
+    attr1: str = "default1"
+    nest: MockNestedModel = MockNestedModel()
+
+
+class MockLevel3(BaseModel):
+    val: int = 3
+
+
+class MockLevel2(BaseModel):
+    l3: MockLevel3 = MockLevel3()
+
+
+class MockLevel1(BaseModel):
+    l2: MockLevel2 = MockLevel2()
+
+
 class MockGlobalSettings(BaseModel):
     attr1: str = "default1"
     attr2: int = 10
@@ -205,3 +226,26 @@ def test_plugin_settings_reactive_write(mocker: MockerFixture, mock_workspace: A
     new_proxy = get_proxy()
     assert new_proxy.attr1 == "updated"
     assert new_proxy is not proxy  # Different model instance
+
+
+def test_proxy_nested_model_update(mocker: MockerFixture) -> None:
+    model = MockParentModel()
+    on_update = mocker.stub()
+    proxy = _SettingsProxy(model, on_update)
+
+    proxy.nest.nest_attr = "new_nest_value"
+
+    assert model.nest.nest_attr == "new_nest_value"
+    on_update.assert_called_once()
+    on_update.assert_called_once_with("nest", model.nest)
+
+
+def test_proxy_deeply_nested_model_update(mocker: MockerFixture) -> None:
+    model = MockLevel1()
+    on_update = mocker.stub()
+    proxy = _SettingsProxy(model, on_update)
+
+    proxy.l2.l3.val = 42
+
+    assert model.l2.l3.val == 42
+    on_update.assert_called_once_with("l2", model.l2)

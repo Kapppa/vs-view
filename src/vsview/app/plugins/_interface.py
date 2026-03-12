@@ -43,12 +43,17 @@ class _SettingsProxy[T: BaseModel]:
         object.__setattr__(self, "_on_update", on_update)
 
     def __getattr__(self, name: str) -> Any:
-        return getattr(self._model, name)
+        attr = getattr(self._model, name)
+        return _SettingsProxy(attr, lambda _, __: self._on_update(name, attr)) if isinstance(attr, BaseModel) else attr
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name in self.__slots__:
             object.__setattr__(self, name, value)
         elif hasattr(self._model, name):
+            if isinstance(value, _SettingsProxy):
+                value = value._model
+
+            setattr(self._model, name, value)
             self._on_update(name, value)
         else:
             raise AttributeError(f"{type(self._model).__name__!r} object has no attribute {name!r}")
