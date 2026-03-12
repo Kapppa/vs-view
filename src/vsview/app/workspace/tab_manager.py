@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping, Sequence
+from collections import deque
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from enum import IntEnum
 from functools import partial
-from itertools import cycle, islice
+from itertools import cycle
 from logging import getLogger
 from typing import Self, overload
 
@@ -28,27 +29,22 @@ class PlayHeadToolButton(QToolButton, IconReloadMixin):
     """Four-state QToolButton for syncing play head."""
 
     class State(IntEnum):
-        UNLINK = 0, IconName.UNLINK
-        LINK_ADAPT = 1, IconName.LINK
-        LINK_TIME = 2, IconName.LINK_2
-        LINK_FRAME = 3, IconName.LINK_3
+        UNLINK = 0, IconName.UNLINK, "Unlink"
+        LINK_ADAPT = 1, IconName.LINK, "Adaptive link (uses current timeline mode: time or frame)"
+        LINK_TIME = 2, IconName.LINK_2, "Link by time"
+        LINK_FRAME = 3, IconName.LINK_3, "Link by frame"
 
         icon_name: IconName
+        description: str
 
-        def __new__(cls, value: int, icon_name: IconName) -> Self:
+        def __new__(cls, value: int, icon_name: IconName, description: str) -> Self:
             obj = int.__new__(cls, value)
             obj._value_ = value
             obj.icon_name = icon_name
+            obj.description = description
             return obj
 
     stateChanged = Signal(State)
-    _TOOLTIP_MODE_TEXT: Mapping[State, str] = {
-        State.LINK_ADAPT: "Adaptive link (uses current timeline mode: time or frame)",
-        State.LINK_TIME: "Link by time",
-        State.LINK_FRAME: "Link by frame",
-        State.UNLINK: "Unlink",
-    }
-    _TOOLTIP_MODE_ORDER = (State.LINK_ADAPT, State.LINK_TIME, State.LINK_FRAME, State.UNLINK)
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
@@ -56,7 +52,12 @@ class PlayHeadToolButton(QToolButton, IconReloadMixin):
         self.setChecked(True)
         self.setIconSize(QSize(20, 20))
 
-        self._state_cycle = islice(cycle(PlayHeadToolButton.State), 1, None)
+        # Start from LINK_ADAPT
+        modes = deque(PlayHeadToolButton.State)
+        modes.rotate(-1)
+        self.modes_order = tuple(modes)
+
+        self._state_cycle = cycle(self.modes_order)
         self._icons = list[QIcon]()
         self.state = next(self._state_cycle)
 
@@ -97,12 +98,13 @@ class PlayHeadToolButton(QToolButton, IconReloadMixin):
     def _update_tooltip(self) -> None:
         lines = [
             "Sync playhead between tabs.",
-            f"Current mode: {self._TOOLTIP_MODE_TEXT[self.state]}",
+            f"Current mode: {self.state.description}",
             "Click to cycle modes:",
         ]
-        for mode in self._TOOLTIP_MODE_ORDER:
+
+        for mode in self.modes_order:
             prefix = "[x]" if self.state == mode else "[ ]"
-            lines.append(f"{prefix} {self._TOOLTIP_MODE_TEXT[mode]}")
+            lines.append(f"{prefix} {mode.description}")
         self.setToolTip("\n".join(lines))
 
 
