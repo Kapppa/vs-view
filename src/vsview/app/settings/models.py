@@ -1241,13 +1241,13 @@ class SynchronizationSettings(BaseModel):
     __section__ = "Synchronization"
 
     sync_playhead: Annotated[
-        bool,
+        int,
         Checkbox(
             label="Sync Playhead",
             text="Sync playhead across outputs",
             tooltip="Sync playhead across outputs",
         ),
-    ] = True
+    ] = 1
     sync_zoom: Annotated[
         bool,
         Checkbox(

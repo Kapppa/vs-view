@@ -12,7 +12,7 @@ from threading import Lock
 from types import ModuleType
 from typing import Any, ClassVar, Literal, assert_never
 
-from jetpytools import clamp
+from jetpytools import clamp, fallback
 from PySide6.QtCore import QSignalBlocker, Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
@@ -39,7 +39,7 @@ from ..views.components import CustomLoadingPage, DockButton
 from ..views.timeline import Frame, TimelineControlBar
 from .base import BaseWorkspace
 from .playback import PlaybackManager
-from .tab_manager import TabManager
+from .tab_manager import PlayHeadToolButton, TabManager
 
 loader_lock = Lock()
 logger = getLogger(__name__)
@@ -588,31 +588,63 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         return True
 
-    def _calculate_target_frame(self) -> int:
+    def _calculate_target_frame(self, state: PlayHeadToolButton.State | None = None) -> int:
         if not (voutput := self.outputs_manager.current_voutput):
             raise NotImplementedError
 
-        if not self.tab_manager.is_sync_playhead_enabled:
-            logger.debug(
-                "Sync playhead disabled, using last frame %d",
-                (target_frame := voutput.last_frame),
-            )
-            return target_frame
+        match s := fallback(state, self.tab_manager.sync_playhead_state):
+            case PlayHeadToolButton.State.UNLINK:
+                target_frame = voutput.last_frame
+                logger.debug("Sync playhead %r, using last frame %d", s, target_frame)
+                return target_frame
+            case PlayHeadToolButton.State.LINK_TIME:
+                src_fps = self.outputs_manager.voutputs[self.tab_manager.tabs.previous_tab_index]
+                tgt_fps = self.outputs_manager.current_voutput
 
-        src_fps = self.outputs_manager.voutputs[self.tab_manager.tabs.previous_tab_index]
-        tgt_fps = self.outputs_manager.current_voutput
+                current_time = self.outputs_manager.current_voutput.frame_to_time(
+                    self.playback.state.current_frame,
+                    src_fps,
+                )
+                target_frame = self.outputs_manager.current_voutput.time_to_frame(
+                    current_time,
+                    tgt_fps,
+                )
 
-        current_time = self.outputs_manager.current_voutput.frame_to_time(self.playback.state.current_frame, src_fps)
-        target_frame = self.outputs_manager.current_voutput.time_to_frame(current_time, tgt_fps)
+                target_frame = clamp(
+                    target_frame,
+                    0,
+                    self.outputs_manager.current_voutput.vs_output.clip.num_frames - 1,
+                )
 
-        target_frame = clamp(target_frame, 0, self.outputs_manager.current_voutput.vs_output.clip.num_frames - 1)
-
-        logger.debug(
-            "Sync playhead enabled, targeting frame %d (from time %.3fs)",
-            target_frame,
-            current_time.total_seconds(),
-        )
-        return target_frame
+                logger.debug(
+                    "Sync playhead %r, targeting frame %d (from time %.3fs)",
+                    s,
+                    target_frame,
+                    current_time.total_seconds(),
+                )
+                return target_frame
+            case PlayHeadToolButton.State.LINK_FRAME:
+                target_frame = clamp(
+                    self.playback.state.current_frame,
+                    0,
+                    self.outputs_manager.current_voutput.vs_output.clip.num_frames - 1,
+                )
+                logger.debug(
+                    "Sync playhead %r, targeting frame %d (from frame %d)",
+                    s,
+                    target_frame,
+                    self.playback.state.current_frame,
+                )
+                return target_frame
+            case PlayHeadToolButton.State.LINK_ADAPT as s:
+                logger.debug("Sync playhead %r", s)
+                resolved_state = {
+                    "frame": PlayHeadToolButton.State.LINK_FRAME,
+                    "time": PlayHeadToolButton.State.LINK_TIME,
+                }[self.tbar.timeline.mode]
+                return self._calculate_target_frame(resolved_state)
+            case _:
+                assert_never(s)
 
     def _emit_output_info(self) -> None:
         if not (voutput := self.outputs_manager.current_voutput):

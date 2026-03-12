@@ -20,7 +20,10 @@ class IconName(StrEnum):
     SKIP_BACK = "skip-back"
     CHECK = "check"
     SPINNER_GAP = "spinner-gap"
+    UNLINK = "link-break"
     LINK = "link"
+    LINK_2 = "link-simple-horizontal"
+    LINK_3 = "link-simple-horizontal-break"
     MAGNIFYING_GLASS = "magnifying-glass"
     FRAME_CORNERS = "frame-corners"
     ARROWS_OUT_CARDINAL = "arrows-out-cardinal"
@@ -135,7 +138,10 @@ class MaterialProvider(IconProvider):
         IconName.SKIP_FORWARD: "skip-next",
         IconName.SKIP_BACK: "skip-previous",
         IconName.SPINNER_GAP: "loading",
+        IconName.UNLINK: "link-variant-off",
         IconName.LINK: "link-variant",
+        IconName.LINK_2: "link-variant-plus",
+        IconName.LINK_3: "link-variant-minus",
         IconName.MAGNIFYING_GLASS: "magnify",
         IconName.FRAME_CORNERS: "border-radius",
         IconName.ARROWS_OUT_CARDINAL: "arrow-expand-all",
@@ -185,6 +191,9 @@ class LucideProvider(IconProvider):
     # Mapping from normalized IconName to Lucide icon names
     NAME_MAP: ClassVar[dict[IconName, str]] = {
         IconName.SPINNER_GAP: "loader-circle",
+        IconName.UNLINK: "unlink",
+        IconName.LINK_2: "link-2",
+        IconName.LINK_3: "unlink-2",
         IconName.MAGNIFYING_GLASS: "search-code",
         IconName.FRAME_CORNERS: "scan",
         IconName.ARROWS_OUT_CARDINAL: "move",

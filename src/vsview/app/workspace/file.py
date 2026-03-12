@@ -47,8 +47,8 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.load_btn.clicked.connect(self._on_open_file_button_clicked)
         self.error_load_btn.clicked.connect(self._on_open_file_button_clicked)
 
-        self.tab_manager.sync_playhead_btn.toggled.connect(
-            lambda checked: setattr(self.local_settings.synchronization, "sync_playhead", checked)
+        self.tab_manager.sync_playhead_btn.stateChanged.connect(
+            lambda state: setattr(self.local_settings.synchronization, "sync_playhead", state)
         )
         self.tab_manager.sync_zoom_btn.toggled.connect(
             lambda checked: setattr(self.local_settings.synchronization, "sync_zoom", checked)
@@ -107,7 +107,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
     def save_settings(self) -> Future[None]:
         self.local_settings.last_frame = self.playback.state.current_frame
         self.local_settings.last_output_tab_index = self.tab_manager.tabs.currentIndex()
-        self.local_settings.synchronization.sync_playhead = self.tab_manager.is_sync_playhead_enabled
+        self.local_settings.synchronization.sync_playhead = self.tab_manager.sync_playhead_state
         self.local_settings.synchronization.sync_zoom = self.tab_manager.is_sync_zoom_enabled
         self.local_settings.synchronization.sync_scroll = self.tab_manager.is_sync_scroll_enabled
         self.local_settings.synchronization.autofit_all_views = self.tab_manager.autofit_btn.isChecked()
@@ -134,7 +134,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         return self.loop.to_thread_named("SaveSettings", SettingsManager.save_local, self.content, self.local_settings)
 
     def init_load(self, frame: int | None = None, tab_index: int | None = None) -> None:
-        self.tab_manager.sync_playhead_btn.setChecked(self.local_settings.synchronization.sync_playhead)
+        self.tab_manager.sync_playhead_btn.set_state(state=self.local_settings.synchronization.sync_playhead)
         self.tab_manager.sync_zoom_btn.setChecked(self.local_settings.synchronization.sync_zoom)
         self.tab_manager.sync_scroll_btn.setChecked(self.local_settings.synchronization.sync_scroll)
         self.tab_manager.autofit_btn.setChecked(self.local_settings.synchronization.autofit_all_views)
@@ -254,7 +254,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
 
     def _on_local_settings_changed(self) -> None:
         if hasattr(self, "content"):
-            self.tab_manager.sync_playhead_btn.setChecked(self.local_settings.synchronization.sync_playhead)
+            self.tab_manager.sync_playhead_btn.set_state(state=self.local_settings.synchronization.sync_playhead)
             self.tab_manager.sync_zoom_btn.setChecked(self.local_settings.synchronization.sync_zoom)
             self.tab_manager.sync_scroll_btn.setChecked(self.local_settings.synchronization.sync_scroll)
             self.tab_manager.autofit_btn.setChecked(self.local_settings.synchronization.autofit_all_views)

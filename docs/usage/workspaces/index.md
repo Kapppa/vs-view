@@ -40,7 +40,12 @@ Additionally, the top-right corner of the tab bar contains buttons that control 
 <figure markdown="span">
     ![](../../assets/workspace_tab_buttons.png){ loading=lazy }
 </figure>
-- **Sync playhead**: Links timeline position across outputs. Seeking in one tab moves all tabs to the same frame/time.
+- **Sync playhead**: Cycles through four modes for cross-tab timeline sync:
+    - **Adaptive link**: Follows the current Timeline display mode (Time or Frame).
+    - **Link by time**: Seeks all tabs to matching timestamps.
+    - **Link by frame**: Seeks all tabs to matching frame numbers.
+    - **Unlink**: Disables cross-tab playhead sync.
+    The tooltip updates live to show the current active mode.
 - **Sync zoom**: Links zoom level across outputs. Zooming in one tab applies the same zoom to all tabs.
 - **Sync scroll**: Links pan/scroll position across outputs. Panning in one tab updates the viewed region in all tabs.
 - **Autofit all views**: Automatically fits each output to the Frame Viewer viewport when enabled.

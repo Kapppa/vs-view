@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
+from enum import IntEnum
 from functools import partial
+from itertools import cycle, islice
 from logging import getLogger
-from typing import overload
+from typing import Self, overload
 
 from jetpytools import fallback
-from PySide6.QtCore import QSignalBlocker, Qt, QTimer, Signal
-from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
+from PySide6.QtCore import QSignalBlocker, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QIcon, QImage, QPixmap
+from PySide6.QtWidgets import QHBoxLayout, QToolButton, QVBoxLayout, QWidget
 
 from ...assets import IconName, IconReloadMixin
 from ...vsenv import run_in_loop
@@ -20,6 +22,88 @@ from ..views import GraphicsView
 from ..views.tab import TabLabel, TabViewWidget
 
 logger = getLogger(__name__)
+
+
+class PlayHeadToolButton(QToolButton, IconReloadMixin):
+    """Four-state QToolButton for syncing play head."""
+
+    class State(IntEnum):
+        UNLINK = 0, IconName.UNLINK
+        LINK_ADAPT = 1, IconName.LINK
+        LINK_TIME = 2, IconName.LINK_2
+        LINK_FRAME = 3, IconName.LINK_3
+
+        icon_name: IconName
+
+        def __new__(cls, value: int, icon_name: IconName) -> Self:
+            obj = int.__new__(cls, value)
+            obj._value_ = value
+            obj.icon_name = icon_name
+            return obj
+
+    stateChanged = Signal(State)
+    _TOOLTIP_MODE_TEXT: Mapping[State, str] = {
+        State.LINK_ADAPT: "Adaptive link (uses current timeline mode: time or frame)",
+        State.LINK_TIME: "Link by time",
+        State.LINK_FRAME: "Link by frame",
+        State.UNLINK: "Unlink",
+    }
+    _TOOLTIP_MODE_ORDER = (State.LINK_ADAPT, State.LINK_TIME, State.LINK_FRAME, State.UNLINK)
+
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
+        self.setCheckable(True)
+        self.setChecked(True)
+        self.setIconSize(QSize(20, 20))
+
+        self._state_cycle = islice(cycle(PlayHeadToolButton.State), 1, None)
+        self._icons = list[QIcon]()
+        self.state = next(self._state_cycle)
+
+        self.reload_icons()
+        self.register_icon_callback(self.reload_icons)
+
+        self.clicked.connect(self.set_state)
+        self._update_tooltip()
+
+    def set_state(self, clicked: bool | None = None, state: int | None = None) -> None:
+        if state is None:
+            state = next(self._state_cycle)
+        elif state is not None and state not in PlayHeadToolButton.State:
+            logger.warning("Unknown play head state %r", state)
+            state = PlayHeadToolButton.State.LINK_ADAPT
+
+        while self.state != state:
+            self.state = next(self._state_cycle)
+
+        self.setChecked(bool(self.state))
+        self.setIcon(self._icons[self.state])
+        self._update_tooltip()
+        self.stateChanged.emit(self.state)
+
+    def reload_icons(self) -> None:
+        self._icons.clear()
+
+        for icon_name in (state.icon_name for state in PlayHeadToolButton.State):
+            icon_desc = {
+                mode_state: (icon_name, self.palette().color(*color_group_role))
+                for mode_state, color_group_role in self.DEFAULT_ICON_STATES.items()
+            }
+
+            self._icons.append(self.make_icon(icon_desc))
+
+        self.setIcon(self._icons[self.state])
+
+    def _update_tooltip(self) -> None:
+        lines = [
+            "Sync playhead between tabs.",
+            f"Current mode: {self._TOOLTIP_MODE_TEXT[self.state]}",
+            "Click to cycle modes:",
+        ]
+        for mode in self._TOOLTIP_MODE_ORDER:
+            prefix = "[x]" if self.state == mode else "[ ]"
+            lines.append(f"{prefix} {self._TOOLTIP_MODE_TEXT[mode]}")
+        self.setToolTip("\n".join(lines))
 
 
 class TabManager(QWidget, IconReloadMixin):
@@ -48,14 +132,7 @@ class TabManager(QWidget, IconReloadMixin):
         self.sync_layout.setContentsMargins(4, 0, 4, 0)
         self.sync_layout.setSpacing(2)
 
-        self.sync_playhead_btn = self.make_tool_button(
-            IconName.LINK,
-            "Link playhead between tabs.\nWhen enabled, seeking in one tab updates all tabs to the same frame/time.",
-            self,
-            checkable=True,
-            checked=True,
-            icon_states=self.DEFAULT_ICON_STATES,
-        )
+        self.sync_playhead_btn = PlayHeadToolButton(self)
         self.sync_zoom_btn = self.make_tool_button(
             IconName.MAGNIFYING_GLASS,
             "Link zoom between tabs.\nWhen enabled, zooming in one tab applies the same zoom level to all tabs.",
@@ -113,7 +190,7 @@ class TabManager(QWidget, IconReloadMixin):
 
     def _setup_shortcuts(self) -> None:
         sm = ShortcutManager()
-        sm.register_shortcut(ActionID.SYNC_PLAYHEAD, self.sync_playhead_btn.toggle, self)
+        sm.register_shortcut(ActionID.SYNC_PLAYHEAD, self.sync_playhead_btn.set_state, self)
         sm.register_shortcut(ActionID.SYNC_ZOOM, self.sync_zoom_btn.toggle, self)
         sm.register_shortcut(ActionID.SYNC_SCROLL, self.sync_scroll_btn.toggle, self)
         sm.register_shortcut(ActionID.AUTOFIT_ALL_VIEWS, self.autofit_btn.toggle, self)
@@ -128,8 +205,8 @@ class TabManager(QWidget, IconReloadMixin):
         return self.tabs.widget(self.tabs.previous_tab_index)
 
     @property
-    def is_sync_playhead_enabled(self) -> bool:
-        return self.sync_playhead_btn.isChecked()
+    def sync_playhead_state(self) -> PlayHeadToolButton.State:
+        return self.sync_playhead_btn.state
 
     @property
     def is_sync_zoom_enabled(self) -> bool:
