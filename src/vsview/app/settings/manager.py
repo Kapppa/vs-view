@@ -20,6 +20,8 @@ class SettingsSignals(QObject):
 
     globalChanged = Signal()
     localChanged = Signal(str)  # Emits the script path hash
+    aboutToSaveGlobal = Signal()
+    aboutToSaveLocal = Signal(str)  # Emits the script path hash
 
 
 class SettingsManager(Singleton):
@@ -83,6 +85,7 @@ class SettingsManager(Singleton):
         path = path or GlobalSettings.path_env
 
         try:
+            self._signals.aboutToSaveGlobal.emit()
             if not self._noop:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(self._global_settings.model_dump_json(indent=2), encoding="utf-8")
@@ -110,6 +113,7 @@ class SettingsManager(Singleton):
         self._local_settings[path_hash] = settings
 
         try:
+            self._signals.aboutToSaveLocal.emit(str(settings_path))
             if not self._noop:
                 settings_path.parent.mkdir(parents=True, exist_ok=True)
                 settings_path.write_text(settings.model_dump_json(indent=2), encoding="utf-8")

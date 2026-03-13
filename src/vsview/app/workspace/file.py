@@ -1,6 +1,5 @@
 from base64 import b64decode, b64encode
 from collections.abc import Iterator, Sequence
-from concurrent.futures import Future
 from contextlib import contextmanager
 from importlib.util import find_spec
 from logging import getLogger
@@ -42,7 +41,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.setAcceptDrops(True)
 
         self._autosave_timer = QTimer(self, timerType=Qt.TimerType.VeryCoarseTimer)
-        self._autosave_timer.timeout.connect(self.save_settings)
+        self._autosave_timer.timeout.connect(lambda: SettingsManager.save_local(self.content, self.local_settings))
 
         self.load_btn.clicked.connect(self._on_open_file_button_clicked)
         self.error_load_btn.clicked.connect(self._on_open_file_button_clicked)
@@ -60,6 +59,8 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
             lambda checked: setattr(self.local_settings.synchronization, "autofit_all_views", checked)
         )
         self.tbar.playback_container.settingsChanged.connect(self._on_playback_settings_changed)
+
+        SettingsManager.signals.aboutToSaveLocal.connect(self.snapshot_settings)
         SettingsManager.signals.localChanged.connect(self._on_local_settings_changed)
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
@@ -89,7 +90,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.playback.stop()
 
         if hasattr(self, "content"):
-            self.save_settings().result()
+            SettingsManager.save_local(self.content, self.local_settings)
 
         return super().deleteLater()
 
@@ -104,7 +105,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
             suffix.lower() for file_filter in self.filters for suffix in to_arr(file_filter.suffix) if suffix != "*"
         )
 
-    def save_settings(self) -> Future[None]:
+    def snapshot_settings(self) -> None:
         self.local_settings.last_frame = self.playback.state.current_frame
         self.local_settings.last_output_tab_index = self.tab_manager.tabs.currentIndex()
         self.local_settings.synchronization.sync_playhead = self.tab_manager.sync_playhead_state
@@ -130,8 +131,6 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.local_settings.layout.plugin_splitter_sizes = self.plugin_splitter.sizes()
         self.local_settings.layout.plugin_tab_index = self.plugin_splitter.plugin_tabs.currentIndex()
         self.local_settings.layout.dock_state = b64encode(self.dock_container.saveState().data()).decode("ascii")
-
-        return self.loop.to_thread_named("SaveSettings", SettingsManager.save_local, self.content, self.local_settings)
 
     def init_load(self, frame: int | None = None, tab_index: int | None = None) -> None:
         self.tab_manager.sync_playhead_btn.set_state(state=self.local_settings.synchronization.sync_playhead)

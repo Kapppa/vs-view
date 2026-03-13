@@ -435,6 +435,12 @@ class PluginAPI(_PluginAPI):
         localSettingsChanged = Signal(str)
         """Signal to emit when local settings change."""
 
+        aboutToSaveGlobal = Signal()
+        """Signal to emit before global settings are saved."""
+
+        aboutToSaveLocal = Signal(str)  # path
+        """Signal to emit before local settings are saved."""
+
     @property
     def file_path(self) -> Path | None:
         """Return the file path of the currently loaded file, or None if not a file."""

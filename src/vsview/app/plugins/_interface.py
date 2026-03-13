@@ -160,6 +160,8 @@ class _PluginAPI(QObject):
     statusMessage = Signal(str)
     globalSettingsChanged = Signal()
     localSettingsChanged = Signal(str)
+    aboutToSaveGlobal = Signal()
+    aboutToSaveLocal = Signal(str)
 
     def __init__(self, workspace: LoaderWorkspace[Any]) -> None:
         super().__init__()
@@ -168,6 +170,8 @@ class _PluginAPI(QObject):
 
         SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
         SettingsManager.signals.localChanged.connect(self._on_local_settings_changed)
+        SettingsManager.signals.aboutToSaveGlobal.connect(self.aboutToSaveGlobal.emit)
+        SettingsManager.signals.aboutToSaveLocal.connect(self.aboutToSaveLocal.emit)
 
     @property
     def voutputs(self) -> list[VideoOutputProxy]:
