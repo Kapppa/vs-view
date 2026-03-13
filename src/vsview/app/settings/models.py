@@ -1395,17 +1395,6 @@ class LocalSettings(BaseSettings):
 
     __section__ = "General"
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    background_color: Annotated[
-        QColor,
-        BeforeValidator(lambda v: QColor(v)),
-        PlainSerializer(lambda c: c.name()),
-        ColorPicker(
-            label="Background Color", to_ui=lambda c: c.name(), from_ui=lambda s, qcolor_t=QColor: qcolor_t(s).name()
-        ),
-    ] = QColor(Qt.GlobalColor.black)
-
     source_path: str = ""
     last_frame: int = 0
     last_output_tab_index: Annotated[int, AfterValidator(lambda i: max(0, i))] = 0
