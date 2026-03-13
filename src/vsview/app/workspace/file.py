@@ -46,18 +46,6 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.load_btn.clicked.connect(self._on_open_file_button_clicked)
         self.error_load_btn.clicked.connect(self._on_open_file_button_clicked)
 
-        self.tab_manager.sync_playhead_btn.stateChanged.connect(
-            lambda state: setattr(self.local_settings.synchronization, "sync_playhead", state)
-        )
-        self.tab_manager.sync_zoom_btn.toggled.connect(
-            lambda checked: setattr(self.local_settings.synchronization, "sync_zoom", checked)
-        )
-        self.tab_manager.sync_scroll_btn.toggled.connect(
-            lambda checked: setattr(self.local_settings.synchronization, "sync_scroll", checked)
-        )
-        self.tab_manager.autofit_btn.toggled.connect(
-            lambda checked: setattr(self.local_settings.synchronization, "autofit_all_views", checked)
-        )
         self.tbar.playback_container.settingsChanged.connect(self._on_playback_settings_changed)
 
         SettingsManager.signals.aboutToSaveLocal.connect(self.snapshot_settings)
