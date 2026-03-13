@@ -16,6 +16,8 @@ from ..app.plugins import (
 from ..app.settings.models import (
     ActionDefinition,
     Checkbox,
+    ColorPicker,
+    ColorPickerInput,
     DoubleSpin,
     Dropdown,
     LineEdit,
@@ -45,6 +47,8 @@ __all__ = [
     "AudioOutputProxy",
     "BaseGraphicsView",
     "Checkbox",
+    "ColorPicker",
+    "ColorPickerInput",
     "DoubleSpin",
     "Dropdown",
     "Frame",

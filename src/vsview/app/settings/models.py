@@ -43,8 +43,8 @@ from pydantic import (
     model_serializer,
 )
 from pygments.styles import get_all_styles as get_pygments_styles
-from PySide6.QtCore import Qt, QTime
-from PySide6.QtGui import QColor, QKeySequence
+from PySide6.QtCore import Qt, QTime, Signal
+from PySide6.QtGui import QColor, QKeySequence, QMouseEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QColorDialog,
@@ -52,6 +52,7 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QHBoxLayout,
     QInputDialog,
+    QLabel,
     QLineEdit,
     QListWidget,
     QPlainTextEdit,
@@ -63,7 +64,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ...assets import ICON_PROVIDERS, IconName, IconReloadMixin
+from ...assets import ICON_PROVIDERS, IconName, IconReloadMixin, get_monospace_font
 from ...env import getenv_bool
 from .enums import Resizer
 from .secrets import SecretsManager
@@ -224,6 +225,104 @@ class Login(WidgetMetadata[LoginCredentialsInput]):
 
         if username:
             SecretsManager.set(self.namespace, self.context, username, password)
+
+
+class ColorPickerInput(QWidget):
+    """Widget for selecting a color with a preview swatch and a hex entry."""
+
+    class Swatch(QLabel):
+        """Swatch widget for displaying a color."""
+
+        clicked = Signal()
+
+        def __init__(self, parent: QWidget | None = None) -> None:
+            super().__init__(parent)
+
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+            if event.button() == Qt.MouseButton.LeftButton:
+                self.clicked.emit()
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        self.setLayout(layout := QHBoxLayout(self))
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        self.swatch = self.Swatch(self)
+        self.swatch.setFixedSize(20, 20)
+        self.swatch.clicked.connect(self._pick_color)
+        layout.addWidget(self.swatch)
+
+        self.hex_edit = QLineEdit(self, maxLength=9, placeholderText="#RRGGBBAA", alignment=Qt.AlignmentFlag.AlignRight)
+        self.hex_edit.setFont(get_monospace_font())
+        self.hex_edit.setFixedWidth(self.hex_edit.fontMetrics().horizontalAdvance("#FFFFFFFF") + 5)
+        self.hex_edit.editingFinished.connect(self._on_hex_edited)
+
+        layout.addWidget(self.hex_edit)
+
+        layout.addStretch()
+
+        self._color = QColor(Qt.GlobalColor.white)
+        self._update_ui()
+
+    @property
+    def color(self) -> QColor:
+        return self._color
+
+    @color.setter
+    def color(self, value: QColor) -> None:
+        if value.isValid():
+            self._color = value
+            self._update_ui()
+
+    def _update_ui(self) -> None:
+        self.swatch.setStyleSheet(
+            f"background-color: {self._color.name()}; border: 1px solid gray; border-radius: 3px;"
+        )
+        if not self.hex_edit.hasFocus():
+            self.hex_edit.setText(self._color.name().upper())
+
+    def _on_hex_edited(self) -> None:
+        text = self.hex_edit.text()
+        if QColor.isValidColorName(text):
+            self._color = QColor(text)
+            self._update_ui()
+        else:
+            self._update_ui()  # Revert to current color if invalid
+
+    def _pick_color(self) -> None:
+        color = QColorDialog.getColor(
+            self._color,
+            self,
+            "Select Color",
+            QColorDialog.ColorDialogOption.ShowAlphaChannel,
+        )
+        if color.isValid():
+            self.color = color
+
+
+@dataclass(frozen=True, slots=True)
+class ColorPicker(WidgetMetadata[ColorPickerInput]):
+    """ColorPicker widget metadata."""
+
+    def create_widget(self, parent: QWidget | None = None) -> ColorPickerInput:
+        return ColorPickerInput(parent)
+
+    def load_value(self, widget: ColorPickerInput, value: Any) -> None:
+        with self.apply_transform(value, self.to_ui) as value:
+            if isinstance(value, str):
+                widget.color = QColor(value)
+            elif isinstance(value, QColor):
+                widget.color = value
+
+    def get_value(self, widget: ColorPickerInput) -> Any:
+        with self.apply_transform(widget.color, self.from_ui) as value:
+            if isinstance(value, QColor):
+                return value.name()
+            return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -1295,6 +1394,17 @@ class LocalSettings(BaseSettings):
     """
 
     __section__ = "General"
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    background_color: Annotated[
+        QColor,
+        BeforeValidator(lambda v: QColor(v)),
+        PlainSerializer(lambda c: c.name()),
+        ColorPicker(
+            label="Background Color", to_ui=lambda c: c.name(), from_ui=lambda s, qcolor_t=QColor: qcolor_t(s).name()
+        ),
+    ] = QColor(Qt.GlobalColor.black)
 
     source_path: str = ""
     last_frame: int = 0

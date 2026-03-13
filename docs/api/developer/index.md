@@ -54,6 +54,9 @@ Most of these symbols are re-exported through the top-level `vsview.api` module 
            - TimeEdit
            - BaseGraphicsView
            - PluginGraphicsView
+           - ListEditWidget
+           - LoginCredentialsInput
+           - ColorPickerInput
 
 ## UI Settings
 
@@ -67,7 +70,10 @@ Most of these symbols are re-exported through the top-level `vsview.api` module 
            - Spin
            - DoubleSpin
            - PlainTextEdit
+           - ListEdit
            - WidgetTimeEdit
+           - Login
+           - ColorPicker
 
 
 ## Timeline & Playback
