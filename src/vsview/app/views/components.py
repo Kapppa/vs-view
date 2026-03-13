@@ -89,13 +89,17 @@ class SegmentedControl(QWidget):
 
     def _update_button_colors(self) -> None:
         states = {
-            True: QPalette.ColorRole.Mid,
-            False: QPalette.ColorRole.ToolTipText,
+            True: QPalette.ColorRole.Base,
+            False: QPalette.ColorRole.ButtonText,
         }
 
         for btn in self.buttons:
-            palette = btn.palette()
-            palette.setColor(QPalette.ColorRole.ButtonText, palette.color(states[btn.isChecked()]))
+            palette = self.palette()
+            palette.setColor(
+                QPalette.ColorGroup.All,
+                QPalette.ColorRole.ButtonText,
+                palette.color(states[btn.isChecked()]),
+            )
             btn.setPalette(palette)
 
     def _on_button_clicked(self, button_id: int) -> None:
