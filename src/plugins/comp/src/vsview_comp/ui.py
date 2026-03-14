@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QCheckBox,
+    QCompleter,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -40,7 +41,7 @@ from shiboken6 import Shiboken
 from vapoursynth import RGB24, VideoNode
 from vstools import core, get_prop
 
-from vsview.api import NonClosingMenu, PluginAPI, Time, VideoOutputProxy, run_in_background, run_in_loop
+from vsview.api import LineEdit, NonClosingMenu, PluginAPI, Time, VideoOutputProxy, run_in_background, run_in_loop
 
 from .models import TMDBTitle
 
@@ -982,3 +983,40 @@ class TagsListPopup(AnchoredListPopup):
 
         self.tagPicked.emit(*data)
         self.hide()
+
+
+class PlaceholderLineEdit(QLineEdit):
+    def __init__(self, items: list[str], parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._completer = QCompleter(items, self)
+        self._completer.setWidget(self)
+        self._completer.activated.connect(self._on_completer_activated)
+
+    def keyPressEvent(self, e: QKeyEvent) -> None:
+        if (
+            (p := self._completer.popup())
+            and p.isVisible()
+            and e.key() in (Qt.Key.Key_Enter, Qt.Key.Key_Return, Qt.Key.Key_Tab)
+        ):
+            return e.ignore()
+
+        super().keyPressEvent(e)
+
+        popup = self._completer.popup()
+        i = self.text().rfind("{", 0, self.cursorPosition())
+        if i != -1 and "}" not in self.text()[i : self.cursorPosition()] and popup:
+            self._completer.setCompletionPrefix(self.text()[i + 1 : self.cursorPosition()])
+            self._completer.complete()
+        elif popup:
+            popup.hide()
+
+    def _on_completer_activated(self, s: str) -> None:
+        t, p = self.text(), self.cursorPosition()
+        i = t.rfind("{", 0, p)
+        self.setText(f"{t[:i]}{{{s}}}{t[p:]}")
+        self.setCursorPosition(i + len(s) + 2)
+
+
+class LineEditCompleter(LineEdit):
+    def create_widget(self, parent: QWidget | None = None) -> QLineEdit:
+        return PlaceholderLineEdit([*TMDBTitle.format_hints, "vs_names"], parent)

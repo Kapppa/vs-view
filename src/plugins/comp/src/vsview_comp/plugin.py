@@ -38,7 +38,6 @@ from vsview.api import (
     FrameEdit,
     IconName,
     IconReloadMixin,
-    LineEdit,
     Login,
     PluginAPI,
     SegmentedControl,
@@ -55,6 +54,7 @@ from .models import ComparisonImage, ComparisonSource, TMDBTitle
 from .ui import (
     FrameSourceProvider,
     FrameThumbnailList,
+    LineEditCompleter,
     MainCompWidget,
     OutputDropdown,
     ProgressBar,
@@ -70,7 +70,7 @@ logger = getLogger(__name__)
 class GlobalSettings(BaseModel):
     tmdb_format: Annotated[
         str,
-        LineEdit(
+        LineEditCompleter(
             label="TMDB Format name",
             tooltip="The format used for the 'Collection' name when a TMDB show is selected.\n"
             'This is only applied if the "Collection" field is currently empty.\n\n'
