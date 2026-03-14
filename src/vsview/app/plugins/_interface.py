@@ -194,6 +194,7 @@ class _PluginAPI(QObject):
             self.__settings_store = _PluginSettingsStore(self.__workspace)
         return self.__settings_store
 
+    @run_in_loop(return_future=False)
     def _is_truly_visible(self, plugin: WidgetPluginBase[Any, Any]) -> bool:
         # Check if this plugin is truly visible to the user.
 
@@ -238,7 +239,7 @@ class _PluginAPI(QObject):
             if not self._is_truly_visible(plugin):
                 continue
 
-            for view in plugin.findChildren(PluginGraphicsView):
+            for view in self.__workspace.loop.from_thread(plugin.findChildren, PluginGraphicsView).result():
                 if view.current_tab in view.outputs and self.__workspace.playback.state.buffer:
                     self.__workspace.playback.state.buffer.register_plugin_node(
                         plugin.identifier, view.outputs[view.current_tab]
@@ -272,12 +273,13 @@ class _PluginAPI(QObject):
             logger.exception("on_current_frame_changed: Failed to initialize plugin %r", plugin)
             return
 
-        for view in plugin.findChildren(PluginGraphicsView):
+        for view in self.__workspace.loop.from_thread(plugin.findChildren, PluginGraphicsView).result():
             try:
                 self._init_view(view, plugin, refresh)
             except Exception:
                 logger.exception("Failed to initialize view %r", view)
 
+    @run_in_loop(return_future=False)
     def _find_plugin_for_widget(self, widget: QWidget) -> WidgetPluginBase[Any, Any] | None:
         from .api import WidgetPluginBase
 
@@ -342,7 +344,7 @@ class _PluginAPI(QObject):
 
             plugin.on_current_frame_changed(n)
 
-            for view in plugin.findChildren(PluginGraphicsView):
+            for view in self.__workspace.loop.from_thread(plugin.findChildren, PluginGraphicsView).result():
                 if view.current_tab == -1 or view.current_tab not in view.outputs:
                     continue
 
