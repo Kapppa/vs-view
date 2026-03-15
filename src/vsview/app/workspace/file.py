@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 from base64 import b64decode, b64encode
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
+from functools import wraps
 from importlib.util import find_spec
 from logging import getLogger
 from pathlib import Path
-from typing import Any, ClassVar, NamedTuple
+from typing import Any, ClassVar, Concatenate, NamedTuple, overload
 
 from jetpytools import cachedproperty, to_arr
 from PySide6.QtCore import QByteArray, Qt, QTimer
@@ -20,6 +23,45 @@ from ..settings.models import LocalSettings
 from .loader import LoaderWorkspace, VSEngineWorkspace
 
 logger = getLogger(__name__)
+
+
+@overload
+def requires_content[W: GenericFileWorkspace, **P, R](
+    func: Callable[Concatenate[W, P], R],
+) -> Callable[Concatenate[W, P], R | None]: ...
+
+
+@overload
+def requires_content[W: GenericFileWorkspace, **P, R0, R1](
+    *,
+    return_fallback: Callable[[], R1],
+) -> Callable[[Callable[Concatenate[W, P], R0]], Callable[Concatenate[W, P], R0 | R1]]: ...
+
+
+def requires_content[W: GenericFileWorkspace, **P, R0, R1](
+    func: Callable[Concatenate[W, P], R0] | None = None,
+    return_fallback: Callable[[], R1 | None] | None = None,
+) -> (
+    Callable[Concatenate[W, P], R0 | None]
+    | Callable[[Callable[Concatenate[W, P], R0]], Callable[Concatenate[W, P], R0 | R1]]
+):
+    """Decorator that checks if the 'content' attribute exists before executing the method."""
+
+    def decorator(func: Callable[Concatenate[W, P], Any]) -> Callable[Concatenate[W, P], Any]:
+        @wraps(func)
+        def wrapper(self: W, *args: P.args, **kwargs: P.kwargs) -> Any:
+            if hasattr(self, "content"):
+                return func(self, *args, **kwargs)
+
+            if return_fallback:
+                logger.debug("Content is not available, returning fallback value")
+                return return_fallback()
+
+            return None
+
+        return wrapper
+
+    return decorator if func is None else decorator(func)
 
 
 class GenericFileWorkspace(LoaderWorkspace[Path]):
@@ -41,15 +83,15 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.setAcceptDrops(True)
 
         self._autosave_timer = QTimer(self, timerType=Qt.TimerType.VeryCoarseTimer)
-        self._autosave_timer.timeout.connect(lambda: SettingsManager.save_local(self.content, self.local_settings))
+        self._autosave_timer.timeout.connect(self._on_autosave_timer_timeout)
 
         self.load_btn.clicked.connect(self._on_open_file_button_clicked)
         self.error_load_btn.clicked.connect(self._on_open_file_button_clicked)
 
         self.tbar.playback_container.settingsChanged.connect(self._on_playback_settings_changed)
 
-        SettingsManager.signals.aboutToSaveLocal.connect(self.snapshot_settings)
-        SettingsManager.signals.localChanged.connect(self._on_local_settings_changed)
+        SettingsManager.signals.aboutToSaveLocal.connect(lambda _: self.snapshot_settings())
+        SettingsManager.signals.localChanged.connect(lambda _: self._on_local_settings_changed())
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         if self._get_supported_drop_file(event) is not None:
@@ -83,6 +125,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         return super().deleteLater()
 
     @property
+    @requires_content(return_fallback=lambda: SettingsManager.default_local_settings)
     def local_settings(self) -> LocalSettings:
         """Return the local settings for this workspace."""
         return SettingsManager.get_local_settings(self.content)
@@ -93,6 +136,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
             suffix.lower() for file_filter in self.filters for suffix in to_arr(file_filter.suffix) if suffix != "*"
         )
 
+    @requires_content
     def snapshot_settings(self) -> None:
         self.local_settings.last_frame = self.playback.state.current_frame
         self.local_settings.last_output_tab_index = self.tab_manager.tabs.currentIndex()
@@ -149,6 +193,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
 
         PluginManager.populate_default_settings("local", self.content)
 
+    @requires_content(return_fallback=dict[int, Any])
     def get_output_metadata(self) -> dict[int, Any]:
         return output_metadata.get(str(self.content), {})
 
@@ -239,12 +284,16 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.local_settings.playback.speed = speed
         self.local_settings.playback.uncapped = uncapped
 
+    @requires_content
     def _on_local_settings_changed(self) -> None:
-        if hasattr(self, "content"):
-            self.tab_manager.sync_playhead_btn.set_state(state=self.local_settings.synchronization.sync_playhead)
-            self.tab_manager.sync_zoom_btn.setChecked(self.local_settings.synchronization.sync_zoom)
-            self.tab_manager.sync_scroll_btn.setChecked(self.local_settings.synchronization.sync_scroll)
-            self.tab_manager.autofit_btn.setChecked(self.local_settings.synchronization.autofit_all_views)
+        self.tab_manager.sync_playhead_btn.set_state(state=self.local_settings.synchronization.sync_playhead)
+        self.tab_manager.sync_zoom_btn.setChecked(self.local_settings.synchronization.sync_zoom)
+        self.tab_manager.sync_scroll_btn.setChecked(self.local_settings.synchronization.sync_scroll)
+        self.tab_manager.autofit_btn.setChecked(self.local_settings.synchronization.autofit_all_views)
+
+    @requires_content
+    def _on_autosave_timer_timeout(self) -> None:
+        SettingsManager.save_local(self.content, self.local_settings)
 
 
 class VideoFileWorkspace(GenericFileWorkspace):
