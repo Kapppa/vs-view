@@ -1,6 +1,8 @@
 import faulthandler
 import os
+import shlex
 import sys
+from itertools import chain
 from logging import DEBUG, getLogger
 from pathlib import Path
 from signal import SIG_DFL, SIGINT, signal
@@ -163,11 +165,23 @@ script_arg_opt = Option(
     help="Argument passed to the script environment. Can be specified multiple times.",
 )
 
+qt_arg_opt = Option(
+    "--qt-arg",
+    "-q",
+    metavar="ARG",
+    help=(
+        "Pass an argument directly to the underlying Qt application. "
+        "Can be specified multiple times, or as a single quoted string of multiple flags "
+        '(e.g. -q "-platform offscreen -geometry 1920x1080").'
+    ),
+)
+
 
 @app.command()
 def vsview_cli(
     files: Annotated[list[Path] | None, input_file_arg] = None,
     arg: Annotated[list[str] | None, script_arg_opt] = None,
+    qt_arg: Annotated[list[str] | None, qt_arg_opt] = None,
     settings_path: Annotated[bool, settings_path_opt] = False,
     settings_wipe: Annotated[bool, settings_wipe_opt] = False,
     settings_wipe_all: Annotated[bool, settings_wipe_all_opt] = False,
@@ -190,7 +204,10 @@ def vsview_cli(
     # Set signal handler to default to allow Ctrl+C to work
     signal(SIGINT, SIG_DFL)
 
-    app = Application(sys.argv, no_settings=no_settings)
+    app = Application(
+        [sys.argv[0], *chain.from_iterable(shlex.split(q) for q in qt_arg or [])],
+        no_settings=no_settings,
+    )
 
     PluginManager.load()
     load_fonts()

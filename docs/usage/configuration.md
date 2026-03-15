@@ -60,6 +60,19 @@ vsview [OPTIONS] [FILES]...
         All values are passed as **strings**.
         Your script is responsible for any type conversion.
 
+#### `--qt-arg` / `-q` `ARG`
+:   Pass an argument directly to the underlying Qt (PySide6) application.
+
+    You can specify multiple arguments by repeating the flag or by using a quoted string.
+
+    ```bash
+    # Single quoted string (recommended)
+    vsview --qt-arg "-platform offscreen -geometry 1920x1080"
+
+    # Multiple flags
+    vsview -q -platform -q offscreen -q -geometry -q 1920x1080
+    ```
+
 #### `--settings-path`
 :   Print to stdout the resolved `global_settings.json` path and exit.
 
