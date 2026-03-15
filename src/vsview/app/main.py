@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from logging import getLogger
 from pathlib import Path
 from typing import Any, cast
 
-from jetpytools import copy_signature
 from PySide6.QtCore import (
     QEasingCurve,
     QEvent,
@@ -48,11 +47,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from shiboken6 import Shiboken
+from vsengine.loops import set_loop
 
 from ..assets import IconReloadMixin, app_icon
-from ..vsenv import gc_collect, get_policy, unregister_policy
+from ..vsenv import QtEventLoop, gc_collect, get_policy, unregister_policy
 from .plugins.manager import PluginManager
-from .settings import ActionID, SettingsManager, ShortcutManager
+from .settings import ActionID, SecretsManager, SettingsManager, ShortcutManager
 from .settings.dialog import SettingsDialog, ShortcutEditor
 from .settings.models import WindowGeometry
 from .views import StatusWidget
@@ -69,9 +69,19 @@ logger = getLogger(__name__)
 
 
 class Application(QApplication):
-    @copy_signature(QApplication.__init__)
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        arguments: Sequence[str],
+        /,
+        no_settings: bool,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(arguments, **kwargs)
+
+        SettingsManager(noop=no_settings)
+        set_loop(QtEventLoop(self))
+        ShortcutManager()
+        SecretsManager()
 
         self.setStyle(SettingsManager.global_settings.appearance.style or "")
         self.styleHints().setColorScheme(SettingsManager.global_settings.appearance.theme)

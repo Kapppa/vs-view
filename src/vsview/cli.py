@@ -7,15 +7,12 @@ from signal import SIG_DFL, SIGINT, signal
 from typing import Annotated
 
 from typer import Argument, BadParameter, Exit, Option, Typer, echo
-from vsengine.loops import set_loop
 
 from .app.main import Application, MainWindow
 from .app.plugins.manager import PluginManager
-from .app.settings import SecretsManager, SettingsManager, ShortcutManager
 from .app.settings.models import GlobalSettings
 from .assets import load_fonts
 from .logging import console, setup_logging
-from .vsenv import QtEventLoop
 
 logger = getLogger(__name__)
 
@@ -192,12 +189,8 @@ def vsview_cli(
 
     # Set signal handler to default to allow Ctrl+C to work
     signal(SIGINT, SIG_DFL)
-    app = Application(sys.argv)
 
-    set_loop(QtEventLoop())
-    SettingsManager(noop=no_settings)
-    ShortcutManager()
-    SecretsManager()
+    app = Application(sys.argv, no_settings=no_settings)
 
     PluginManager.load()
     load_fonts()

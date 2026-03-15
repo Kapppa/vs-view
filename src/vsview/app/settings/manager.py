@@ -7,6 +7,7 @@ from pathlib import Path
 from jetpytools import Singleton, inject_self
 from pydantic import ValidationError
 from PySide6.QtCore import QObject, QSignalBlocker, Signal
+from PySide6.QtWidgets import QApplication
 from rich.pretty import pretty_repr
 
 from ...env import getenv_bool
@@ -30,7 +31,7 @@ class SettingsManager(Singleton):
     def __init__(self, noop: bool = False) -> None:
         self._global_settings = self.default_global_settings
         self._local_settings = dict[str, LocalSettings]()  # Keyed by path hash
-        self._signals = SettingsSignals()
+        self._signals = SettingsSignals(QApplication.instance())
 
         self._noop = noop
 
