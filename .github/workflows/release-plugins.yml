@@ -38,13 +38,14 @@ jobs:
           # Extract plugin name
           plugin="${tag%%/v*}"
           echo "plugin=$plugin" >> "$GITHUB_OUTPUT"
+          echo "full_tag=$tag" >> "$GITHUB_OUTPUT"
 
           python .github/scripts/push_release_tags.py "$tag"
 
       - name: Trigger publish workflow
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run pypipublish.yml -f package=${{ steps.tag.outputs.plugin }}
+        run: gh workflow run pypipublish.yml -f package=${{ steps.tag.outputs.plugin }} --ref ${{ steps.tag.outputs.full_tag }}
 
       - name: Post webhook for failure
         if: failure()
