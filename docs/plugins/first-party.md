@@ -149,6 +149,7 @@ The toolbar provides **Import scene...** and **Export scene...** buttons for wor
 | Format | Extension |
 | :--- | :--- |
 | OGM Chapters | `.txt` |
+| QP File | `.qp` |
 | Python List (Frames) | `.txt` |
 | Python List (Timestamps) | `.txt` |
 

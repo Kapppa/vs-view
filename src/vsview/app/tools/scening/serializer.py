@@ -18,6 +18,15 @@ class OGMSerializer(Serializer):
                 wrapper.write(f"CHAPTER{i:02}NAME={label}\n")
 
 
+class QPFileSerializer(Serializer):
+    filter = Serializer.FileFilter("QP File", "qp")
+
+    def serialize(self, io: BinaryIO, ranges: Iterable[UnifiedRange]) -> None:
+        with borrowed_text_wrapper(io) as wrapper:
+            for r in ranges:
+                wrapper.write(f"{r.as_frames()[0]} K" + (f" {r.label}" if r.label else "") + "\n")
+
+
 class PythonListFramesSerializer(Serializer):
     filter = Serializer.FileFilter("Python List (Frames)", "txt")
 
@@ -38,6 +47,7 @@ class PythonListTimestampsSerializer(Serializer):
 
 internal_serializers: list[Serializer] = [
     OGMSerializer(),
+    QPFileSerializer(),
     PythonListFramesSerializer(),
     PythonListTimestampsSerializer(),
 ]
