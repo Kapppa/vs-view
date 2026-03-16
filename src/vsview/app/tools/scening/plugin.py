@@ -290,6 +290,11 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         r_header.setSectionResizeMode(RangeCol.START_TIME, QHeaderView.ResizeMode.Interactive)
         r_header.setSectionResizeMode(RangeCol.END_TIME, QHeaderView.ResizeMode.Interactive)
         r_header.setSectionResizeMode(RangeCol.LABEL, QHeaderView.ResizeMode.Stretch)
+        r_header.resizeSection(RangeCol.START_FRAME, 72)
+        r_header.resizeSection(RangeCol.END_FRAME, 72)
+        r_header.resizeSection(RangeCol.START_TIME, 88)
+        r_header.resizeSection(RangeCol.END_TIME, 88)
+        r_header.setMinimumSectionSize(67)
 
         v_header = self.ranges_view.verticalHeader()
         v_header.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
