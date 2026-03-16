@@ -75,6 +75,7 @@ class ShortcutDefinition(StrEnum):
     TOGGLE_RANGE_START = "toggle_range_start", "Toggle Range Start", "Q"
     TOGGLE_RANGE_END = "toggle_range_end", "Toggle Range End", "W"
     VALIDATE_RANGE = "validate_range", "Validate selected range", "E"
+    ADD_SINGLE_FRAME = "add_single_frame", "Add Single Frame", "R"
     REMOVE_RANGE = "remove_range", "Remove selected range", "Delete"
 
     SEEK_PREV_BOUND = "seek_prev_bound", "Seek to previous range boundary", "Ctrl+Left"
@@ -234,7 +235,23 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         self.add_range_action.setDisabled(True)
         self.add_range_action.triggered.connect(self.on_add_range_triggered)
 
-        range_toolbar.addActions([self.range_start_action, self.range_end_action, self.add_range_action])
+        self.add_frame_action = self.make_action(
+            IconName.FRAME_ADD,
+            "Add current selected frame as range without end boudary",
+            self.range_container,
+            icon_states=self.DEFAULT_ICON_STATES,
+        )
+        self.add_frame_action.setIconText("Add frame")
+        self.add_frame_action.triggered.connect(self.on_add_frame_triggered)
+
+        range_toolbar.addActions(
+            [
+                self.range_start_action,
+                self.range_end_action,
+                self.add_range_action,
+                self.add_frame_action,
+            ]
+        )
 
         self.ranges_model = RangeTableModel(self.range_container, self.api)
         self.ranges_model.rangesModified.connect(self._persist_scenes)
@@ -301,6 +318,11 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         self.api.register_action(
             ShortcutDefinition.VALIDATE_RANGE.definition,
             self.add_range_action,
+            context=Qt.ShortcutContext.WindowShortcut,
+        )
+        self.api.register_action(
+            ShortcutDefinition.ADD_SINGLE_FRAME.definition,
+            self.add_frame_action,
             context=Qt.ShortcutContext.WindowShortcut,
         )
         self.api.register_shortcut(
@@ -535,24 +557,19 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
 
         index = next(reversed(selected_indexes))
         scene: SceneRow = index.data(self.scenes_model.SceneRowRole)
+        self._add_range(self._pending_start, self._pending_end, scene)
 
-        r: RangeFrame | RangeTime
-        if isinstance(self._pending_start, Frame) and isinstance(self._pending_end, Frame):
-            s, e = sorted([self._pending_start, self._pending_end])
-            r = RangeFrame(start=s, end=e)
-        elif isinstance(self._pending_start, Time) and isinstance(self._pending_end, Time):
-            s, e = sorted([self._pending_start, self._pending_end])
-            r = RangeTime(start=s, end=e)
-        else:
+    def on_add_frame_triggered(self) -> None:
+        selected_indexes = self.scenes_view.selectionModel().selectedRows()
+
+        # Shouldn't happen
+        if not selected_indexes:
             raise NotImplementedError
 
-        self.ranges_model.add_range(r, scene)
-
-        self.ranges_view.scrollToBottom()
-        self.range_start_action.setChecked(False)
-        self.range_end_action.setChecked(False)
-
-        self.api.timeline.add_notch(scene.notch_id, [r.to_tuple()], scene.color, r.label, r.id)
+        index = next(reversed(selected_indexes))
+        scene: SceneRow = index.data(self.scenes_model.SceneRowRole)
+        current = self.api.current_frame if self.api.timeline.mode == "frame" else self.api.current_time
+        self._add_range(current, current, scene)
 
     def on_remove_range_triggered(self) -> None:
         if not (selected_indexes := self.ranges_view.selectionModel().selectedRows()):
@@ -579,6 +596,25 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
 
     def on_seek_next_range(self) -> None:
         self._seek_to_neighbor(self._get_visible_range_boundaries(starts_only=True), forward=True)
+
+    def _add_range(self, start: Frame | Time, end: Frame | Time, scene: SceneRow) -> None:
+        r: RangeFrame | RangeTime
+        if isinstance(start, Frame) and isinstance(end, Frame):
+            s, e = sorted([start, end])
+            r = RangeFrame(start=s, end=e)
+        elif isinstance(start, Time) and isinstance(end, Time):
+            s, e = sorted([start, end])
+            r = RangeTime(start=s, end=e)
+        else:
+            raise NotImplementedError
+
+        self.ranges_model.add_range(r, scene)
+
+        self.ranges_view.scrollToBottom()
+        self.range_start_action.setChecked(False)
+        self.range_end_action.setChecked(False)
+
+        self.api.timeline.add_notch(scene.notch_id, [r.to_tuple()], scene.color, r.label, r.id)
 
     def _persist_scenes(self) -> None:
         scenes = self.scenes_model.scenes.copy()
@@ -715,3 +751,4 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         set_text(self.range_start_action, ShortcutDefinition.TOGGLE_RANGE_START.definition, "Mark in")
         set_text(self.range_end_action, ShortcutDefinition.TOGGLE_RANGE_END.definition, "Mark out")
         set_text(self.add_range_action, ShortcutDefinition.VALIDATE_RANGE.definition, "Add range")
+        set_text(self.add_frame_action, ShortcutDefinition.ADD_SINGLE_FRAME.definition, "Add frame")

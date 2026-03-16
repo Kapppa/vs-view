@@ -52,6 +52,7 @@ class IconName(StrEnum):
     SCENE_ADD = "selection-plus"
     MARK_IN = "selection-background"
     MARK_OUT = "selection-foreground"
+    FRAME_ADD = "selection"
     SIDEBAR = "sidebar-simple"
 
 
@@ -156,9 +157,10 @@ class MaterialProvider(IconProvider):
         IconName.VOLUME_MUTE: "volume-off",
         IconName.FILE_IMPORT: "file-import",
         IconName.FILE_EXPORT: "file-export",
-        IconName.SCENE_ADD: "plus-box",
+        IconName.SCENE_ADD: "plus-box-multiple",
         IconName.MARK_IN: "step-backward",
         IconName.MARK_OUT: "step-forward",
+        IconName.FRAME_ADD: "plus-box",
         IconName.SIDEBAR: "page-layout-sidebar-right",
     }
 
@@ -210,8 +212,9 @@ class LucideProvider(IconProvider):
         IconName.FILE_IMPORT: "file-down",
         IconName.FILE_EXPORT: "file-up",
         IconName.SCENE_ADD: "square-plus",
-        IconName.MARK_IN: "step-back",
-        IconName.MARK_OUT: "step-forward",
+        IconName.MARK_IN: "square-chevron-left",
+        IconName.MARK_OUT: "square-chevron-right",
+        IconName.FRAME_ADD: "square-arrow-right-enter",
         IconName.SIDEBAR: "panel-right-open",
     }
 
