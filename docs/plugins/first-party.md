@@ -96,13 +96,20 @@ The upper panel manages **scenes**, which are named containers for ranges. Each 
 
 ### Adding Ranges
 
-The lower panel shows the ranges belonging to the selected scene. You build ranges using the **Mark in / Mark out** workflow:
+The lower panel shows the ranges belonging to the selected scene. You can either build ranges using the **Mark in / Mark out** workflow, or add the current frame directly as a single-frame range.
+
+Use the standard range workflow when you want a span:
 
 1. Navigate to the desired start frame on the timeline.
 2. Press ++q++ (or click **Mark in**) to set the start point.
 3. Navigate to the desired end frame.
 4. Press ++w++ (or click **Mark out**) to set the end point.
 5. Press ++e++ (or click **Add range**) to commit the range to the selected scene.
+
+Use the single-frame workflow when the range should start and end on the same frame:
+
+1. Navigate to the desired frame on the timeline.
+2. Press ++r++ (or click **Add frame**) to add that frame as a range to the selected scene.
 
 Each range displays its **Start Frame**, **End Frame**, **Start Time**, **End Time**, and an optional **Label**.
 
@@ -113,6 +120,7 @@ Each range displays its **Start Frame**, **End Frame**, **Start Time**, **End Ti
 | ++q++                | Toggle range start (Mark in)     |
 | ++w++                | Toggle range end (Mark out)      |
 | ++e++                | Validate / add the pending range |
+| ++r++                | Add the current frame as a range |
 | ++del++              | Remove selected range or scene   |
 | ++ctrl+left++        | Seek to previous range boundary  |
 | ++ctrl+right++       | Seek to next range boundary      |
