@@ -1,6 +1,14 @@
 import json
 import os
 import re
+from typing import TypedDict
+
+
+class PackageMetadata(TypedDict):
+    tag: str
+    package: str
+    path: str
+    build_args: str
 
 
 def main() -> None:
@@ -21,22 +29,28 @@ def main() -> None:
             target = match.group(1)
 
     # If a package needs special path or name handling, it would go there,
-    # Otherwise, we fallback to L39 and assumes we're publishing a plugin
-    # fmt: off
+    # Otherwise, we fallback to L37 and assumes we're publishing a plugin
     all_pkgs = [
-        {"tag": "vsview", "package": "vsview", "path": "."},
+        PackageMetadata(tag="vsview", package="vsview", path=".", build_args="--sdist --wheel"),
     ]
-    # fmt: on
 
     filtered = [p for p in all_pkgs if p["tag"] == target]
 
     if target == "vspackrgb":
         is_vspackrgb = "is-vspackrgb=true"
     else:
+        # Current package is not vspackrgb nor vsview.
+        # It is a plugin
         is_vspackrgb = "is-vspackrgb=false"
 
         if not filtered:
-            filtered.append({"tag": target, "package": f"vsview-{target}", "path": f"src/plugins/{target}"})
+            p = PackageMetadata(
+                tag=target,
+                package=f"vsview-{target}",
+                path=f"src/plugins/{target}",
+                build_args="--wheel",
+            )
+            filtered.append(p)
 
     output_file = os.getenv("GITHUB_OUTPUT")
     if not output_file:

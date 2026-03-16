@@ -66,21 +66,16 @@ jobs:
           enable-cache: true
 
       - name: Generate SBOM
-        working-directory: ${{ matrix.path }}
-        run: uv export --no-dev --format cyclonedx1.5 -o sboms.json
+        run: uv export --package "${{ matrix.package }}" --no-dev --format cyclonedx1.5 -o "${{ matrix.path }}/sboms.json"
 
       - name: Build
-        working-directory: ${{ matrix.path }}
-        run: uvx hatch build
+        run: uv build --package "${{ matrix.package }}" ${{ matrix.build_args }} --clear
 
       - name: Check the output
-        working-directory: ${{ matrix.path }}
         run: uvx twine check --strict dist/*
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: ${{ matrix.path }}/dist
 
       - name: Post webhook for failure
         if: failure()
@@ -114,8 +109,7 @@ jobs:
           enable-cache: true
 
       - name: Generate SBOM
-        working-directory: src/vspackrgb
-        run: uv export --no-dev --format cyclonedx1.5 -o sboms.json
+        run: uv export --package vspackrgb --no-dev --format cyclonedx1.5 -o src/vspackrgb/sboms.json
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3
@@ -148,14 +142,13 @@ jobs:
           enable-cache: true
 
       - name: Build sdist
-        working-directory: src/vspackrgb
-        run: uvx hatch build --target sdist
+        run: uv build --package vspackrgb --sdist --out-dir dist --clear
 
       - name: Upload sdist
         uses: actions/upload-artifact@v7
         with:
           name: sdist
-          path: src/vspackrgb/dist/*.tar.gz
+          path: dist/*.tar.gz
 
   # Publish vspackrgb after all builds complete
   vspackrgb_publish:
