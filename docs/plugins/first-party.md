@@ -133,25 +133,26 @@ The toolbar provides **Import scene...** and **Export scene...** buttons for wor
 
 #### Supported Import Formats
 
-| Format | Extension |
-| :--- | :--- |
-| Aegisub Advanced SSA | `.ass` |
-| OGM Chapters | `.txt` |
-| Matroska XML Chapters | `.xml` |
-| XviD Log | `.txt`, `.log` |
-| QP File | `.qp`, `.txt` |
-| Wobbly File | `.wob` |
-| Python List (Frames) | `.txt` |
-| Python List (Timestamps) | `.txt` |
+| Format                   | Extension      |
+| :----------------------- | :------------- |
+| Aegisub Advanced SSA     | `.ass`         |
+| OGM Chapters             | `.txt`         |
+| Matroska XML Chapters    | `.xml`         |
+| XviD Log                 | `.txt`, `.log` |
+| QP File                  | `.qp`, `.txt`  |
+| Wobbly File              | `.wob`         |
+| Python List (Frames)     | `.txt`         |
+| Python List (Timestamps) | `.txt`         |
 
 #### Supported Export Formats
 
-| Format | Extension |
-| :--- | :--- |
-| OGM Chapters | `.txt` |
-| QP File | `.qp` |
-| Python List (Frames) | `.txt` |
-| Python List (Timestamps) | `.txt` |
+| Format                   | Extension |
+| :----------------------- | :-------- |
+| OGM Chapters             | `.txt`    |
+| QP File                  | `.qp`     |
+| Python List (Frames)     | `.txt`    |
+| Python List (Timestamps) | `.txt`    |
+
 
 !!! Abstract "Extended Functionality"
     Developers can register custom parsers and serializers via the plugin hook system.
