@@ -599,14 +599,17 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
 
     def _add_range(self, start: Frame | Time, end: Frame | Time, scene: SceneRow) -> None:
         r: RangeFrame | RangeTime
-        if isinstance(start, Frame) and isinstance(end, Frame):
+
+        if isinstance(start, Frame):
+            if not isinstance(end, Frame):
+                end = self.api.current_voutput.time_to_frame(end)
             s, e = sorted([start, end])
             r = RangeFrame(start=s, end=e)
-        elif isinstance(start, Time) and isinstance(end, Time):
+        elif isinstance(start, Time):
+            if not isinstance(end, Time):
+                end = self.api.current_voutput.frame_to_time(end)
             s, e = sorted([start, end])
             r = RangeTime(start=s, end=e)
-        else:
-            raise NotImplementedError
 
         self.ranges_model.add_range(r, scene)
 
