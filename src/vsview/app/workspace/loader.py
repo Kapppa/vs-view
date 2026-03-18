@@ -66,7 +66,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         # API & plugins
         self.api = PluginAPI(self)
         self.cbs_on_destroy = list[Callable[[], Any]]()
-        self.plugins = list[WidgetPluginBase]()
+        self.plugins = list[WidgetPluginBase[Any, Any]]()
         self.docks = list[QDockWidget]()
         self.plugins_loaded = False
 
