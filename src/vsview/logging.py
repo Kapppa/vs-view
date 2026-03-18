@@ -68,8 +68,7 @@ def setup_logging(
 ) -> None:
     qInstallMessageHandler(_qt_message_handler)
 
-    # FIXME: Change that to INFO later
-    level = fallback(level, DEBUG)
+    level = fallback(level, INFO)
 
     # Root logger
     handler = CustomHandler(

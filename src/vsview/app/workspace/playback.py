@@ -531,11 +531,11 @@ class PlaybackManager(QObject):
             return
 
         if self._tbar.playback_container.settings.uncapped:
-            logger.debug("Uncapped settings detected, no audio will be played")
+            logger.info("Uncapped settings detected, no audio will be played")
             return
 
         if play_range.step != 1:
-            logger.debug("Audio skipped due to non-standard step")
+            logger.info("Audio skipped due to non-standard step")
             return
 
         if not aoutput.setup_sink(
