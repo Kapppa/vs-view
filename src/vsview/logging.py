@@ -1,6 +1,5 @@
 from collections.abc import Callable
-from copy import copy
-from logging import CRITICAL, DEBUG, ERROR, INFO, WARNING, Formatter, LogRecord, captureWarnings, getLogger
+from logging import CRITICAL, DEBUG, ERROR, INFO, WARNING, Filter, Formatter, LogRecord, captureWarnings, getLogger
 from threading import main_thread
 from typing import TypeGuard
 
@@ -42,6 +41,12 @@ def _qt_message_handler(mode: QtMsgType, context: QMessageLogContext, message: s
     getLogger(category).log(level, message, stacklevel=2)
 
 
+class EffectiveLevelFilter(Filter):
+    def filter(self, record: LogRecord) -> bool:
+        """Restores the level check for propagated records which Python skips by default."""
+        return record.levelno >= getLogger(record.name).getEffectiveLevel()
+
+
 class CustomHandler(RichHandler):
     def format(self, record: LogRecord) -> str:
         if record.args and record.name.startswith("vsview"):
@@ -51,10 +56,12 @@ class CustomHandler(RichHandler):
 
 class ThreadAwareFormatter(Formatter):
     def format(self, record: LogRecord) -> str:
-        if record.threadName == main_thread_name:
-            self._style._fmt = "{message}"
-        else:
-            self._style._fmt = "[{threadName}]: {message}"
+        fmt = "{message}" if record.name.startswith("vsview") else "{name}: {message}"
+
+        if record.threadName != main_thread_name:
+            fmt = f"[{record.threadName}]: {fmt}"
+
+        self._style._fmt = fmt
         return super().format(record)
 
 
@@ -70,38 +77,24 @@ def setup_logging(
 
     level = fallback(level, INFO)
 
-    # Root logger
+    # One handler to rule them all
     handler = CustomHandler(
         console=console,
         rich_tracebacks=True,
         log_time_format=lambda dt: Text("[{}.{:03d}]".format(dt.strftime("%H:%M:%S"), dt.microsecond // 1000)),
     )
-    handler.setFormatter(Formatter("{name}: {message}", style="{"))
+    handler.setFormatter(ThreadAwareFormatter(style="{"))
+    handler.addFilter(EffectiveLevelFilter())
 
     root_logger = getLogger()
     root_logger.setLevel(level)
     root_logger.addHandler(handler)
 
-    # Set VS level. Handler is the same as the root one
-    logger = getLogger("vapoursynth")
-    logger.setLevel(fallback(vs_level, level))
-
-    # Set custom formatter for vsview and vsengine
-    handler = copy(handler)
-    handler.setFormatter(ThreadAwareFormatter(style="{"))
-
-    logger = getLogger("vsview")
-    logger.setLevel(fallback(vsview_level, level))
-    logger.addHandler(handler)
-    logger.propagate = False
-
-    logger = getLogger("vsengine")
-    logger.setLevel(fallback(vsengine_level, level))
-    logger.addHandler(handler)
-    logger.propagate = False
-
-    logger = getLogger("qt")
-    logger.setLevel(fallback(qt_level, level))
+    # Set levels for specialized loggers—they will all propagate to the root handler
+    getLogger("vapoursynth").setLevel(fallback(vs_level, level))
+    getLogger("vsview").setLevel(fallback(vsview_level, level))
+    getLogger("vsengine").setLevel(fallback(vsengine_level, level))
+    getLogger("qt").setLevel(fallback(qt_level, level))
 
     if capture_warnings:
         import warnings
