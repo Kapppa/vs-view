@@ -763,21 +763,31 @@ class AppearanceSettings(BaseModel):
     __section__ = "Appearance"
 
     theme: Annotated[
-        Qt.ColorScheme,
+        Qt.ColorScheme | None,
         Dropdown(
             label="Theme",
             items=[
-                ("System Default", Qt.ColorScheme.Unknown),
+                ("System Default", None),
                 ("Light", Qt.ColorScheme.Light),
                 ("Dark", Qt.ColorScheme.Dark),
             ],
-            tooltip="Application theme",
+            tooltip=(
+                "Application theme.\n"  #
+                "You may have to restart the application for the changes to fully take effect."
+            ),
         ),
-    ] = Qt.ColorScheme.Unknown
+    ] = None
 
     style: Annotated[
         str | None,
-        Dropdown(label="Style", items=[(k.title(), k) for k in QStyleFactory.keys()], tooltip="Application style"),  # noqa: SIM118
+        Dropdown(
+            label="Style",
+            items=[(k.title(), k) for k in QStyleFactory.keys()],  # noqa: SIM118
+            tooltip=(
+                "Application style.\n"  #
+                "You may have to restart the application for the changes to fully take effect."
+            ),
+        ),
     ] = None
 
     icon_provider: Annotated[

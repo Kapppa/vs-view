@@ -84,10 +84,12 @@ class Application(QApplication):
         SecretsManager()
 
         self.setStyle(SettingsManager.global_settings.appearance.style or "")
-        self.styleHints().setColorScheme(SettingsManager.global_settings.appearance.theme)
+        if (theme := SettingsManager.global_settings.appearance.theme) is not None:
+            self.styleHints().setColorScheme(theme)
+        else:
+            self.styleHints().unsetColorScheme()
 
         SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
-
         self.installEventFilter(self)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
@@ -109,7 +111,12 @@ class Application(QApplication):
             self.setStyle(style_name)
             refresh_widgets = True
 
-        if (theme := SettingsManager.global_settings.appearance.theme) != self.styleHints().colorScheme():
+        if (theme := SettingsManager.global_settings.appearance.theme) is None:
+            old_theme = self.styleHints().colorScheme()
+            self.styleHints().unsetColorScheme()
+            if old_theme != self.styleHints().colorScheme():
+                refresh_widgets = True
+        elif theme != self.styleHints().colorScheme():
             self.styleHints().setColorScheme(theme)
             refresh_widgets = True
 
@@ -118,6 +125,7 @@ class Application(QApplication):
 
             for widget in self.allWidgets():
                 style.unpolish(widget)
+                style.polish(widget)
                 widget.ensurePolished()
                 widget.update()
 
