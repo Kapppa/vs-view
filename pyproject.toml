@@ -75,6 +75,7 @@ plugins = [
     "vsview-frameprops-extended",
     "vsview-audio-convert",
     "vsview-comp",
+    "vsview-nativeres",
 ]
 
 [project.scripts]
@@ -110,9 +111,6 @@ default-tag = "vsview/v0.0.0"
 
 [tool.versioningit.tag2version]
 rmprefix = "vsview/v"
-
-[tool.uv]
-override-dependencies = ["jetpytools"]
 
 [tool.uv.workspace]
 members = ["src/vspackrgb", "src/plugins/*"]
