@@ -49,6 +49,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QColorDialog,
     QComboBox,
+    QCompleter,
     QDoubleSpinBox,
     QHBoxLayout,
     QInputDialog,
@@ -496,12 +497,27 @@ class ListEditWidget[T](QWidget, IconReloadMixin):
     """Structured list editor with Add/Remove buttons."""
 
     def __init__(
-        self, value_type: type[T], parent: QWidget | None = None, default_value: T | Sequence[T] | None = None
+        self,
+        value_type: type[T],
+        parent: QWidget | None = None,
+        default_value: T | Sequence[T] | None = None,
+        dialog_label_text: str | None = None,
+        completions: Sequence[str] | None = None,
     ) -> None:
         super().__init__(parent)
         self.value_type = value_type
         self.adapter = TypeAdapter[T](value_type)
         self.default_value = default_value
+
+        self.dialog = QInputDialog(self)
+        self.dialog.setInputMode(QInputDialog.InputMode.TextInput)
+        self.dialog.setWindowTitle("Add Item")
+        self.dialog.setLabelText(dialog_label_text or f"Enter {self.value_type.__name__}:")
+        self.dialog.finished.connect(self._on_dialog_finished)
+
+        if completions and (line_edit := self.dialog.findChild(QLineEdit)):
+            completer = QCompleter(completions, line_edit, caseSensitivity=Qt.CaseSensitivity.CaseInsensitive)
+            line_edit.setCompleter(completer)
 
         self.setLayout(layout := QVBoxLayout(self))
         layout.setContentsMargins(0, 0, 0, 0)
@@ -518,7 +534,7 @@ class ListEditWidget[T](QWidget, IconReloadMixin):
         btn_layout.setSpacing(4)
 
         self.add_btn = self.make_tool_button(IconName.PLUS, "Add Item", self)
-        self.add_btn.clicked.connect(self._add_item)
+        self.add_btn.clicked.connect(self.dialog.open)
 
         self.remove_btn = self.make_tool_button(IconName.MINUS, "Remove Item", self)
         self.remove_btn.clicked.connect(self._remove_selected)
@@ -528,14 +544,14 @@ class ListEditWidget[T](QWidget, IconReloadMixin):
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
 
-    def _add_item(self) -> None:
-        text, ok = QInputDialog.getText(self, "Add Item", f"Enter {self.value_type.__name__}:")
-        if ok and text:
-            try:
-                self.adapter.validate_python(text)
-                self.list_widget.addItem(text)
-            except ValidationError as e:
-                logger.error("Invalid value: %s", e)
+    def _on_dialog_finished(self, result: int) -> None:
+        if not result:
+            return
+
+        if text := self.dialog.textValue():
+            self.validate_text(text)
+
+        self.dialog.setTextValue("")
 
     def _remove_selected(self) -> None:
         for item in self.list_widget.selectedItems():
@@ -564,6 +580,13 @@ class ListEditWidget[T](QWidget, IconReloadMixin):
         for v in values:
             self.list_widget.addItem(str(v))
 
+    def validate_text(self, text: str) -> None:
+        try:
+            self.adapter.validate_python(text)
+            self.list_widget.addItem(text)
+        except ValidationError as e:
+            logger.error("Invalid value: %s", e)
+
 
 @dataclass(frozen=True, slots=True)
 class ListEdit[T: SupportsRichComparison](WidgetMetadata[ListEditWidget[T]]):
@@ -575,8 +598,16 @@ class ListEdit[T: SupportsRichComparison](WidgetMetadata[ListEditWidget[T]]):
     default_value: T | Sequence[T] | None = field(default=None, kw_only=True)
     """Default value for the setting."""
 
+    _: KW_ONLY
+
+    dialog_label_text: str | None = None
+    """Label text for the dialog."""
+
+    completions: Sequence[str] | None = None
+    """Completions for the dialog."""
+
     def create_widget(self, parent: QWidget | None = None) -> ListEditWidget[T]:
-        return ListEditWidget(self.value_type, parent)
+        return ListEditWidget(self.value_type, parent, self.default_value, self.dialog_label_text, self.completions)
 
     def load_value(self, widget: ListEditWidget[T], value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
