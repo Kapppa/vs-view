@@ -107,7 +107,7 @@ class PluginManager(Singleton):
 
     @inject_self.property
     @ensure_loaded("entrypoints")
-    def all_plugins(self) -> set[type[WidgetPluginBase | NodeProcessor[Any]]]:
+    def all_plugins(self) -> list[type[WidgetPluginBase | NodeProcessor[Any]]]:
         all_plugins: set[Any] = {*self.tooldocks, *self.toolpanels}
 
         if vp := self.video_processor:
@@ -115,7 +115,7 @@ class PluginManager(Singleton):
         if ap := self.audio_processor:
             all_plugins.add(ap)
 
-        return all_plugins
+        return sorted(all_plugins, key=lambda p: p.identifier)
 
     @inject_self.property
     def loaded(self) -> bool:
