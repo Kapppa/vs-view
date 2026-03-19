@@ -427,6 +427,7 @@ class DoubleSpin(WidgetMetadata[QDoubleSpinBox]):
         widget.setMaximum(self.max)
         widget.setSuffix(self.suffix)
         widget.setDecimals(self.decimals)
+        widget.setStepType(QDoubleSpinBox.StepType.AdaptiveDecimalStepType)
         return widget
 
     def load_value(self, widget: QDoubleSpinBox, value: Any) -> None:
