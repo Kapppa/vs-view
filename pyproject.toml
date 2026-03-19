@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "versioningit"]
+requires = ["hatchling>=1.27.0", "versioningit"]
 build-backend = "hatchling.build"
 
 [project]
@@ -7,7 +7,14 @@ name = "vsview"
 dynamic = ["version"]
 description = "The next-generation VapourSynth previewer"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "EUPL-1.2 AND (MIT AND Apache-2.0 AND ISC AND OFL-1.1)"
+license-files = [
+    "LICENSE",
+    "src/vsview/assets/icons/phosphor/LICENSE",
+    "src/vsview/assets/icons/material/LICENSE",
+    "src/vsview/assets/icons/lucide/LICENSE",
+    "src/vsview/assets/fonts/Cascadia_Mono/LICENSE.txt",
+]
 requires-python = ">=3.12"
 authors = [{ name = "Vardë", email = "ichunjo.le.terrible@gmail.com" }]
 maintainers = [
@@ -33,6 +40,10 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)",
+    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: ISC License (ISCL)",
+    "License :: OSI Approved :: SIL Open Font License 1.1 (OFL-1.1)",
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
@@ -52,7 +63,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "hatchling",
+    "hatchling>=1.27.0",
     "vsstubs>=1.0.2; python_version>='3.13'",
     "mypy>=1.19.0, <1.20.0",
     "ruff>=0.15.0, <0.16.0",
