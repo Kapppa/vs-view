@@ -32,6 +32,15 @@ First-party plugins are official components integrated directly into the **VSVie
     Create, manage, and export scene ranges. Supports custom parsers and serializers.
 
     [:lucide-move-right: Explore Scening](#scening)
+    
+- :lucide-scan: **Region Selector**
+
+    ---
+
+    Select and adjust precise regions in the viewport for cropping and inspection.
+
+    [:lucide-move-right: Explore Region Selector](#region-selector)
+
 
 </div>
 
@@ -165,3 +174,37 @@ The toolbar provides **Import scene...** and **Export scene...** buttons for wor
 !!! Abstract "Extended Functionality"
     Developers can register custom parsers and serializers via the plugin hook system.
     See the [Scening Tool API](../api/developer/tools/scening.md) for details.
+
+---
+
+## Region Selector
+
+The Region Selector tool defines rectangular regions within the frame, primarily for generating VapourSynth crop parameters.
+
+<figure markdown="span">
+    ![Region Selector dock](../assets/region_selector_dock.png){ loading=lazy }
+</figure>
+
+### Features
+
+- **Boundary Adjustment:** Direct control over Left, Right, Top, Bottom, Width, and Height via spin boxes.
+- **Snap to Modulo:** Selection boundaries snap to the `mod` value defined in settings (e.g., mod 2, mod 4).
+- **Code Generation:** Generates VapourSynth snippets (e.g., `std.Crop`) based on the active selection.
+- **Interactive Overlay:** Resizable and movable region overlay with corner/edge handles.
+
+### How to Use
+
+1.  Click the **Frame Corners** icon or press ++c++.
+2.  **Left-click and drag** in the viewport to define the initial region.
+3.  Adjust boundaries using the **handles** or **spin boxes**.
+4.  Click the **Clipboard icon** to copy the generated code.
+5.  Click the **X-Circle icon** or press ++c++ to deactivate.
+
+### Keyboard Shortcuts
+
+| Shortcut | Action                      |
+| :------- | :-------------------------- |
+| ++c++    | Toggle Region Selector tool |
+| ++esc++  | Clear current selection     |
+
+Shortcuts, mod and code snippets are configurable in the **Settings** menu.
