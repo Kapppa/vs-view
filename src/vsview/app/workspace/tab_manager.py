@@ -236,6 +236,8 @@ class TabManager(QWidget, IconReloadMixin):
             view.mouseMoved.connect(self.api._on_view_mouse_moved)
             view.mousePressed.connect(self.api._on_view_mouse_pressed)
             view.mouseReleased.connect(self.api._on_view_mouse_released)
+            view.rectSelectionChanged.connect(self.api._on_view_rect_selection_changed)
+            view.rectSelectionFinished.connect(self.api._on_view_rect_selection_finished)
             view.keyPressed.connect(self.api._on_view_key_press)
             view.keyReleased.connect(self.api._on_view_key_release)
             view.statusSavingImageStarted.connect(self.statusLoadingStarted.emit)

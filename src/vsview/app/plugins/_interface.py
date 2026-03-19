@@ -10,7 +10,7 @@ from weakref import WeakKeyDictionary
 
 import vapoursynth as vs
 from pydantic import BaseModel
-from PySide6.QtCore import QMetaObject, QObject, Signal
+from PySide6.QtCore import QMetaObject, QObject, QRect, Signal
 from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QMouseEvent
 from PySide6.QtWidgets import QDockWidget, QSplitter, QTabWidget, QWidget
 
@@ -397,6 +397,16 @@ class _PluginAPI(QObject):
         for plugin in self.__workspace.plugins:
             if self._is_truly_visible(plugin):
                 plugin.on_view_mouse_released(event)
+
+    def _on_view_rect_selection_changed(self, rect: QRect) -> None:
+        for plugin in self.__workspace.plugins:
+            if self._is_truly_visible(plugin):
+                plugin.on_view_rect_selection_changed(rect)
+
+    def _on_view_rect_selection_finished(self, rect: QRect) -> None:
+        for plugin in self.__workspace.plugins:
+            if self._is_truly_visible(plugin):
+                plugin.on_view_rect_selection_finished(rect)
 
     def _on_view_key_press(self, event: QKeyEvent) -> None:
         for plugin in self.__workspace.plugins:

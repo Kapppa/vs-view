@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, Self, TypeVar
 import vapoursynth as vs
 from jetpytools import copy_signature, to_arr
 from pydantic import BaseModel
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QRect, Qt, Signal
 from PySide6.QtGui import (
     QAction,
     QColor,
@@ -135,6 +135,29 @@ class GraphicsViewProxy(_GraphicsViewProxy):
     def image(self) -> QImage:
         """Return a copy of the image."""
         return self.__view.pixmap_item.pixmap().toImage()
+
+    @property
+    def rect_selection_enabled(self) -> bool:
+        """Return whether rectangular selection editing is enabled."""
+        return self.__view.rect_selection_enabled
+
+    @rect_selection_enabled.setter
+    def rect_selection_enabled(self, enabled: bool) -> None:
+        """Enable or disable editing of the view's rectangular selection."""
+        self.__view.rect_selection_enabled = enabled
+
+    @property
+    def rect_selection(self) -> QRect:
+        """Return the current rectangular selection in source image pixel coordinates."""
+        return self.__view.rect_selection
+
+    def set_rect_selection(self, rect: QRect, *, finished: bool = False) -> None:
+        """Set the current rectangular selection in source image pixel coordinates."""
+        self.__view.set_rect_selection(rect, finished=finished)
+
+    def clear_rect_selection(self) -> None:
+        """Clear the current rectangular selection."""
+        self.__view.clear_rect_selection()
 
     class ViewportProxy(_ViewportProxy):
         """Proxy for a viewport."""
@@ -760,6 +783,24 @@ class WidgetPluginBase(_PluginBase[TGlobalSettings, TLocalSettings], QWidget, me
         Called when the mouse of the current view is released.
 
         The event is forwarded AFTER the view processes it.
+
+        Execution Thread: **Main**.
+        """
+
+    def on_view_rect_selection_changed(self, rect: QRect) -> None:
+        """
+        Called when the current view's rectangular selection changes.
+
+        `rect` is in source image pixel coordinates. An empty rect means the selection was cleared.
+
+        Execution Thread: **Main**.
+        """
+
+    def on_view_rect_selection_finished(self, rect: QRect) -> None:
+        """
+        Called when the current view's rectangular selection interaction finishes.
+
+        `rect` is in source image pixel coordinates. An empty rect means the selection was cleared.
 
         Execution Thread: **Main**.
         """

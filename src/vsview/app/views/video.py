@@ -4,19 +4,34 @@ Graphics view widget for displaying video frames.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from enum import Flag, auto
 from logging import getLogger
-from typing import Any, NamedTuple
+from typing import Any, Literal, NamedTuple
 
-from jetpytools import clamp, copy_signature
-from PySide6.QtCore import QEasingCurve, QRect, QRectF, QSignalBlocker, Qt, QVariantAnimation, Signal, Slot
+from jetpytools import cachedproperty, clamp, copy_signature, cround
+from PySide6.QtCore import (
+    QEasingCurve,
+    QPoint,
+    QPointF,
+    QRect,
+    QRectF,
+    QSignalBlocker,
+    Qt,
+    QVariantAnimation,
+    Signal,
+    Slot,
+)
 from PySide6.QtGui import (
     QBrush,
+    QColor,
     QContextMenuEvent,
     QCursor,
     QImage,
     QKeyEvent,
     QMouseEvent,
     QPainter,
+    QPen,
     QPixmap,
     QResizeEvent,
     QTransform,
@@ -25,6 +40,8 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
+    QGraphicsItem,
+    QGraphicsObject,
     QGraphicsScene,
     QGraphicsView,
     QHBoxLayout,
@@ -32,6 +49,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QSizePolicy,
     QSlider,
+    QStyleOptionGraphicsItem,
     QToolTip,
     QWidget,
     QWidgetAction,
@@ -81,6 +99,205 @@ class ViewState(NamedTuple):
             view.update_center((self.scene_x, self.scene_y))
 
 
+class RectSelectionHandle(Flag):
+    """The eight directional resize handles of a rectangular selection."""
+
+    NORTH = auto()
+    SOUTH = auto()
+    EAST = auto()
+    WEST = auto()
+    NORTH_WEST = NORTH | WEST
+    NORTH_EAST = NORTH | EAST
+    SOUTH_WEST = SOUTH | WEST
+    SOUTH_EAST = SOUTH | EAST
+
+    @cachedproperty
+    def cursor(self) -> Qt.CursorShape:
+        return {
+            RectSelectionHandle.NORTH: Qt.CursorShape.SizeVerCursor,
+            RectSelectionHandle.SOUTH: Qt.CursorShape.SizeVerCursor,
+            RectSelectionHandle.EAST: Qt.CursorShape.SizeHorCursor,
+            RectSelectionHandle.WEST: Qt.CursorShape.SizeHorCursor,
+            RectSelectionHandle.NORTH_WEST: Qt.CursorShape.SizeFDiagCursor,
+            RectSelectionHandle.NORTH_EAST: Qt.CursorShape.SizeBDiagCursor,
+            RectSelectionHandle.SOUTH_WEST: Qt.CursorShape.SizeBDiagCursor,
+            RectSelectionHandle.SOUTH_EAST: Qt.CursorShape.SizeFDiagCursor,
+        }[self]
+
+    @staticmethod
+    def compute_handle_pos(rect: QRect | QRectF) -> dict[RectSelectionHandle, QPointF]:
+        """
+        Compute the center positions for all eight resize handles of a selection rect.
+
+        Corner handles are listed before edge handles so that iterating in order
+        gives corners priority during hit-testing.
+        """
+        if isinstance(rect, QRect):
+            rect = rect.toRectF()
+        return {
+            RectSelectionHandle.NORTH_WEST: rect.topLeft(),
+            RectSelectionHandle.NORTH_EAST: rect.topRight(),
+            RectSelectionHandle.SOUTH_WEST: rect.bottomLeft(),
+            RectSelectionHandle.SOUTH_EAST: rect.bottomRight(),
+            RectSelectionHandle.NORTH: QPointF(rect.center().x(), rect.top()),
+            RectSelectionHandle.SOUTH: QPointF(rect.center().x(), rect.bottom()),
+            RectSelectionHandle.WEST: QPointF(rect.left(), rect.center().y()),
+            RectSelectionHandle.EAST: QPointF(rect.right(), rect.center().y()),
+        }
+
+
+@dataclass(slots=True)
+class RectSelectionDragState:
+    """Transient state tracked while the user is actively dragging a rect selection."""
+
+    mode: Literal["create", "move", "resize"]
+    origin: tuple[float, float]
+    initial_rect: QRect
+    restore_rect: QRect
+    handle: RectSelectionHandle | None = None
+    did_update: bool = False
+
+
+class RectSelectionOverlay(QGraphicsObject):
+    """
+    Semi-transparent overlay drawn on top of the pixmap item to visualise a rectangular selection region.
+    The area outside the selection is darkened and the selection border + resize handles are painted.
+
+    This item does not handle any mouse input itself. All interaction is managed by `BaseGraphicsView`.
+    """
+
+    SHADE_COLOR = QColor(0, 0, 0, 96)
+    OUTLINE_COLOR = QColor(255, 214, 79)
+
+    def __init__(self, parent: QGraphicsItem | None = None) -> None:
+        super().__init__(parent)
+        self.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        self.setVisible(False)
+        self.setZValue(1)
+        self._image_rect = QRectF()
+        self._selection_rect = QRectF()
+        self._editable = False
+
+    @property
+    def image_rect(self) -> QRectF:
+        return self._image_rect
+
+    @image_rect.setter
+    def image_rect(self, rect: QRectF) -> None:
+        """Update the image bounding rect used to paint the darkened shade region."""
+        if self._image_rect != rect:
+            self.prepareGeometryChange()
+            self._image_rect = rect
+
+        self._update_visibility()
+        self.update()
+
+    @property
+    def selection_rect(self) -> QRectF:
+        return self._selection_rect
+
+    @selection_rect.setter
+    def selection_rect(self, rect: QRect) -> None:
+        """Set the selection rect. An empty rect hides the overlay."""
+        self._selection_rect = QRectF(rect)
+        self._update_visibility()
+        self.update()
+
+    @property
+    def editable(self) -> bool:
+        return self._editable
+
+    @editable.setter
+    def editable(self, editable: bool) -> None:
+        """Toggle whether resize handles are painted on the selection border."""
+        if self._editable == editable:
+            return
+
+        self._editable = editable
+        self.update()
+
+    def boundingRect(self) -> QRectF:
+        return self._image_rect
+
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
+        if self._image_rect.isEmpty() or self._selection_rect.isEmpty():
+            return
+
+        if (rect := self._selection_rect.intersected(self._image_rect)).isEmpty():
+            return
+
+        painter.fillRect(
+            QRectF(
+                self._image_rect.left(),
+                self._image_rect.top(),
+                rect.left(),
+                self._image_rect.height(),
+            ),
+            self.SHADE_COLOR,
+        )
+        painter.fillRect(
+            QRectF(
+                rect.left(),
+                self._image_rect.top(),
+                rect.width(),
+                rect.top() - self._image_rect.top(),
+            ),
+            self.SHADE_COLOR,
+        )
+        painter.fillRect(
+            QRectF(
+                rect.right(),
+                self._image_rect.top(),
+                self._image_rect.right() - rect.right(),
+                self._image_rect.height(),
+            ),
+            self.SHADE_COLOR,
+        )
+        painter.fillRect(
+            QRectF(
+                rect.left(),
+                rect.bottom(),
+                rect.width(),
+                self._image_rect.bottom() - rect.bottom(),
+            ),
+            self.SHADE_COLOR,
+        )
+
+        pen = QPen(self.OUTLINE_COLOR)
+        pen.setCosmetic(True)
+        pen.setWidth(2)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRect(rect)
+
+        if not self._editable:
+            return
+
+        scale_x = max(abs(painter.worldTransform().m11()), 1e-6)
+        scale_y = max(abs(painter.worldTransform().m22()), 1e-6)
+        handle_width = 8.0 / scale_x
+        handle_height = 8.0 / scale_y
+
+        handle_pen = QPen(QColor(20, 20, 20))
+        handle_pen.setCosmetic(True)
+        handle_pen.setWidth(1)
+        painter.setPen(handle_pen)
+        painter.setBrush(self.OUTLINE_COLOR)
+
+        for center in RectSelectionHandle.compute_handle_pos(rect).values():
+            painter.drawRect(
+                QRectF(
+                    center.x() - handle_width / 2.0,
+                    center.y() - handle_height / 2.0,
+                    handle_width,
+                    handle_height,
+                )
+            )
+
+    def _update_visibility(self) -> None:
+        self.setVisible(not self._image_rect.isEmpty() and not self._selection_rect.isEmpty())
+
+
 class BaseGraphicsView(QGraphicsView):
     WHEEL_STEP = 15 * 8  # degrees
 
@@ -92,6 +309,8 @@ class BaseGraphicsView(QGraphicsView):
 
     displayTransformChanged = Signal(QTransform)
     contextMenuRequested = Signal(QContextMenuEvent)
+    rectSelectionChanged = Signal(QRect)
+    rectSelectionFinished = Signal(QRect)
 
     @copy_signature(QGraphicsView.__init__)
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -120,6 +339,11 @@ class BaseGraphicsView(QGraphicsView):
         self.pixmap_item = self.graphics_scene.addPixmap(QPixmap())
         self.pixmap_item.setTransformationMode(Qt.TransformationMode.FastTransformation)
         self.setScene(self.graphics_scene)
+
+        self._rect_selection = QRect()
+        self._rect_selection_enabled = False
+        self._rect_selection_drag: RectSelectionDragState | None = None
+        self._init_rect_selection_overlay()
 
         self._zoom_animation = QVariantAnimation(self)
         self._zoom_animation.setDuration(125)
@@ -197,6 +421,31 @@ class BaseGraphicsView(QGraphicsView):
     @property
     def display_sar(self) -> float:
         return self._sar if self._sar_applied else 1.0
+
+    @property
+    def rect_selection(self) -> QRect:
+        """Return the current rectangular selection in source image pixel coordinates (empty if cleared)."""
+        return QRect(self._rect_selection)
+
+    @property
+    def rect_selection_enabled(self) -> bool:
+        """Return whether rectangular selection overlay is active and editable."""
+        return self._rect_selection_enabled
+
+    @rect_selection_enabled.setter
+    def rect_selection_enabled(self, enabled: bool) -> None:
+        """Enable or disable the rectangular selection overlay editing mode."""
+        if self._rect_selection_enabled == enabled:
+            self._update_rect_selection_cursor()
+            return
+
+        self._rect_selection_enabled = enabled
+        self._rect_selection_overlay.editable = enabled
+
+        if not enabled:
+            self._rect_selection_drag = None
+
+        self._update_rect_selection_cursor()
 
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         self.contextMenuRequested.emit(event)
@@ -309,6 +558,7 @@ class BaseGraphicsView(QGraphicsView):
 
         self.pixmap_item = self.graphics_scene.addPixmap(QPixmap())
         self.pixmap_item.setTransformationMode(Qt.TransformationMode.FastTransformation)
+        self._init_rect_selection_overlay()
 
         # Re-apply SAR transform if it was enabled
         self._update_sar_transform()
@@ -319,6 +569,7 @@ class BaseGraphicsView(QGraphicsView):
         pixmap.setDevicePixelRatio(self.devicePixelRatio())
         old_size = self.pixmap_item.pixmap().size()
         self.pixmap_item.setPixmap(pixmap)
+        self._update_rect_selection_overlay()
 
         if old_size != pixmap.size():
             self.update_scene_rect()
@@ -329,6 +580,7 @@ class BaseGraphicsView(QGraphicsView):
     def update_scene_rect(self) -> None:
         self.setSceneRect(self.pixmap_item.mapRectToScene(self.pixmap_item.boundingRect()))
         self.viewport().updateGeometry()
+        self._update_rect_selection_overlay()
 
     def update_center(self, ref: QGraphicsView | tuple[float, float], /) -> None:
         if isinstance(ref, QGraphicsView):
@@ -358,6 +610,32 @@ class BaseGraphicsView(QGraphicsView):
             self._set_sar_applied(False)
         else:
             self._update_sar_transform()
+
+    def map_to_image(self, point: QPoint | QPointF) -> QPointF:
+        """
+        Map a point from view coordinates to the source image's pixel coordinate space.
+
+        Args:
+            point: The point in viewport or widget local coordinates.
+
+        Returns:
+            The corresponding point in the source image's pixel coordinates.
+        """
+        return self.pixmap_item.mapFromScene(self.mapToScene(point.toPoint() if isinstance(point, QPointF) else point))
+
+    def set_rect_selection(self, rect: QRect, *, finished: bool = False) -> None:
+        """
+        Set the rectangular selection to the given QRect in source image coordinates.
+
+        Args:
+            rect: The bounding QRect, or an empty QRect to clear.
+            finished: If True, emits rectSelectionFinished signal as well.
+        """
+        self._set_rect_selection(rect, emit_changed=True, emit_finished=finished)
+
+    def clear_rect_selection(self) -> None:
+        """Clear the current rectangular selection and emit signals."""
+        self._set_rect_selection(QRect(), emit_changed=True, emit_finished=True)
 
     @staticmethod
     def _create_checkerboard_pixmap() -> QPixmap:
@@ -391,6 +669,248 @@ class BaseGraphicsView(QGraphicsView):
             self.displayTransformChanged.emit(transform)
             self.update_scene_rect()
             self.set_zoom(0 if self.autofit else self.current_zoom, animated=False)
+
+    def _init_rect_selection_overlay(self) -> None:
+        self._rect_selection_overlay = RectSelectionOverlay(self.pixmap_item)
+        self._rect_selection_overlay.image_rect = self.pixmap_item.boundingRect()
+        self._rect_selection_overlay.selection_rect = self._rect_selection
+        self._rect_selection_overlay.editable = self._rect_selection_enabled
+
+    def _update_rect_selection_overlay(self) -> None:
+        self._rect_selection_overlay.image_rect = self.pixmap_item.boundingRect()
+        self._rect_selection_overlay.selection_rect = self._rect_selection
+        self._rect_selection_overlay.editable = self._rect_selection_enabled
+
+    def _set_rect_selection(self, rect: QRect, *, emit_changed: bool, emit_finished: bool) -> None:
+        rect = self._normalize_rect_selection(rect)
+
+        if self._rect_selection == rect:
+            if emit_finished:
+                self.rectSelectionFinished.emit(self.rect_selection)
+            return
+
+        self._rect_selection = QRect(rect)
+        self._update_rect_selection_overlay()
+
+        if emit_changed:
+            self.rectSelectionChanged.emit(self.rect_selection)
+
+        if emit_finished:
+            self.rectSelectionFinished.emit(self.rect_selection)
+
+    def _normalize_rect_selection(self, rect: QRect) -> QRect:
+        """
+        Clamp a rect to image bounds.
+        Return an empty QRect if the result is degenerate.
+        """
+        if rect.isEmpty() or (pixmap := self.pixmap_item.pixmap()).isNull():
+            return QRect()
+
+        image_w, image_h = pixmap.width(), pixmap.height()
+        x0, y0, x1, y1 = self._rect_selection_edges(rect)
+
+        x0, x1 = clamp(x0, 0, image_w), clamp(x1, 0, image_w)
+        y0, y1 = clamp(y0, 0, image_h), clamp(y1, 0, image_h)
+
+        if x1 <= x0 or y1 <= y0:
+            return QRect()
+
+        return QRect(x0, y0, x1 - x0, y1 - y0)
+
+    def _clamp_image_pos(self, pos: QPointF) -> QPointF:
+        pixmap = self.pixmap_item.pixmap()
+        return QPointF(
+            clamp(pos.x(), 0.0, pixmap.width()),
+            clamp(pos.y(), 0.0, pixmap.height()),
+        )
+
+    @staticmethod
+    def _rect_selection_edges(rect: QRect) -> tuple[int, int, int, int]:
+        """Return (x0, y0, x1, y1) using exclusive-end convention (not Qt's right/bottom)."""
+        return rect.x(), rect.y(), rect.x() + rect.width(), rect.y() + rect.height()
+
+    def _rect_selection_handle_at(self, pos: QPointF) -> RectSelectionHandle | None:
+        """Hit-test which resize handle the given image-space position falls on, or None."""
+        if self._rect_selection.isEmpty():
+            return None
+
+        item_transform = self.pixmap_item.transform()
+        scale_x, scale_y = (
+            max(abs(self.transform().m11() * item_transform.m11()), 1e-6),
+            max(abs(self.transform().m22() * item_transform.m22()), 1e-6),
+        )
+        tolerance_x = 8.0 / scale_x
+        tolerance_y = 8.0 / scale_y
+
+        # Corners are tested before edges (iteration order of compute_handle_pos)
+        for handle, center in RectSelectionHandle.compute_handle_pos(self._rect_selection).items():
+            handle_rect = QRectF(
+                center.x() - tolerance_x / 2.0,
+                center.y() - tolerance_y / 2.0,
+                tolerance_x,
+                tolerance_y,
+            )
+            if handle_rect.contains(pos):
+                return handle
+
+        return None
+
+    def _update_rect_selection_cursor(self, pos: QPoint | QPointF | None = None) -> None:
+        if not self._rect_selection_enabled:
+            self.viewport().setCursor(Qt.CursorShape.OpenHandCursor)
+            return
+
+        if pos is None:
+            pos = self.viewport().mapFromGlobal(QCursor.pos())
+
+        image_pos = self.map_to_image(pos)
+        if not self.pixmap_item.boundingRect().contains(image_pos):
+            self.viewport().setCursor(Qt.CursorShape.CrossCursor)
+            return
+
+        handle = self._rect_selection_handle_at(image_pos)
+
+        if handle is not None:
+            self.viewport().setCursor(handle.cursor)
+        elif not self._rect_selection.isEmpty() and QRectF(self._rect_selection).contains(image_pos):
+            self.viewport().setCursor(Qt.CursorShape.SizeAllCursor)
+        else:
+            self.viewport().setCursor(Qt.CursorShape.CrossCursor)
+
+    def _start_rect_selection_drag(self, event: QMouseEvent) -> bool:
+        if (
+            not self._rect_selection_enabled
+            or self.pixmap_item.pixmap().isNull()
+            or event.button() != Qt.MouseButton.LeftButton
+        ):
+            return False
+
+        image_pos = self.map_to_image(event.position())
+        if not self.pixmap_item.boundingRect().contains(image_pos):
+            return False
+
+        image_pos = self._clamp_image_pos(image_pos)
+        handle = self._rect_selection_handle_at(image_pos)
+        mode: Literal["create", "move", "resize"]
+
+        if handle is not None and not self._rect_selection.isEmpty():
+            mode = "resize"
+        elif handle is None and not self._rect_selection.isEmpty() and QRectF(self._rect_selection).contains(image_pos):
+            mode = "move"
+        else:
+            mode = "create"
+
+        self._rect_selection_drag = RectSelectionDragState(
+            mode=mode,
+            origin=(image_pos.x(), image_pos.y()),
+            initial_rect=self.rect_selection,
+            restore_rect=self.rect_selection,
+            handle=handle,
+        )
+
+        if mode == "move":
+            self.viewport().setCursor(Qt.CursorShape.SizeAllCursor)
+        elif mode == "resize" and handle is not None:
+            self.viewport().setCursor(handle.cursor)
+        else:
+            self.viewport().setCursor(Qt.CursorShape.CrossCursor)
+
+        event.accept()
+        return True
+
+    def _update_rect_selection_drag(self, event: QMouseEvent) -> bool:
+        if self._rect_selection_drag is None:
+            return False
+
+        image_pos = self._clamp_image_pos(self.map_to_image(event.position()))
+        drag = self._rect_selection_drag
+
+        if drag.mode == "create":
+            rect = self._rect_from_points(QPointF(*drag.origin), image_pos)
+        elif drag.mode == "move" and not drag.initial_rect.isEmpty():
+            rect = self._move_rect_selection(drag.initial_rect, QPointF(*drag.origin), image_pos)
+        elif drag.mode == "resize" and not drag.initial_rect.isEmpty() and drag.handle is not None:
+            rect = self._resize_rect_selection(drag.initial_rect, image_pos, drag.handle)
+        else:
+            rect = QRect()
+
+        if not rect.isEmpty():
+            self._set_rect_selection(rect, emit_changed=True, emit_finished=False)
+            drag.did_update = True
+
+        event.accept()
+        return True
+
+    def _finish_rect_selection_drag(self, event: QMouseEvent) -> bool:
+        if self._rect_selection_drag is None or event.button() != Qt.MouseButton.LeftButton:
+            return False
+
+        drag = self._rect_selection_drag
+        self._rect_selection_drag = None
+
+        if not drag.did_update:
+            # Click without drag in create mode clears the selection
+            # Click without drag on a handle/interior preserves the selection
+            rect = QRect() if drag.mode == "create" else drag.restore_rect
+            self._set_rect_selection(rect, emit_changed=True, emit_finished=True)
+        else:
+            self.rectSelectionFinished.emit(self.rect_selection)
+
+        self._update_rect_selection_cursor(event.position())
+        event.accept()
+        return True
+
+    def _cancel_rect_selection_drag(self, event: QKeyEvent) -> bool:
+        if self._rect_selection_drag is None or event.key() != Qt.Key.Key_Escape:
+            return False
+
+        restore_rect = self._rect_selection_drag.restore_rect
+        self._rect_selection_drag = None
+        self._set_rect_selection(restore_rect, emit_changed=True, emit_finished=True)
+        self._update_rect_selection_cursor()
+
+        event.accept()
+        return True
+
+    def _rect_from_points(self, start: QPointF, end: QPointF) -> QRect:
+        """Build a normalized rect from two corner points."""
+        x0 = cround(min(start.x(), end.x()))
+        y0 = cround(min(start.y(), end.y()))
+        x1 = cround(max(start.x(), end.x()))
+        y1 = cround(max(start.y(), end.y()))
+        return self._normalize_rect_selection(QRect(x0, y0, x1 - x0, y1 - y0))
+
+    def _move_rect_selection(self, rect: QRect, start: QPointF, end: QPointF) -> QRect:
+        """Translate the selection rect by the drag delta, clamping to image bounds."""
+        pixmap = self.pixmap_item.pixmap()
+
+        image_w, image_h = pixmap.width(), pixmap.height()
+        dx = cround(end.x() - start.x())
+        dy = cround(end.y() - start.y())
+
+        x0 = clamp(rect.x() + dx, 0, max(image_w - rect.width(), 0))
+        y0 = clamp(rect.y() + dy, 0, max(image_h - rect.height(), 0))
+        return QRect(x0, y0, rect.width(), rect.height())
+
+    def _resize_rect_selection(self, rect: QRect, pos: QPointF, handle: RectSelectionHandle) -> QRect:
+        """Resize the selection by moving the edge(s) corresponding to the active handle."""
+        pixmap = self.pixmap_item.pixmap()
+
+        image_w, image_h = pixmap.width(), pixmap.height()
+        x0, y0, x1, y1 = self._rect_selection_edges(rect)
+        px = cround(pos.x())
+        py = cround(pos.y())
+
+        if handle & RectSelectionHandle.WEST:
+            x0 = clamp(px, 0, x1 - 1)
+        if handle & RectSelectionHandle.EAST:
+            x1 = clamp(px, x0 + 1, image_w)
+        if handle & RectSelectionHandle.NORTH:
+            y0 = clamp(py, 0, y1 - 1)
+        if handle & RectSelectionHandle.SOUTH:
+            y1 = clamp(py, y0 + 1, image_h)
+
+        return self._normalize_rect_selection(QRect(x0, y0, x1 - x0, y1 - y0))
 
     def _slider_to_zoom(self, slider_val: int) -> float:
         num_factors = len(self.zoom_factors)
@@ -497,24 +1017,47 @@ class GraphicsView(BaseGraphicsView):
         self.setMouseTracking(True)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if self._update_rect_selection_drag(event):
+            if self.isVisible():
+                self.mouseMoved.emit(event)
+            return
+
         super().mouseMoveEvent(event)
+
+        if self._rect_selection_enabled:
+            self._update_rect_selection_cursor(event.position())
 
         if self.hasMouseTracking() and self.isVisible():
             self.mouseMoved.emit(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
+        if self._start_rect_selection_drag(event):
+            if self.isVisible():
+                self.mousePressed.emit(event)
+            return
+
         super().mousePressEvent(event)
 
         if self.isVisible():
             self.mousePressed.emit(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if self._finish_rect_selection_drag(event):
+            if self.isVisible():
+                self.mouseReleased.emit(event)
+            return
+
         super().mouseReleaseEvent(event)
 
         if self.isVisible():
             self.mouseReleased.emit(event)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
+        if self._cancel_rect_selection_drag(event):
+            if self.isVisible():
+                self.keyPressed.emit(event)
+            return
+
         super().keyPressEvent(event)
 
         if self.isVisible():
