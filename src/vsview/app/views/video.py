@@ -394,7 +394,7 @@ class BaseGraphicsView(QGraphicsView):
 
     def _slider_to_zoom(self, slider_val: int) -> float:
         num_factors = len(self.zoom_factors)
-        index = round(slider_val / 100.0 * (num_factors - 1))
+        index = cround(slider_val / 100.0 * (num_factors - 1))
         index = clamp(index, 0, num_factors - 1)
         return self.zoom_factors[index]
 
@@ -408,7 +408,7 @@ class BaseGraphicsView(QGraphicsView):
         if (num_factors := len(self.zoom_factors)) <= 1:
             return 50
 
-        return round(index / (num_factors - 1) * 100)
+        return cround(index / (num_factors - 1) * 100)
 
     def _on_settings_changed(self) -> None:
         new_factors = SettingsManager.global_settings.view.zoom_factors.copy()
@@ -435,7 +435,7 @@ class BaseGraphicsView(QGraphicsView):
         # Calculate step size based on number of zoom factors
         num_factors = len(self.zoom_factors)
         step_size = 100 / (num_factors - 1) if num_factors > 1 else 100
-        new_value = clamp(self.slider.value() + round(steps * step_size), 0, 100)
+        new_value = clamp(self.slider.value() + cround(steps * step_size), 0, 100)
         self.slider.setValue(new_value)
 
     @Slot()
