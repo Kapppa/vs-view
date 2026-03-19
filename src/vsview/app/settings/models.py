@@ -1136,6 +1136,25 @@ class ViewSettings(BaseModel):
         ),
     ] = 16
 
+    shade_opacity: Annotated[
+        float,
+        DoubleSpin(
+            label="Shade Opacity",
+            min=0.0,
+            max=1.0,
+            decimals=2,
+            tooltip="Opacity of the darkened area outside the selection rect (0.0 to 1.0).",
+        ),
+    ] = 0.38
+
+    selection_outline_color: Annotated[
+        str,
+        ColorPicker(
+            label="Selection Outline Color",
+            tooltip="Color of the selection rectangle outline",
+        ),
+    ] = "#FFD64F"
+
 
 class WindowGeometry(BaseModel):
     """Window position and size."""

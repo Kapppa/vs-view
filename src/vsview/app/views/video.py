@@ -166,9 +166,6 @@ class RectSelectionOverlay(QGraphicsObject):
     This item does not handle any mouse input itself. All interaction is managed by `BaseGraphicsView`.
     """
 
-    SHADE_COLOR = QColor(0, 0, 0, 96)
-    OUTLINE_COLOR = QColor(255, 214, 79)
-
     def __init__(self, parent: QGraphicsItem | None = None) -> None:
         super().__init__(parent)
         self.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
@@ -177,6 +174,10 @@ class RectSelectionOverlay(QGraphicsObject):
         self._image_rect = QRectF()
         self._selection_rect = QRectF()
         self._editable = False
+
+        settings = SettingsManager.global_settings.view
+        self._shade_color = QColor.fromRgbF(0.0, 0.0, 0.0, settings.shade_opacity)
+        self._selection_color = QColor(settings.selection_outline_color)
 
     @property
     def image_rect(self) -> QRectF:
@@ -216,6 +217,27 @@ class RectSelectionOverlay(QGraphicsObject):
         self._editable = editable
         self.update()
 
+    @property
+    def shade_opacity(self) -> float:
+        return self._shade_color.alphaF()
+
+    @shade_opacity.setter
+    def shade_opacity(self, opacity: float) -> None:
+        if self._shade_color.alphaF() != opacity:
+            self._shade_color.setAlphaF(opacity)
+            self.update()
+
+    @property
+    def selection_color(self) -> QColor:
+        return self._selection_color
+
+    @selection_color.setter
+    def selection_color(self, color: QColor | str) -> None:
+        new_color = QColor(color)
+        if self._selection_color != new_color:
+            self._selection_color = new_color
+            self.update()
+
     def boundingRect(self) -> QRectF:
         return self._image_rect
 
@@ -233,7 +255,7 @@ class RectSelectionOverlay(QGraphicsObject):
                 rect.left(),
                 self._image_rect.height(),
             ),
-            self.SHADE_COLOR,
+            self._shade_color,
         )
         painter.fillRect(
             QRectF(
@@ -242,7 +264,7 @@ class RectSelectionOverlay(QGraphicsObject):
                 rect.width(),
                 rect.top() - self._image_rect.top(),
             ),
-            self.SHADE_COLOR,
+            self._shade_color,
         )
         painter.fillRect(
             QRectF(
@@ -251,7 +273,7 @@ class RectSelectionOverlay(QGraphicsObject):
                 self._image_rect.right() - rect.right(),
                 self._image_rect.height(),
             ),
-            self.SHADE_COLOR,
+            self._shade_color,
         )
         painter.fillRect(
             QRectF(
@@ -260,10 +282,10 @@ class RectSelectionOverlay(QGraphicsObject):
                 rect.width(),
                 self._image_rect.bottom() - rect.bottom(),
             ),
-            self.SHADE_COLOR,
+            self._shade_color,
         )
 
-        pen = QPen(self.OUTLINE_COLOR)
+        pen = QPen(self._selection_color)
         pen.setCosmetic(True)
         pen.setWidth(2)
         painter.setPen(pen)
@@ -282,7 +304,7 @@ class RectSelectionOverlay(QGraphicsObject):
         handle_pen.setCosmetic(True)
         handle_pen.setWidth(1)
         painter.setPen(handle_pen)
-        painter.setBrush(self.OUTLINE_COLOR)
+        painter.setBrush(self._selection_color)
 
         for center in RectSelectionHandle.compute_handle_pos(rect).values():
             painter.drawRect(
@@ -931,12 +953,17 @@ class BaseGraphicsView(QGraphicsView):
         return cround(index / (num_factors - 1) * 100)
 
     def _on_settings_changed(self) -> None:
-        new_factors = SettingsManager.global_settings.view.zoom_factors.copy()
+        settings = SettingsManager.global_settings.view
+        new_factors = settings.zoom_factors.copy()
 
         if new_factors != self.zoom_factors:
             current_zoom = self._slider_to_zoom(self.slider.value())
             self.zoom_factors = new_factors
             self.slider.setValue(self._zoom_to_slider(current_zoom))
+
+        if Shiboken.isValid(self._rect_selection_overlay):
+            self._rect_selection_overlay.shade_opacity = settings.shade_opacity
+            self._rect_selection_overlay.selection_color = settings.selection_outline_color
 
     def _apply_zoom_value(self, value: float) -> None:
         self.setTransform(QTransform().scale(value, value))
