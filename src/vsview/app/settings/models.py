@@ -515,9 +515,17 @@ class ListEditWidget[T](QWidget, IconReloadMixin):
         self.dialog.setLabelText(dialog_label_text or f"Enter {self.value_type.__name__}:")
         self.dialog.finished.connect(self._on_dialog_finished)
 
-        if completions and (line_edit := self.dialog.findChild(QLineEdit)):
-            completer = QCompleter(completions, line_edit, caseSensitivity=Qt.CaseSensitivity.CaseInsensitive)
-            line_edit.setCompleter(completer)
+        self.dialog_line_edit = self.dialog.findChild(QLineEdit)
+
+        if completions and self.dialog_line_edit:
+            self.completer: QCompleter | None = QCompleter(
+                completions,
+                self.dialog_line_edit,
+                caseSensitivity=Qt.CaseSensitivity.CaseInsensitive,
+            )
+            self.dialog_line_edit.setCompleter(self.completer)
+        else:
+            self.completer = None
 
         self.setLayout(layout := QVBoxLayout(self))
         layout.setContentsMargins(0, 0, 0, 0)
