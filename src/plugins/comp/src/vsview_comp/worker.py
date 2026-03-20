@@ -3,10 +3,11 @@ from __future__ import annotations
 import asyncio
 import re
 import threading
-from collections.abc import Awaitable, Mapping, Sequence
+from collections.abc import Awaitable, Iterator, Mapping, Sequence
 from concurrent.futures import Future, wait
 from contextlib import aclosing
 from datetime import UTC, datetime
+from itertools import chain
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
@@ -223,7 +224,7 @@ class SelectFrameWorker:
 
         return random_frames
 
-    def _get_light_dark_frames(self) -> list[tuple[Time, FrameSourceProvider]]:
+    def _get_light_dark_frames(self) -> Iterator[tuple[Time, FrameSourceProvider]]:
         v = self.api.current_voutput
         start, end = v.time_to_frame(self.start), v.time_to_frame(self.end)
 
@@ -255,10 +256,10 @@ class SelectFrameWorker:
         dark = sorted_frames[: self.dark] if self.dark else []
         light = sorted_frames[-self.light :] if self.light else []
 
-        return [
-            *((v.frame_to_time(f), FrameSourceProvider.RANDOM_DARK) for f in dark),
-            *((v.frame_to_time(f), FrameSourceProvider.RANDOM_LIGHT) for f in light),
-        ]
+        return chain(
+            ((v.frame_to_time(f), FrameSourceProvider.RANDOM_DARK) for f in dark),
+            ((v.frame_to_time(f), FrameSourceProvider.RANDOM_LIGHT) for f in light),
+        )
 
 
 class TMDBWorker:
