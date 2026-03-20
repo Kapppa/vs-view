@@ -14,10 +14,6 @@
 
 Modern, extensible previewer for [VapourSynth](https://github.com/vapoursynth/vapoursynth), **VSView** lets you open scripts, videos or images in one interface, making it easier to preview, inspect and compare sources without switching tools.
 
-<!-- prettier-ignore -->
-> [!WARNING]
-> **Beta Software**: This project is currently in early beta. Features are missing, bugs are expected, and the API is subject to breaking changes.
-
 ## Documentation
 
 For comprehensive guides, feature overviews, and detailed usage instructions, visit the **[Official Documentation](https://jaded-encoding-thaumaturgy.github.io/vs-view/)**.
