@@ -37,7 +37,7 @@ class TabViewWidget(QTabWidget):
     @copy_signature(QTabWidget.addTab)
     def addTab(self, *args: Any) -> int:
         if not isinstance(args[0], GraphicsView):
-            raise ValueError("TabViewWidget can only contain GraphicsViews")
+            raise TypeError("TabViewWidget can only contain GraphicsViews")
 
         return super().addTab(*args)
 
@@ -52,12 +52,12 @@ class TabViewWidget(QTabWidget):
         Return the currently selected GraphicsView.
 
         Raises:
-            ValueError: If the current widget is not a GraphicsView.
+            TypeError: If the current widget is not a GraphicsView.
         """
         view = super().currentWidget()
 
         if not isinstance(view, GraphicsView):
-            raise ValueError("Current widget is not a GraphicsView")
+            raise TypeError("Current widget is not a GraphicsView")
 
         return view
 
@@ -66,10 +66,10 @@ class TabViewWidget(QTabWidget):
         Set the current widget to the specified GraphicsView.
 
         Raises:
-            ValueError: If the widget is not a GraphicsView.
+            TypeError: If the widget is not a GraphicsView.
         """
         if not isinstance(widget, GraphicsView):
-            raise ValueError("TabViewWidget can only contain GraphicsViews")
+            raise TypeError("TabViewWidget can only contain GraphicsViews")
 
         return super().setCurrentWidget(widget)
 
@@ -77,7 +77,7 @@ class TabViewWidget(QTabWidget):
         view = super().widget(index)
 
         if not isinstance(view, GraphicsView):
-            raise ValueError("Current widget is not a GraphicsView")
+            raise TypeError("Current widget is not a GraphicsView")
 
         return view
 
@@ -99,12 +99,12 @@ class TabViewWidget(QTabWidget):
         Return the GraphicsView at the specified index.
 
         Raises:
-            ValueError: If the widget is not a GraphicsView.
+            TypeError: If the widget is not a GraphicsView.
         """
         widget = super().widget(index)
 
         if not isinstance(widget, GraphicsView):
-            raise ValueError("Widget is not a GraphicsView")
+            raise TypeError("Widget is not a GraphicsView")
 
         return widget
 
