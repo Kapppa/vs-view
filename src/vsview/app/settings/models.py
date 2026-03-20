@@ -352,8 +352,7 @@ class LineEdit(WidgetMetadata[QLineEdit]):
     """LineEdit widget metadata."""
 
     def create_widget(self, parent: QWidget | None = None) -> QLineEdit:
-        widget = QLineEdit(parent)
-        return widget
+        return QLineEdit(parent)
 
     def load_value(self, widget: QLineEdit, value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:

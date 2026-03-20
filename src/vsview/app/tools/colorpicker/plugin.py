@@ -226,7 +226,7 @@ class ColorPickerPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
 
     def on_current_frame_changed(self, n: int) -> None:
         if self.api.is_playing:
-            return
+            return None
 
         # Add the voutput to the `outputs` dict and call `on_current_frame_changed` again
         if (voutput := self.api.current_voutput) not in self.outputs:
@@ -236,6 +236,7 @@ class ColorPickerPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
             # Force cursor shape & refresh current cursor position
             self.api.current_view.viewport.set_cursor(Qt.CursorShape.CrossCursor)
             self.update_labels(self.api.current_view.viewport.map_from_global(QCursor.pos()))
+        return None
 
     def on_view_context_menu(self, event: QContextMenuEvent) -> None:
         if self.tracking == TrackingState.DEACTIVATING or self.eyedropper_btn.isChecked():

@@ -1009,6 +1009,7 @@ class PlaceholderLineEdit(QLineEdit):
             self._completer.complete()
         elif popup:
             popup.hide()
+        return None
 
     def _on_completer_activated(self, s: str) -> None:
         t, p = self.text(), self.cursorPosition()

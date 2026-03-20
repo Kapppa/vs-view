@@ -244,12 +244,9 @@ def run_in_background(func: Any = None, *, name: str | None = None) -> Any:
 
                 return loop.to_thread(run_coro) if name is None else loop.to_thread_named(name, run_coro)
 
-            else:
-                return (
-                    loop.to_thread(fn, *args, **kwargs)
-                    if name is None
-                    else loop.to_thread_named(name, fn, *args, **kwargs)
-                )
+            return (
+                loop.to_thread(fn, *args, **kwargs) if name is None else loop.to_thread_named(name, fn, *args, **kwargs)
+            )
 
         return wrapper
 

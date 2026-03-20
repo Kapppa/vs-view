@@ -143,8 +143,7 @@ class TMDBTitle(BaseModel):
         """Rating"""
         if self.data.vote_average is not None and self.data.vote_count is not None and self.data.vote_count > 0:
             return f"{self.data.vote_average:.1f} ({self.data.vote_count} votes)"
-        else:
-            return "Not enough ratings"
+        return "Not enough ratings"
 
     @property
     def popularity(self) -> str:

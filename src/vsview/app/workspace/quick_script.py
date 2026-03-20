@@ -133,8 +133,7 @@ class CodeEditor(QPlainTextEdit):
     def line_number_area_width(self) -> int:
         digits = len(str(max(1, self.blockCount())))
         # Left padding (3) + digit width + right padding (6) + separator (1)
-        space = 3 + self.fontMetrics().horizontalAdvance("9") * max(digits, 2) + 6 + 1
-        return space
+        return 3 + self.fontMetrics().horizontalAdvance("9") * max(digits, 2) + 6 + 1
 
     def insertFromMimeData(self, source: QMimeData) -> None:
         # Insert only plain text when pasting
@@ -143,8 +142,9 @@ class CodeEditor(QPlainTextEdit):
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Tab:
             self.insertPlainText("    ")
-        else:
-            return super().keyPressEvent(event)
+            return None
+
+        return super().keyPressEvent(event)
 
     def resizeEvent(self, e: QResizeEvent) -> None:
         super().resizeEvent(e)

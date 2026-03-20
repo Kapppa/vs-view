@@ -389,4 +389,4 @@ class NonClosingMenu(QMenu):
         if action := self.actionAt(event.position().toPoint()):
             return action.trigger()
 
-        super().mouseReleaseEvent(event)
+        return super().mouseReleaseEvent(event)

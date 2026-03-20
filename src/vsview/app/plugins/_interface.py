@@ -143,7 +143,7 @@ class _PluginSettingsStore:
 def _make_voutput_proxy(voutput: VideoOutput) -> VideoOutputProxy:
     from .api import VideoOutputProxy
 
-    proxy = VideoOutputProxy(
+    return VideoOutputProxy(
         voutput.vs_index,
         voutput.vs_name,
         voutput.vs_output,
@@ -152,8 +152,6 @@ def _make_voutput_proxy(voutput: VideoOutput) -> VideoOutputProxy:
         tuple(voutput.cum_durations) if voutput.cum_durations is not None else None,
         voutput.info,
     )
-
-    return proxy
 
 
 class _PluginAPI(QObject):

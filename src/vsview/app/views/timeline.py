@@ -1412,12 +1412,13 @@ class PlaybackContainer(QWidget, IconReloadMixin):
 
     def _update_mute_icon(self) -> None:
         if self._is_muted:
-            return self.mute_btn.setIcon(
+            self.mute_btn.setIcon(
                 self.make_icon(
                     (IconName.VOLUME_MUTE, self.palette().color(QPalette.ColorRole.Mid)),
                     size=self.ICON_SIZE,
                 )
             )
+            return
 
         if self._volume == 0:
             icon_name = IconName.VOLUME_OFF

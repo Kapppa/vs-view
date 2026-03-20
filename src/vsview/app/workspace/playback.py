@@ -449,10 +449,10 @@ class PlaybackManager(QObject):
     def _schedule_or_continue(self) -> None:
         if self._tbar.playback_container.settings.uncapped:
             self._play_next_frame()
-            return
+            return None
 
         if not self.state.is_playing:
-            return
+            return None
 
         # VFR path
         if self.state.frame_interval_ns == 0 and (voutput := self._outputs_manager.current_voutput):
@@ -483,6 +483,7 @@ class PlaybackManager(QObject):
             self._loop.from_thread(lambda: self.state.video_timer.start(cround(delay_ns / 1_000_000)))
         else:
             self._play_next_frame()
+        return None
 
     def _prepare_video(self, play_range: range, loop: bool = False) -> None:
         if not (voutput := self._outputs_manager.current_voutput):

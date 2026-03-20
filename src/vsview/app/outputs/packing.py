@@ -113,8 +113,7 @@ class PythonPacker(VSPackRGB):
 @cache
 def _is_vszip_available() -> bool:
     with create_environment(set_logger=False) as env, env.use():
-        res = hasattr(env.core, "vszip") and hasattr(env.core.vszip, "PackRGB")
-    return res
+        return hasattr(env.core, "vszip") and hasattr(env.core.vszip, "PackRGB")
 
 
 def get_packer(method: str | None = None, bit_depth: int | None = None) -> Packer:

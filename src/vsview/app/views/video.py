@@ -492,6 +492,8 @@ class BaseGraphicsView(QGraphicsView):
 
         painter.fillRect(visible_rect, brush)
 
+        return None
+
     def resizeEvent(self, event: QResizeEvent) -> None:
         if event.type() == QResizeEvent.Type.Resize:
             self.set_zoom(self.current_zoom if not self.autofit else 0)
@@ -516,15 +518,15 @@ class BaseGraphicsView(QGraphicsView):
             if abs(self.angle_remainder) >= self.WHEEL_STEP:
                 self.wheelScrolled.emit(self.angle_remainder // self.WHEEL_STEP)
                 self.angle_remainder %= self.WHEEL_STEP
-            return
+            return None
 
         if modifier == Qt.KeyboardModifier.ShiftModifier:
             # Translate vertical scroll to horizontal scroll
             delta = event.angleDelta().y()
             self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta)
-            return
+            return None
 
-        super().wheelEvent(event)
+        return super().wheelEvent(event)
 
     def set_zoom(self, value: float, *, animated: bool = True) -> None:
         target_zoom = value
