@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from logging import getLogger
 from typing import TYPE_CHECKING, Any, NamedTuple, SupportsFloat
 
@@ -219,7 +220,7 @@ class StatusWidget(IconReloadMixin, QWidget):
         self.frames_label.setText(f"{info.total_frames} frames")
 
         # Output info: "1920x1080 YUV420P16 @23.976fps"
-        sar_info = "" if info.sar == 1.0 else f"({round(info.sar * info.width)}x{info.height})"
+        sar_info = "" if math.isclose(info.sar, 1.0) else f"({round(info.sar * info.width)}x{info.height})"
 
         self.output_info_label.setText(f"{info.width}x{info.height} {sar_info} {info.format_name} @{info.fps:.3f}fps")
 

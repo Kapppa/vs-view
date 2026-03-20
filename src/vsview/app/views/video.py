@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Flag, auto
 from logging import getLogger
+from math import isclose
 from typing import Any, Literal, NamedTuple
 
 from jetpytools import cachedproperty, clamp, copy_signature, cround
@@ -625,7 +626,7 @@ class BaseGraphicsView(QGraphicsView):
             return
 
         self._sar = sar
-        has_sar = sar != 1.0
+        has_sar = isclose(sar, 1.0)
 
         if self.apply_sar_action.isEnabled() != has_sar:
             self.apply_sar_action.setEnabled(has_sar)
