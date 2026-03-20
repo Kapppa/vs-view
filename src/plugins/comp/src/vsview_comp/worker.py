@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import re
 import threading
 from collections.abc import Awaitable, Iterator, Mapping, Sequence
@@ -20,7 +21,7 @@ from pathvalidate import sanitize_filepath
 from PySide6.QtCore import QThreadPool
 from PySide6.QtGui import QImage
 from vapoursynth import GRAY8, RGB24, VideoNode
-from vstools import clip_async_render, clip_data_gather, core, get_prop, remap_frames
+from vstools import clip_data_gather, core, get_prop, remap_frames
 
 from vsview.api import PluginAPI, PluginSecrets, Time, run_in_background
 
@@ -94,7 +95,8 @@ class ExtractFramesWorker:
             clip = clip.fpng.Write(filename=str(path), compression=1)
             remapped = remap_frames(clip, frames)
 
-            clip_async_render(remapped, progress=lambda *_: self.progress_bar.update_progress(increment=1))
+            with open(os.devnull, "wb") as sink:
+                remapped.output(sink, progress_update=lambda *_: self.progress_bar.update_progress(increment=1))
 
     @run_in_background(name="ExtractQt")
     def _qt_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
