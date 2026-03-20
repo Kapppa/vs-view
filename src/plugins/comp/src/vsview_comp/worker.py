@@ -54,7 +54,7 @@ class ExtractFramesWorker:
             value=0,
         )
 
-        path = self.storage / str(datetime.now(tz=UTC))
+        path = self.storage / datetime.now(tz=UTC).astimezone().strftime("%Y-%m-%d %H-%M-%S")
         workers = list[Future[None]]()
         images_paths = list[tuple[int, Path]]()
 
