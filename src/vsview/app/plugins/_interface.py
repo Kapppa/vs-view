@@ -441,7 +441,7 @@ class _PluginBaseMeta(ObjectType):
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
 
         # Skip processing for base classes that set __plugin_base__ = True
-        if namespace.get("__plugin_base__", False):
+        if namespace.get("__plugin_base__"):
             return cls
 
         # WidgetPluginBase and NodeProcessor are now defined so it's safe to import them
