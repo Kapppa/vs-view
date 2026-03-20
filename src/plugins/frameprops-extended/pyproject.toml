@@ -25,8 +25,8 @@ classifiers = [
 ]
 dependencies = ["vsview", "vsjetpack>=1.0.0"]
 
-[project.entry-points."vsview.extended"]
-vsview_frameprops_more = "vsview_frameprops_more"
+[project.entry-points."vsview.frameprops"]
+vsview_frameprops_extended = "vsview_frameprops_extended"
 
 [project.urls]
 "Documentation" = "https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/second-party/#frameprops-extended"
