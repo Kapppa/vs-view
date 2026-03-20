@@ -72,7 +72,7 @@ class IconReloadMixin:
         self,
         button: QToolButton,
         icon_name: IconName,
-        icon_size: QSize = QSize(20, 20),
+        icon_size: QSize | None = None,
         color_role: QPalette.ColorRole = QPalette.ColorRole.ToolTipText,
         icon_states: Mapping[
             tuple[QIcon.Mode, QIcon.State],
@@ -126,7 +126,7 @@ class IconReloadMixin:
         self,
         action: QAction,
         icon_name: IconName,
-        icon_size: QSize = QSize(20, 20),
+        icon_size: QSize | None = None,
         color_role: QPalette.ColorRole = QPalette.ColorRole.ToolTipText,
         icon_states: Mapping[
             tuple[QIcon.Mode, QIcon.State],
@@ -235,7 +235,7 @@ class IconReloadMixin:
         checkable: bool = False,
         checked: bool = False,
         register_icon: bool = True,
-        icon_size: QSize = QSize(20, 20),
+        icon_size: QSize | None = None,
         color: QColor | None = None,
         color_role: QPalette.ColorRole = QPalette.ColorRole.ToolTipText,
         icon_states: Mapping[
@@ -279,6 +279,8 @@ class IconReloadMixin:
         btn.setCheckable(checkable)
         btn.setToolTip(tooltip)
 
+        icon_size = icon_size or QSize(20, 20)
+
         if checkable:
             btn.setChecked(checked)
 
@@ -305,7 +307,7 @@ class IconReloadMixin:
         checkable: bool = False,
         checked: bool = False,
         register_icon: bool = True,
-        icon_size: QSize = QSize(20, 20),
+        icon_size: QSize | None = None,
         color: QColor | None = None,
         color_role: QPalette.ColorRole = QPalette.ColorRole.ToolTipText,
         icon_states: Mapping[
@@ -318,6 +320,8 @@ class IconReloadMixin:
         Create a QAction with an icon and automatically register it for hot-reload when the icon is an IconName.
         """
         act = QAction(parent or self, toolTip=tooltip, checkable=checkable, checked=checked)  # type: ignore[arg-type]
+
+        icon_size = icon_size or QSize(20, 20)
 
         if isinstance(icon, QIcon):
             act.setIcon(icon)
@@ -336,7 +340,7 @@ class IconReloadMixin:
         self,
         icon: IconName,
         palette: QPalette,
-        icon_size: QSize = QSize(20, 20),
+        icon_size: QSize,
         color: QColor | None = None,
         color_role: QPalette.ColorRole = QPalette.ColorRole.ToolTipText,
         icon_states: Mapping[
@@ -349,7 +353,7 @@ class IconReloadMixin:
             state_icons = {}
             for (mode, state), role in icon_states.items():
                 c = palette.color(*role) if isinstance(role, tuple) else palette.color(role)
-                state_icons[(mode, state)] = (icon, c)
+                state_icons[mode, state] = (icon, c)
 
             q_icon = self.make_icon(state_icons, size=icon_size)
         else:
