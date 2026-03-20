@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 from uuid import uuid4
 
+import anyio
 import httpx
 from jetpytools import cachedproperty, ndigits
 from pathvalidate import sanitize_filepath
@@ -532,7 +533,7 @@ class SlowPicsWorker:
                     response = await client.post(
                         url,
                         data=data,
-                        files={"file": (image_path.name, image_path.read_bytes(), "image/png")},
+                        files={"file": (image_path.name, await anyio.Path(image_path).read_bytes(), "image/png")},
                     )
 
                 if response.status_code == 429:
