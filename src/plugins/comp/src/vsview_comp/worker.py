@@ -6,7 +6,7 @@ import threading
 from collections.abc import Awaitable, Mapping, Sequence
 from concurrent.futures import Future, wait
 from contextlib import aclosing
-from datetime import datetime
+from datetime import UTC, datetime
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
@@ -53,7 +53,7 @@ class ExtractFramesWorker:
             value=0,
         )
 
-        path = self.storage / str(datetime.now())
+        path = self.storage / str(datetime.now(tz=UTC))
         workers = list[Future[None]]()
         images_paths = list[tuple[int, Path]]()
 
