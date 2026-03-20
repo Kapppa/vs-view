@@ -8,3 +8,8 @@ from .plugin import CompPlugin
 @hookimpl
 def vsview_register_toolpanel() -> type[WidgetPluginBase[Any, Any]]:
     return CompPlugin
+
+
+@hookimpl
+def vsview_register_tooldock() -> type[WidgetPluginBase[Any, Any]]:
+    return CompPlugin
