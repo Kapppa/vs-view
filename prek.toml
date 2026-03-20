@@ -3,6 +3,8 @@ default_install_hook_types = ["pre-commit", "pre-push"]
 [[repos]]
 repo = "local"
 
+# Pre-Commit
+# Run on every commit and operate only on staged Python files.
 [[repos.hooks]]
 id = "ruff-format"
 name = "ruff format"
@@ -15,24 +17,18 @@ priority = 0
 
 [[repos.hooks]]
 id = "ruff-check"
-name = "ruff check"
+name = "ruff check --fix"
 language = "system"
-entry = "uv run --locked ruff check"
+entry = "uv run --locked ruff check --fix"
 types = ["python"]
 stages = ["pre-commit"]
 require_serial = true
 priority = 10
 
-[[repos.hooks]]
-id = "ruff-check-fix"
-name = "ruff check --fix"
-language = "system"
-entry = "uv run --locked ruff check --fix"
-types = ["python"]
-stages = ["pre-push"]
-require_serial = true
-priority = 0
-
+# Pre-Push
+# Run once before each push and check the full project.
+# Type errors are usually cross-file, so staged-only scope would produce false greens.
+# `pass_filenames = false` + `always_run = true` ensures mypy always gets explicit path list.
 [[repos.hooks]]
 id = "mypy"
 name = "mypy"
