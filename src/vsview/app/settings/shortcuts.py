@@ -1,5 +1,6 @@
 """Shortcut manager for hot-reloadable keyboard shortcuts."""
 
+import operator
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping
 from logging import getLogger
@@ -176,7 +177,7 @@ class ShortcutManager(Singleton):
         if hierarchies:
             return max(hierarchies)
 
-        context, value = max(self.SCOPE_HIERARCHY.items(), key=lambda k: k[1])
+        context, value = max(self.SCOPE_HIERARCHY.items(), key=operator.itemgetter(1))
         logger.info("Assuming '%s' context for '%s' until a shortcut is registered", context.name, action_id)
 
         return value

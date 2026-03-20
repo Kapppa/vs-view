@@ -70,7 +70,7 @@ def check_leaks(stage: Literal["before", "after"]) -> None:
                     objs[:1],
                     max_depth=10,
                     filename=filename,
-                    highlight=lambda x: x in objs,
+                    highlight=lambda x, this_objs=objs: x in this_objs,
                 )
                 logger.warning("Potential %s leak! Backref graph saved to %s", type_name, filename)
             except Exception as e:

@@ -246,14 +246,13 @@ class PaletteVisualizer(QWidget):
             self.swatch_grid.addWidget(lbl, 0, col)
 
         # Content
-        row = 1
         groups = [
             QPalette.ColorGroup.Active,
             QPalette.ColorGroup.Inactive,
             QPalette.ColorGroup.Disabled,
         ]
 
-        for role_enum, role_name in roles:
+        for row, (role_enum, role_name) in enumerate(roles, start=1):
             # Label
             lbl = QLabel(role_name)
             lbl.setFont(QFont("Segoe UI", 9))
@@ -264,8 +263,6 @@ class PaletteVisualizer(QWidget):
                 color = palette.color(group, role_enum)
                 swatch = self.create_swatch(color)
                 self.swatch_grid.addWidget(swatch, row, col)
-
-            row += 1
 
     def create_swatch(self, color: QColor) -> QFrame:
         """Creates a visual swatch for a color."""

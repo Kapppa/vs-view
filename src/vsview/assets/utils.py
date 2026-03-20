@@ -421,7 +421,9 @@ def load_fonts() -> None:
             if font_id < 0:
                 _logger.warning("Failed to load font: %s", font_file)
             else:
-                _logger.debug("Loaded font %s: %r", font_file, lambda: QFontDatabase.applicationFontFamilies(font_id))
+                _logger.debug(
+                    "Loaded font %s: %r", font_file, lambda fid=font_id: QFontDatabase.applicationFontFamilies(fid)
+                )
         except Exception as e:
             _logger.warning("Error loading font %s: %s", font_file, e)
 

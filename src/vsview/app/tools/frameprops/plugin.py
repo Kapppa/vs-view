@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import operator
 from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import suppress
@@ -243,7 +244,7 @@ class FramePropsModel(QStandardItemModel):
                 order = FormatterRegistry.get_property_order(key)
                 items.append((order, key))
 
-            items.sort(key=lambda x: x[0], reverse=True)
+            items.sort(key=operator.itemgetter(0), reverse=True)
 
             for _, item in items:
                 self.add_prop(item, props[item], category)

@@ -223,7 +223,7 @@ class PlaybackManager(QObject):
 
         def on_complete(f: Future[None]) -> None:
             if f.exception():
-                logger.exception("Frame render failed")
+                logger.error("Frame render failed", exc_info=f.exception())
                 self.loadFailed.emit()
             elif self._tab_manager.tabs.currentIndex() != -1:
                 voutput.last_frame = n

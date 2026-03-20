@@ -144,7 +144,7 @@ class PluginManager(Singleton):
         for path in (Path(__file__).parent.parent / "tools").glob("*"):
             if path.stem.startswith("_"):
                 continue
-            logger.debug("Registering %s first party plugin", lambda: path.name)
+            logger.debug("Registering %s first party plugin", path.name)
             self.manager.register(import_module(f"vsview.app.tools.{path.stem}"))
 
         logger.debug("Loading entrypoints...")

@@ -1764,11 +1764,8 @@ class TimelineControlBar(QWidget):
 
         disable()
 
-        try:
-            with self.timeline.block_events():
-                yield
-        except BaseException:
-            # Keep toolbar disabled on error
-            raise
-        else:
-            loop.from_thread(self.setEnabled, True).result()
+        # Keep toolbar disabled on error
+        with self.timeline.block_events():
+            yield
+
+        loop.from_thread(self.setEnabled, True).result()
