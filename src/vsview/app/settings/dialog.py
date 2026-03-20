@@ -165,10 +165,18 @@ class SettingsDialog(QDialog, IconReloadMixin):
         button_layout.addStretch()
 
         # Manually create button box to control order
-        self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel, self)
-        apply_btn = self.button_box.addButton("Apply", QDialogButtonBox.ButtonRole.ActionRole)
-        apply_btn.clicked.connect(self._on_apply)
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+            | QDialogButtonBox.StandardButton.Apply,
+            self,
+        )
+        self.button_box.accepted.connect(self._on_ok)
         self.button_box.rejected.connect(self.reject)
+
+        if apply_btn := self.button_box.button(QDialogButtonBox.StandardButton.Apply):
+            apply_btn.clicked.connect(self._on_apply)
+
         button_layout.addWidget(self.button_box)
 
         layout.addLayout(button_layout)
@@ -398,22 +406,26 @@ class SettingsDialog(QDialog, IconReloadMixin):
 
         return LocalSettings.model_validate(data)
 
-    def _on_apply(self) -> None:
+    def _on_ok(self) -> None:
+        if self._on_apply():
+            self.accept()
+
+    def _on_apply(self) -> bool:
         try:
             global_settings = self._get_global_settings_from_ui()
             SettingsManager.save_global(global_settings)
         except Exception:
             logger.error("Failed to save global settings")
-            return
+            return False
 
         if self._script_path:
             try:
                 SettingsManager.save_local(self._script_path, self._get_local_settings_from_ui())
             except Exception:
                 logger.error("Failed to save local settings")
-                return
+                return False
 
-        self.accept()
+        return True
 
     def _on_shortcut_changed(self) -> None:
         from .shortcuts import ShortcutManager
