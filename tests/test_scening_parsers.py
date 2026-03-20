@@ -86,7 +86,8 @@ class TestAssParser:
 
         # Boundary checks
         first, last = result.ranges[0], result.ranges[-1]
-        assert isinstance(first, RangeFrame) and isinstance(last, RangeFrame)
+        assert isinstance(first, RangeFrame)
+        assert isinstance(last, RangeFrame)
         assert (first.start, first.end) == (2986, 3082)
         assert (last.start, last.end) == (140081, 140118)
         assert "ll Y A DES MILLIONS" in first.label
@@ -130,7 +131,7 @@ class TestMatroskaXMLParser:
         assert [len(s.ranges) for s in scenes] == [2, 3]
 
     @pytest.mark.parametrize(
-        "content, error",
+        ("content", "error"),
         [
             ("not xml", "Could not parse XML"),
             ("<Chapters></Chapters>", None),
@@ -159,7 +160,7 @@ class TestXvidLogParser:
 
 class TestQPFileParser:
     @pytest.mark.parametrize(
-        "filename, count, first_frame, label",
+        ("filename", "count", "first_frame", "label"),
         [
             ("test_qpfile.txt", 76, 30, "-1"),
             ("test_qpfile_with_header.txt", 730, 0, "-1"),
