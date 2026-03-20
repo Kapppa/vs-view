@@ -176,19 +176,26 @@ docstring-code-format = true
 [tool.ruff.lint]
 exclude = ["stubs/vapoursynth/*"]
 extend-select = [
-    "E",
+    "YTT",
+    "ASYNC",
     "C4",
-    "I",
+    "LOG",
+    "G",
+    "PIE",
     "PYI",
+    "PT",
     "Q",
+    "RSE",
+    "RET",
     "SIM",
+    "I",
     "N",
+    "PERF",
+    "E",
     "W",
     "UP",
     "FURB",
     "RUF",
-    "LOG",
-    "G",
 ]
 ignore = ["N802", "N815"]
 
