@@ -51,13 +51,19 @@ Copy them into your `vsview/.vscode/settings.json`:
 ```json title="vsview/.vscode/settings.json"
 {
     "[python]": {
-        "editor.defaultFormatter": "charliermarsh.ruff"
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports.ruff": "explicit",
+        }
     },
     "[json]": {
+        "editor.formatOnSave": true,
         "editor.defaultFormatter": "vscode.json-language-features",
         "editor.tabSize": 2
     },
     "[toml]": {
+        "editor.formatOnSave": true,
         "editor.defaultFormatter": "tamasfe.even-better-toml"
     },
     "[github-actions-workflow]": {
@@ -66,10 +72,6 @@ Copy them into your `vsview/.vscode/settings.json`:
     "files.associations": {
         "*.vpy": "python"
     },
-    "editor.codeActionsOnSave": {
-        "source.organizeImports": "always"
-    },
-    "editor.formatOnSave": true,
     "mypy-type-checker.args": [
         "--fixed-format-cache"
     ],
