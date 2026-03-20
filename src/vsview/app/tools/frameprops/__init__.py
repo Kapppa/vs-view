@@ -9,3 +9,8 @@ from .plugin import FramePropsPlugin
 @_vsview_hookimpl(tryfirst=True)
 def vsview_register_toolpanel() -> type[WidgetPluginBase[Any, Any]]:
     return FramePropsPlugin
+
+
+@_vsview_hookimpl(tryfirst=True)
+def vsview_register_tooldock() -> type[WidgetPluginBase[Any, Any]]:
+    return FramePropsPlugin
