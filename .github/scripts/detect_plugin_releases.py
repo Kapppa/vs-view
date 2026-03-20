@@ -74,8 +74,7 @@ class PluginChange:
             "",
         ]
 
-        for commit in self.commits:
-            lines.append(f"- {commit}")
+        lines.extend(f"- {commit}" for commit in self.commits)
 
         lines.extend(
             [
