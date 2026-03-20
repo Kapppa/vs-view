@@ -201,7 +201,7 @@ class ShortcutManager(Singleton):
         shortcut.setKey(QKeySequence(self.get_key(action_id)))
 
     def _on_settings_changed(self) -> None:
-        logger.info("Hot-reloading shortcuts...")
+        logger.debug("Hot-reloading shortcuts...")
 
         for aid in self._definitions:
             for action in self._actions.get(aid, ()):
@@ -210,7 +210,7 @@ class ShortcutManager(Singleton):
             for shortcut in self._shortcuts.get(aid, ()):
                 self._update_shortcut(aid, shortcut)
 
-        logger.info("Shortcuts hot-reloaded")
+        logger.debug("Shortcuts hot-reloaded")
         # FIXME:
         # self._check_conflicts()
 
