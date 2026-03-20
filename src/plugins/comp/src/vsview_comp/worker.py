@@ -71,7 +71,7 @@ class ExtractFramesWorker:
                 images_paths.append((output.vs_index, images_path))
 
                 clip = self.api.packer.to_rgb_planar(output.vs_output.clip, format=RGB24)
-                frames = [output.time_to_frame(t) for t, _ in self.data]
+                frames = [output.time_to_frame(t) for t, *_ in self.data]
                 clip_image_path = images_path / f"%0{ndigits(max(frames))}d.png"
 
                 if is_fpng_available:
@@ -135,7 +135,7 @@ class SelectFrameWorker:
 
         # Existing frames to avoid duplicates
         v = self.api.current_voutput
-        self.checked = [int(v.time_to_frame(t)) for t, _ in parent.frames_list.get_data()]
+        self.checked = [int(v.time_to_frame(t)) for t, *_ in parent.frames_list.get_data()]
 
         # Picture types
         self.pict_types = list[str]()

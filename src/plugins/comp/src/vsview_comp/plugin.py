@@ -6,7 +6,6 @@ from logging import getLogger
 from pathlib import Path
 from typing import Annotated, Any
 
-from jetpytools import clamp
 from pydantic import BaseModel
 from PySide6.QtCore import QEvent, QObject, QSignalBlocker, Qt, QTime, QTimer
 from PySide6.QtGui import QCursor
@@ -21,6 +20,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidgetItem,
     QMenu,
+    QMessageBox,
     QPushButton,
     QSpinBox,
     QStackedWidget,
@@ -226,25 +226,23 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         frame_count_layout.setSpacing(8)
 
         self.random_frame_count = FrameEdit(frame_count_widget)
-        self.random_frame_count.setRange(0, 40)  # 40 should be more than enough
+        self.random_frame_count.setMaximum(9999)
         self.random_frame_count.setValue(0)
         self.random_frame_count.setFixedWidth(80)
         self.random_frame_count.setToolTip("Total number of random frames to select")
         self.random_frame_count.frameChanged.connect(self.on_random_frame_count_changed)
 
         self.dark_frame_count = FrameEdit(frame_count_widget)
-        self.dark_frame_count.setRange(0, 0)
+        self.dark_frame_count.setMaximum(9999)
         self.dark_frame_count.setValue(0)
         self.dark_frame_count.setFixedWidth(80)
         self.dark_frame_count.setToolTip("Number of random darkest frames to include")
-        self.dark_frame_count.frameChanged.connect(self.on_dark_frame_count_changed)
 
         self.light_frame_count = FrameEdit(frame_count_widget)
-        self.light_frame_count.setRange(0, 0)
+        self.light_frame_count.setMaximum(9999)
         self.light_frame_count.setValue(0)
         self.light_frame_count.setFixedWidth(80)
         self.light_frame_count.setToolTip("Number of random lightest frames to include")
-        self.light_frame_count.frameChanged.connect(self.on_light_frame_count_changed)
 
         frame_count_layout.addWidget(self.random_frame_count)
         frame_count_layout.addStretch()
@@ -500,35 +498,11 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.frame_edit_end.setValue(self.api.current_voutput.time_to_frame(Time.from_qtime(new)))
 
     def on_list_size_changed(self, delta: int) -> None:
-        self.random_frame_count.setMaximum(clamp(self.random_frame_count.maximum() - delta, 0, 40))
         self._extraction_finished = False
         self._update_buttons_state()
 
     def on_random_frame_count_changed(self, new: Frame, old: Frame) -> None:
-        dark_val = self.dark_frame_count.value()
-        light_val = self.light_frame_count.value()
-
-        if dark_val + light_val > new:
-            total = dark_val + light_val
-            new_dark = int((dark_val / total) * new)
-            new_light = int((light_val / total) * new)
-
-            self.dark_frame_count.setMaximum(new)
-            self.light_frame_count.setMaximum(new)
-
-            self.dark_frame_count.setValue(new_dark)
-            self.light_frame_count.setValue(new_light)
-
-        self.dark_frame_count.setMaximum(new - self.light_frame_count.value())
-        self.light_frame_count.setMaximum(new - self.dark_frame_count.value())
-
         self._update_buttons_state()
-
-    def on_dark_frame_count_changed(self, new: Frame, old: Frame) -> None:
-        self.light_frame_count.setMaximum(self.random_frame_count.value() - new)
-
-    def on_light_frame_count_changed(self, new: Frame, old: Frame) -> None:
-        self.dark_frame_count.setMaximum(self.random_frame_count.value() - new)
 
     def on_add_multiple_frames(self) -> None:
         text, ok = QInputDialog.getText(
@@ -558,6 +532,19 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
     def on_select_frames_clicked(self) -> None:
         worker = SelectFrameWorker(self.api, self)
+
+        if (worker.normal + worker.dark + worker.light) > 50:
+            result = QMessageBox.warning(
+                self,
+                "Too Many Frames",
+                "You are auto-selecting more than 50 frames.\n\n"
+                "If you expect to upload the results to Slow.pics, this may not be supported."
+                "\n\nPress OK to continue anyway, or Cancel to stop the selection.",
+                QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Cancel,
+            )
+            if result == QMessageBox.StandardButton.Cancel:
+                return
 
         @run_in_loop
         def on_finished(future: Future[list[tuple[Time, FrameSourceProvider]]]) -> None:
@@ -731,11 +718,29 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         else:
             after_extract()
 
-    @run_in_background
-    def _prepare_and_upload(self, data: list[tuple[Time, str]]) -> None:
+    @run_in_background(name="PrepareAndUpload")
+    def _prepare_and_upload(self, data: list[tuple[Time, str, FrameSourceProvider]]) -> None:
         if not self._extract_paths:
             logger.error("No extracted frames to upload")
             self._on_upload_error()
+            return
+
+        src_providers = [src_provider for _, _, src_provider in data]
+        autogenerated_count = len([p for p in src_providers if p.name.startswith("RANDOM")])
+
+        if len(src_providers) > 100:
+            logger.error("Too many images selected for upload: %d", len(src_providers))
+            self._on_upload_error("Too many images selected. Slow.pics supports at most 100 images per upload.")
+            return
+
+        if autogenerated_count > 50:
+            logger.error(
+                "Too many autogenerated images selected for upload: %d",
+                autogenerated_count,
+            )
+            self._on_upload_error(
+                "Too many autogenerated images selected. Slow.pics supports at most 50 autogenerated images per upload."
+            )
             return
 
         # Build sources from the extracted images on disk
@@ -746,7 +751,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             images = list[ComparisonImage]()
             output = vouputs[index]
 
-            for time, pict_type in data:
+            for time, pict_type, _ in data:
                 frame = output.time_to_frame(time)
                 image_path = next(source_dir.glob(f"*{frame}.png"), None)
 
@@ -806,12 +811,14 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         cookies_future.add_done_callback(on_cookies)
 
     @run_in_loop(return_future=False)
-    def _on_upload_error(self) -> None:
+    def _on_upload_error(self, message: str | None = None) -> None:
         # Helper to cleanup UI on failure from background
         self.progress_bar.reset_progress()
         self.clip_section.setEnabled(True)
         self._pending_upload = None
         self._update_buttons_state()
+        if message:
+            QMessageBox.critical(self, "Upload Error", message)
 
     def _update_buttons_state(self) -> None:
         current_outputs = self.outputs_dropdown.included_outputs

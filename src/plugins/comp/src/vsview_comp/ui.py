@@ -366,8 +366,12 @@ class FrameThumbnailList(QListWidget):
 
         self.listSizeChanged.emit(-nb)
 
-    def get_data(self) -> list[tuple[Time, str]]:
-        return [(it.time, it.pict_type) for i in range(self.count()) if isinstance(it := self.item(i), ThumbnailItem)]
+    def get_data(self) -> list[tuple[Time, str, FrameSourceProvider]]:
+        return [
+            (it.time, it.pict_type, it.src_provider)
+            for i in range(self.count())
+            if isinstance(it := self.item(i), ThumbnailItem)
+        ]
 
     @run_in_background(name="FetchThumbnail")
     def fetch_thumbnail(self, item: ThumbnailItem) -> None:
