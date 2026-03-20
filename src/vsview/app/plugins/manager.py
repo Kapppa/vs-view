@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pkgutil
 import weakref
 from collections.abc import Callable
 from concurrent.futures import Future
@@ -18,6 +19,7 @@ from vapoursynth import AudioNode, VideoNode
 from vsengine.loops import EventLoop, get_loop
 
 from ...vsenv import run_in_background
+from .. import tools
 from . import specs
 
 if TYPE_CHECKING:
@@ -141,11 +143,11 @@ class PluginManager(Singleton):
     def _load_worker(self) -> None:
         self.manager.add_hookspecs(specs)
 
-        for path in (Path(__file__).parent.parent / "tools").glob("*"):
-            if path.stem.startswith("_"):
+        for _, name, _ in pkgutil.iter_modules(tools.__path__):
+            if name.startswith("_"):
                 continue
-            logger.debug("Registering %s first party plugin", path.name)
-            self.manager.register(import_module(f"vsview.app.tools.{path.stem}"))
+            logger.debug("Registering %s first party plugin", name)
+            self.manager.register(import_module(f"vsview.app.tools.{name}"))
 
         logger.debug("Loading entrypoints...")
         n = self.manager.load_setuptools_entrypoints("vsview")
