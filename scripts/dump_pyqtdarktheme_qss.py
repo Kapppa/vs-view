@@ -1,3 +1,4 @@
+import pathlib
 import sys
 
 import qdarktheme  # type: ignore
@@ -7,12 +8,10 @@ app = QApplication(sys.argv)
 
 # Dump dark theme
 dark_stylesheet = qdarktheme.load_stylesheet("dark")
-with open("pyqtdarktheme_dark.qss", "w") as f:
-    f.write(dark_stylesheet)
+pathlib.Path("pyqtdarktheme_dark.qss").write_text(dark_stylesheet)
 print("Saved: pyqtdarktheme_dark.qss")
 
 # Dump light theme
 light_stylesheet = qdarktheme.load_stylesheet("light")
-with open("pyqtdarktheme_light.qss", "w") as f:
-    f.write(light_stylesheet)
+pathlib.Path("pyqtdarktheme_light.qss").write_text(light_stylesheet)
 print("Saved: pyqtdarktheme_light.qss")

@@ -5,6 +5,7 @@ from concurrent.futures import Future
 from functools import cache
 from importlib.util import find_spec
 from logging import getLogger
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -376,8 +377,7 @@ class CodeEditorDock(QDockWidget, IconReloadMixin):
     def _save_script(self, filepath: str, content: str) -> None:
         self.statusSavingScriptStarted.emit("Saving script...")
         try:
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(content)
+            Path(filepath).write_text(content, encoding="utf-8")
             self.statusSavingScriptFinished.emit("Saved")
         except Exception:
             logger.exception("Error saving script:")
