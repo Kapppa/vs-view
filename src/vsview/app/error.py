@@ -24,7 +24,7 @@ def _is_user_script_frame(filename: str, user_script_path: str | None = None) ->
         ):
             return True
 
-    if filename.startswith("src/cython/") or filename.startswith("<"):
+    if filename.startswith(("src/cython/", "<")):
         return False
 
     return not any(
