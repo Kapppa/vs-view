@@ -190,6 +190,8 @@ class TabManager(QWidget, IconReloadMixin):
 
         self._setup_shortcuts()
 
+        SettingsManager.signals.globalChanged.connect(self.set_tab_visiblity)
+
     def _setup_shortcuts(self) -> None:
         sm = ShortcutManager()
         sm.register_shortcut(ActionID.SYNC_PLAYHEAD, self.sync_playhead_btn.set_state, self)
@@ -251,11 +253,17 @@ class TabManager(QWidget, IconReloadMixin):
             new_tabs.tabBar().setTabButton(tab_i, new_tabs.tabBar().ButtonPosition.LeftSide, tab_label)
 
         if new_tabs.count() <= 1:
-            new_tabs.tabBar().hide()
+            self.sync_playhead_btn.setDisabled(True)
+            self.sync_zoom_btn.setDisabled(True)
+            self.sync_scroll_btn.setDisabled(True)
+            self.autofit_btn.setDisabled(True)
         else:
-            new_tabs.tabBar().show()
+            self.sync_playhead_btn.setEnabled(True)
+            self.sync_zoom_btn.setEnabled(True)
+            self.sync_scroll_btn.setEnabled(True)
+            self.autofit_btn.setEnabled(True)
 
-        new_tabs.setEnabled(enabled)
+        self.set_tab_visiblity(new_tabs)
 
         return new_tabs
 
@@ -288,6 +296,20 @@ class TabManager(QWidget, IconReloadMixin):
             return
 
         self.tabs.setCurrentIndex(fallback(index, self.tabs.currentIndex() + delta))
+
+    def set_tab_visiblity(self, tabs: TabViewWidget | None = None) -> None:
+        tabs = tabs or self.tabs
+
+        match SettingsManager.global_settings.appearance.tab_bar:
+            case Qt.CheckState.Unchecked:
+                tabs.tabBar().hide()
+            case Qt.CheckState.Checked:
+                tabs.tabBar().show()
+            case Qt.CheckState.PartiallyChecked:
+                if tabs.count() <= 1:
+                    tabs.tabBar().hide()
+                else:
+                    tabs.tabBar().show()
 
     @run_in_loop
     def update_current_view(self, image: QImage, sar: float | None = None) -> None:

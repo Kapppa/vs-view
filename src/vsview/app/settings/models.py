@@ -333,17 +333,25 @@ class Checkbox(WidgetMetadata[QCheckBox]):
     text: str
     """Text displayed next to the checkbox."""
 
+    tristate: bool = field(default=False, kw_only=True)
+    """Whether the checkbox is a tri-state checkbox"""
+
     def create_widget(self, parent: QWidget | None = None) -> QCheckBox:
-        widget = QCheckBox(parent)
-        widget.setText(self.text)
-        return widget
+        return QCheckBox(self.text, parent, tristate=self.tristate)
 
     def load_value(self, widget: QCheckBox, value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
-            widget.setChecked(not not value)  # noqa: SIM208
+            if self.tristate:
+                if isinstance(value, bool):
+                    widget.setCheckState(Qt.CheckState.Checked if value else Qt.CheckState.Unchecked)
+                else:
+                    widget.setCheckState(Qt.CheckState(value))
+            else:
+                widget.setChecked(bool(value))
 
     def get_value(self, widget: QCheckBox) -> Any:
-        with self.apply_transform(widget.isChecked(), self.from_ui) as value:
+        val = widget.checkState() if self.tristate else widget.isChecked()
+        with self.apply_transform(val, self.from_ui) as value:
             return value
 
 
@@ -858,6 +866,23 @@ class AppearanceSettings(BaseModel):
             tooltip="Theme for the editor of the Quick Script workspace",
         ),
     ] = "gruvbox-dark"
+
+    tab_bar: Annotated[
+        Qt.CheckState,
+        PlainValidator(lambda v: v if isinstance(v, Qt.CheckState) else Qt.CheckState(v)),
+        PlainSerializer(lambda v: v.value, return_type=int),
+        Checkbox(
+            label="Tab Bar",
+            text="Control the visibility of the tab bar",
+            tooltip=(
+                "Control the visibility of the tab bar.\n"
+                "- Checked: Always visible\n"
+                "- Unchecked: Always hidden\n"
+                "- Partially Checked: Visible only when multiple tabs are open"
+            ),
+            tristate=True,
+        ),
+    ] = Qt.CheckState.PartiallyChecked
 
     sidebar_visible: bool = True
 
