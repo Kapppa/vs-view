@@ -96,28 +96,9 @@ class RegionSelectorPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
             "Command" + ("s" if len(self.settings.global_.code_format) > 1 else ""),
             self,
         )
-        cmd_group_layout = QVBoxLayout(self.cmd_group)
-
+        self.cmd_group_layout = QVBoxLayout(self.cmd_group)
         self.cmd_labels = list[CommandLabel]()
-
-        for code_fmt in self.settings.global_.code_format:
-            cmd_label = CommandLabel(code_fmt, self.cmd_group)
-            self.cmd_labels.append(cmd_label)
-
-            copy_btn = self.make_tool_button(
-                IconName.CLIPBOARD,
-                "Copy command to clipboard",
-                self.cmd_group,
-                icon_states=self.DEFAULT_ICON_STATES,
-            )
-            copy_btn.clicked.connect(
-                lambda checked, label=cmd_label, btn=copy_btn: self.copy_to_clipboard(checked, label, btn)
-            )
-
-            cmd_layout = QHBoxLayout()
-            cmd_layout.addWidget(cmd_label)
-            cmd_layout.addWidget(copy_btn)
-            cmd_group_layout.addLayout(cmd_layout)
+        self._setup_cmd_labels()
 
         self.main_layout.addWidget(self.cmd_group)
         self.main_layout.addStretch()
@@ -144,6 +125,34 @@ class RegionSelectorPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
         self.info_grid.addWidget(name_label, row, column * 2)
         self.info_grid.addWidget(spin, row, column * 2 + 1)
         return spin
+
+    def _setup_cmd_labels(self) -> None:
+        for btn in self.cmd_group.findChildren(QToolButton):
+            btn.deleteLater()
+
+        for lbl in self.cmd_group.findChildren(CommandLabel):
+            lbl.deleteLater()
+
+        self.cmd_labels.clear()
+
+        for code_fmt in self.settings.global_.code_format:
+            cmd_label = CommandLabel(code_fmt, self.cmd_group)
+            self.cmd_labels.append(cmd_label)
+
+            copy_btn = self.make_tool_button(
+                IconName.CLIPBOARD,
+                "Copy command to clipboard",
+                self.cmd_group,
+                icon_states=self.DEFAULT_ICON_STATES,
+            )
+            copy_btn.clicked.connect(
+                lambda checked, label=cmd_label, btn=copy_btn: self.copy_to_clipboard(checked, label, btn)
+            )
+
+            cmd_layout = QHBoxLayout()
+            cmd_layout.addWidget(cmd_label)
+            cmd_layout.addWidget(copy_btn)
+            self.cmd_group_layout.addLayout(cmd_layout)
 
     # Plugin API Hooks
     def on_hide(self) -> None:
@@ -184,6 +193,7 @@ class RegionSelectorPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
         self.width_spin.setSingleStep(self.settings.global_.mod)
         self.height_spin.setSingleStep(self.settings.global_.mod)
 
+        self._setup_cmd_labels()
         self._apply_view_selection(self.api.current_view.rect_selection)
 
     @run_in_loop(return_future=False)
