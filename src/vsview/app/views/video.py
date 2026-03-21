@@ -199,7 +199,7 @@ class RectSelectionOverlay(QGraphicsObject):
         return self._selection_rect
 
     @selection_rect.setter
-    def selection_rect(self, rect: QRect) -> None:
+    def selection_rect(self, rect: QRect | QRectF) -> None:
         """Set the selection rect. An empty rect hides the overlay."""
         self._selection_rect = QRectF(rect)
         self._update_visibility()
@@ -646,7 +646,12 @@ class BaseGraphicsView(QGraphicsView):
         Returns:
             The corresponding point in the source image's pixel coordinates.
         """
-        return self.pixmap_item.mapFromScene(self.mapToScene(point.toPoint() if isinstance(point, QPointF) else point))
+        point = point.toPoint() if isinstance(point, QPointF) else point
+        item_pos = self.pixmap_item.mapFromScene(point)
+
+        scale_x, scale_y = self._image_scale_factors
+
+        return QPointF(item_pos.x() * scale_x, item_pos.y() * scale_y)
 
     def set_rect_selection(self, rect: QRect, *, finished: bool = False) -> None:
         """
@@ -697,14 +702,16 @@ class BaseGraphicsView(QGraphicsView):
 
     def _init_rect_selection_overlay(self) -> None:
         self._rect_selection_overlay = RectSelectionOverlay(self.pixmap_item)
-        self._rect_selection_overlay.image_rect = self.pixmap_item.boundingRect()
-        self._rect_selection_overlay.selection_rect = self._rect_selection
-        self._rect_selection_overlay.editable = self._rect_selection_enabled
+        self._update_rect_selection_overlay()
 
     def _update_rect_selection_overlay(self) -> None:
         self._rect_selection_overlay.image_rect = self.pixmap_item.boundingRect()
-        self._rect_selection_overlay.selection_rect = self._rect_selection
         self._rect_selection_overlay.editable = self._rect_selection_enabled
+        # Convert image rect to item rect
+        scale_x, scale_y = self._image_scale_factors
+        rectf = self._rect_selection.toRectF()
+        rectf = QRectF(rectf.x() / scale_x, rectf.y() / scale_y, rectf.width() / scale_x, rectf.height() / scale_y)
+        self._rect_selection_overlay.selection_rect = rectf
 
     def _set_rect_selection(self, rect: QRect, *, emit_changed: bool, emit_finished: bool) -> None:
         rect = self._normalize_rect_selection(rect)
@@ -742,11 +749,23 @@ class BaseGraphicsView(QGraphicsView):
 
         return QRect(x0, y0, x1 - x0, y1 - y0)
 
-    def _clamp_image_pos(self, pos: QPointF) -> QPointF:
+    @property
+    def _image_rect(self) -> QRectF:
         pixmap = self.pixmap_item.pixmap()
+        return QRectF(0.0, 0.0, pixmap.width(), pixmap.height())
+
+    @property
+    def _image_scale_factors(self) -> tuple[float, float]:
+        if (pixmap := self.pixmap_item.pixmap()).isNull() or (bounds := self.pixmap_item.boundingRect()).isEmpty():
+            return 1.0, 1.0
+
+        return pixmap.width() / bounds.width(), pixmap.height() / bounds.height()
+
+    def _clamp_image_pos(self, pos: QPointF) -> QPointF:
+        image_rect = self._image_rect
         return QPointF(
-            clamp(pos.x(), 0.0, pixmap.width()),
-            clamp(pos.y(), 0.0, pixmap.height()),
+            clamp(pos.x(), image_rect.left(), image_rect.right()),
+            clamp(pos.y(), image_rect.top(), image_rect.bottom()),
         )
 
     @staticmethod
@@ -789,7 +808,7 @@ class BaseGraphicsView(QGraphicsView):
             pos = self.viewport().mapFromGlobal(QCursor.pos())
 
         image_pos = self.map_to_image(pos)
-        if not self.pixmap_item.boundingRect().contains(image_pos):
+        if not self._image_rect.contains(image_pos):
             self.viewport().setCursor(Qt.CursorShape.CrossCursor)
             return
 
@@ -811,7 +830,7 @@ class BaseGraphicsView(QGraphicsView):
             return False
 
         image_pos = self.map_to_image(event.position())
-        if not self.pixmap_item.boundingRect().contains(image_pos):
+        if not self._image_rect.contains(image_pos):
             return False
 
         image_pos = self._clamp_image_pos(image_pos)
