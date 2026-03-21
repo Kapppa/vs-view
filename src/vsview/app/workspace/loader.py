@@ -16,7 +16,6 @@ from jetpytools import clamp, fallback
 from PySide6.QtCore import QSignalBlocker, Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
-    QDockWidget,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -67,7 +66,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.api = PluginAPI(self)
         self.cbs_on_destroy = list[Callable[[], Any]]()
         self.plugins = list[WidgetPluginBase[Any, Any]]()
-        self.docks = list[QDockWidget]()
+        self.docks = list[PluginDock]()
         self.plugins_loaded = False
 
         # Empty State
