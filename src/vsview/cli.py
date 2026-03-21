@@ -20,7 +20,6 @@ logger = getLogger(__name__)
 
 app = Typer(
     name="vsview",
-    help="",
     rich_markup_mode="rich",
     pretty_exceptions_enable=False,
     add_completion=False,
@@ -197,7 +196,12 @@ version_opt = Option(
 )
 
 
-@app.command()
+@app.callback(
+    help=(
+        "Preview VapourSynth scripts, videos, images and audio in a desktop viewer.\n\n"
+        "Open one or more input files directly, or start without files to open the default workspaces.\n\n"
+    )
+)
 def vsview_cli(
     files: Annotated[list[Path] | None, input_file_arg] = None,
     arg: Annotated[list[str] | None, script_arg_opt] = None,
