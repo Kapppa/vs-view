@@ -63,7 +63,7 @@ packages = ["src/vspackrgb"]
 exclude = ["**/*.pyx"]
 
 [tool.hatch.build.targets.wheel.hooks.custom]
-path = "../../scripts/hatch_hooks.py"
+path = "../../scripts/build/hatch_hooks.py"
 
 [tool.hatch.build.targets.wheel.hooks.cython]
 dependencies = ["hatch-cython"]

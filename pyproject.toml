@@ -119,7 +119,7 @@ packages = ["src/vsview"]
 exclude = ["README.md", "__main__.py"]
 
 [tool.hatch.build.targets.wheel.hooks.custom]
-path = "scripts/hatch_hooks.py"
+path = "scripts/build/hatch_hooks.py"
 
 [tool.hatch.version]
 source = "versioningit"

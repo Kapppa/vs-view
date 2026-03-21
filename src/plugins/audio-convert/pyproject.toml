@@ -38,7 +38,7 @@ vsview_audio_convert = "vsview_audio_convert"
 vsview = { workspace = true }
 
 [tool.hatch.build.targets.wheel.hooks.custom]
-path = "../../../scripts/hatch_hooks.py"
+path = "../../../scripts/build/hatch_hooks.py"
 
 [tool.hatch.version]
 source = "versioningit"
