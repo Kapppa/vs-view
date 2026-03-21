@@ -647,7 +647,7 @@ class BaseGraphicsView(QGraphicsView):
             The corresponding point in the source image's pixel coordinates.
         """
         point = point.toPoint() if isinstance(point, QPointF) else point
-        item_pos = self.pixmap_item.mapFromScene(point)
+        item_pos = self.pixmap_item.mapFromScene(self.mapToScene(point))
 
         scale_x, scale_y = self._image_scale_factors
 
