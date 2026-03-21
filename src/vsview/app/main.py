@@ -157,14 +157,15 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         # Sidebar
-        sidebar = QWidget(self)
-        sidebar.setFixedWidth(64)
-        self.sidebar_layout = QVBoxLayout(sidebar)
+        self.sidebar = QWidget(self)
+        self.sidebar.setFixedWidth(64)
+        self.sidebar_layout = QVBoxLayout(self.sidebar)
         self.sidebar_layout.setContentsMargins(4, 4, 4, 4)
         self.sidebar_layout.setSpacing(8)
+        self.sidebar.setVisible(self.settings_manager.global_settings.appearance.sidebar_visible)
 
         # Container for dynamic page buttons
-        self.nav_container = DraggableNavContainer(self)
+        self.nav_container = DraggableNavContainer(self.sidebar)
         self.sidebar_layout.addWidget(self.nav_container)
 
         self.button_group = QButtonGroup(self)
@@ -172,7 +173,7 @@ class MainWindow(QMainWindow):
 
         self.sidebar_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
 
-        main_layout.addWidget(sidebar)
+        main_layout.addWidget(self.sidebar)
 
         # Content area
         self.stack = StackedWidget(self)
@@ -210,6 +211,16 @@ class MainWindow(QMainWindow):
         self.workspace_submenu.addAction(self.quick_script_subaction)
 
         self.view_menu = self.menu_bar.addMenu("View")
+
+        self.view_sidebar_action = QAction(
+            "Sidebar",
+            self.view_menu,
+            checkable=True,
+            checked=self.settings_manager.global_settings.appearance.sidebar_visible,
+        )
+        self.view_sidebar_action.triggered.connect(self._on_view_sidebar_action_triggered)
+        self.view_menu.addAction(self.view_sidebar_action)
+        self.view_menu.addSeparator()
 
         self.view_tooldocks_submenu = QMenu("Tool Docks", self.view_menu)
         self.view_tooldocks_submenu.aboutToShow.connect(self._populate_tooldocks_menu)
@@ -516,6 +527,10 @@ class MainWindow(QMainWindow):
 
     def _on_sidebar_button_clicked(self, btn: WorkspaceToolButton[Any]) -> None:
         self.stack.animate_to_widget(btn.workspace)
+
+    def _on_view_sidebar_action_triggered(self, checked: bool) -> None:
+        self.sidebar.setVisible(checked)
+        self.settings_manager.global_settings.appearance.sidebar_visible = checked
 
 
 class StackedWidget(QStackedWidget):

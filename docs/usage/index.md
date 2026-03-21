@@ -15,6 +15,7 @@ This page provides an overview of the **VSView** interface and its core componen
 ## 1. The Sidebar
 
 The sidebar on the left is the main navigation area. Each open workspace is represented by an icon.
+It can be toggled on or off from the **View** menu if more space is needed for the content area.
 
 ### Navigation & Management
 - **Switching Workspaces**: Click an icon to switch the main content area to that workspace.
@@ -40,6 +41,7 @@ Bring new content into **VSView**:
 ### `View` Menu
 Manage your workspace environment:
 
+- **`Sidebar`**: Toggle the visibility of the primary navigation sidebar.
 - **`Tool Docks`**: Toggle the visibility of persistent dock tools.
 - **`Tool Panels`**: Toggle the visibility of tabbed tools.
 

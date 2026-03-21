@@ -859,6 +859,8 @@ class AppearanceSettings(BaseModel):
         ),
     ] = "gruvbox-dark"
 
+    sidebar_visible: bool = True
+
 
 # Settings Models with Annotated Widget Metadata and Defaults
 class TimelineSettings(BaseModel):
