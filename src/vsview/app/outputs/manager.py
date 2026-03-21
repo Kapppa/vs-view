@@ -43,12 +43,12 @@ class OutputsManager:
         self._current_video_index = value
 
     @property
-    def current_audio_index(self) -> int | None:
+    def current_audio_index(self) -> int:
         """Current audio output index."""
-        return getattr(self, "_current_audio_index", None)
+        return getattr(self, "_current_audio_index", 0)
 
     @current_audio_index.setter
-    def current_audio_index(self, value: int | None) -> None:
+    def current_audio_index(self, value: int) -> None:
         self._current_audio_index = value
 
     @property
@@ -61,9 +61,11 @@ class OutputsManager:
     @property
     def current_aoutput(self) -> AudioOutput | None:
         """Current audio output."""
-        if self.current_audio_index is not None and self.aoutputs:
-            return self.aoutputs[self.current_audio_index]
-        return None
+        return (
+            self.aoutputs[self.current_audio_index]
+            if self.current_audio_index in range(len(self.aoutputs))
+            else None  # No format
+        )
 
     def create_voutputs(
         self,

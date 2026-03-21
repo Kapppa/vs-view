@@ -1388,7 +1388,7 @@ class LocalPlaybackSettings(BaseModel):
     loop: bool = False
     step: int = 1
 
-    last_audio_index: int | None = None
+    last_audio_index: Annotated[int, AfterValidator(lambda i: max(0, i))] = 0
     current_volume: float = 0.5
     muted: bool = False
     audio_delay: Annotated[
