@@ -200,7 +200,8 @@ version_opt = Option(
     help=(
         "Preview VapourSynth scripts, videos, images and audio in a desktop viewer.\n\n"
         "Open one or more input files directly, or start without files to open the default workspaces.\n\n"
-    )
+    ),
+    invoke_without_command=True,
 )
 def vsview_cli(
     files: Annotated[list[Path] | None, input_file_arg] = None,
