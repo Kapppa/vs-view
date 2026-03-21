@@ -28,8 +28,8 @@ class CodeFormatListEdit(ListEdit[str]):
 
 
 DEFAULT_CODE_FORMAT = [
-    "std.Crop({left}, {top}, {right}, {bottom})",
-    "std.CropRel({left}, {top}, {right}, {bottom})",
+    "std.Crop({left}, {right}, {top}, {bottom})",
+    "std.CropRel({left}, {right}, {top}, {bottom})",
     "std.CropAbs({width}, {height}, {left}, {top})",
 ]
 
