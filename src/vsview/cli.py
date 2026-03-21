@@ -71,6 +71,20 @@ def env_settings_copy_callback(value: bool) -> bool:
     return value
 
 
+def show_version(value: bool) -> None:
+    if value:
+        import importlib.metadata
+
+        try:
+            version = importlib.metadata.version("vsview")
+        except importlib.metadata.PackageNotFoundError:
+            version = "unknown"
+
+        echo(f"vsview {version}")
+
+        raise Exit(0)
+
+
 def parse_script_args(args: list[str]) -> dict[str, str]:
     parsed = dict[str, str]()
 
@@ -175,6 +189,12 @@ qt_arg_opt = Option(
         '(e.g. -q "-platform offscreen -geometry 1920x1080").'
     ),
 )
+version_opt = Option(
+    "--version",
+    help="Show the installed vsview version and exit.",
+    is_eager=True,
+    callback=show_version,
+)
 
 
 @app.command()
@@ -189,6 +209,7 @@ def vsview_cli(
     settings_roaming: Annotated[bool, settings_roaming_opt] = False,
     settings_env: Annotated[bool, settings_env_opt] = False,
     settings_env_copy: Annotated[bool, settings_env_copy_opt] = False,
+    version: Annotated[bool, version_opt] = False,
     verbose: Annotated[int, verbose_opt] = 0,
 ) -> None:
     # Enable faulthandler to get stack traces on segfaults

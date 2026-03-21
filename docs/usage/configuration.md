@@ -104,6 +104,9 @@ vsview [OPTIONS] [FILES]...
 #### `--settings-env-copy`
 :   If `--settings-env` is set and the scoped file doesn't exist yet, seed it from the base `global_settings.json`.
 
+#### `--version`
+:   Show the installed vsview version and exit.
+
 #### `--verbose` / `-v`
 :   Enable verbose output. Repeat to increase verbosity (`-vv`, `-vvv`).
 
