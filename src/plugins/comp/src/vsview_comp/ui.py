@@ -404,6 +404,9 @@ class FrameThumbnailList(QListWidget):
 
 
 class ProgressBar(QProgressBar):
+    progressRunning = Signal()
+    progressReady = Signal()
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setMinimumHeight(24)
@@ -420,6 +423,7 @@ class ProgressBar(QProgressBar):
         fmt: str | None = None,
         increment: int | None = None,
     ) -> None:
+        self.progressRunning.emit()
         if range:
             self.setRange(*range)
         if fmt:
@@ -433,6 +437,7 @@ class ProgressBar(QProgressBar):
     def reset_progress(self) -> None:
         self.reset()
         self.setFormat("%p%")
+        self.progressReady.emit()
 
 
 class PosterPayload(NamedTuple):

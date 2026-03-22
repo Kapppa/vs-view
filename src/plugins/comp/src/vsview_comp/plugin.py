@@ -112,6 +112,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self._pending_tags: Future[list[Tag]] | None = None
         self._extraction_finished = False
         self._extract_paths: list[tuple[int, Path]] | None = None
+        self._reported_url = ""
 
         # Build UI
         main_layout = QVBoxLayout(self)
@@ -126,10 +127,35 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self._current_outputs = self.outputs_dropdown.included_outputs
         self._update_buttons_state()
 
-        main_layout.addWidget(main)
+        main_layout.addWidget(main, 1)
 
-        self.progress_bar = ProgressBar(self)
-        main_layout.addWidget(self.progress_bar)
+        self.progress_stack = QStackedWidget(self)
+        self.progress_stack.hide()
+
+        self.progress_bar = ProgressBar(self.progress_stack)
+        self.progress_bar.progressRunning.connect(self.set_progress_bar_on_top)
+
+        self.reported_url_container = QWidget(self.progress_stack)
+        reported_url_layout = QHBoxLayout(self.reported_url_container)
+        reported_url_layout.setContentsMargins(0, 0, 0, 0)
+        reported_url_layout.setSpacing(0)
+        self.url_label = QLabel(
+            self.reported_url_container,
+            textFormat=Qt.TextFormat.RichText,
+            openExternalLinks=True,
+            textInteractionFlags=Qt.TextInteractionFlag.TextBrowserInteraction,
+        )
+        self.url_copy_btn = self.make_tool_button(IconName.CLIPBOARD, "Copy Slow.pics URL", self.reported_url_container)
+        self.url_copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(self._reported_url))
+        reported_url_layout.addStretch()
+        reported_url_layout.addWidget(self.url_label)
+        reported_url_layout.addWidget(self.url_copy_btn)
+
+        self.progress_stack.addWidget(self.progress_bar)
+        self.progress_stack.addWidget(self.reported_url_container)
+        self.progress_stack.setCurrentWidget(self.progress_bar)
+
+        main_layout.addWidget(self.progress_stack)
 
         self.slowpics_worker = SlowPicsWorker(self.api, self.secrets, self.progress_bar)
 
@@ -489,6 +515,14 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         if self.pict_types_supported and not any("_PictType" in props for props in voutput.props.values()):
             self.pict_types_supported = False
 
+    def set_progress_bar_on_top(self) -> None:
+        self.progress_stack.setCurrentWidget(self.progress_bar)
+        self.progress_stack.show()
+
+    def set_url_on_top(self) -> None:
+        self.progress_stack.setCurrentWidget(self.reported_url_container)
+        self.progress_stack.show()
+
     def on_frame_edit_start_changed(self, new: Frame, old: Frame) -> None:
         self.frame_edit_end.setMinimum(new)
         self.time_edit_start.setTime(self.api.current_voutput.frame_to_time(new).to_qtime())
@@ -807,7 +841,9 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                 if not f.exception():
                     url = f.result()
                     logger.info("Upload complete: %s", url)
-                    QApplication.clipboard().setText(url)
+                    self._reported_url = url
+                    self.url_label.setText(f'<a href="{url}">{url}</a>')
+                    self.set_url_on_top()
 
                 self._update_buttons_state()
                 self.upload_btn.setDisabled(True)
