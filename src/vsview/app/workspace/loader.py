@@ -299,10 +299,11 @@ class LoaderWorkspace[T](BaseWorkspace):
 
             voutputs, aoutputs = outputs
 
+        self.outputs_manager.current_video_index = clamp(self.outputs_manager.current_video_index, 0, len(voutputs) - 1)
         tabs = self.tab_manager.create_tabs(voutputs)
 
         with QSignalBlocker(self.tab_manager):
-            self.tab_manager.swap_tabs(tabs, clamp(self.outputs_manager.current_video_index, 0, len(voutputs) - 1))
+            self.tab_manager.swap_tabs(tabs, self.outputs_manager.current_video_index)
 
         self.tbar.playback_container.set_audio_outputs(aoutputs, self.outputs_manager.current_audio_index)
 
