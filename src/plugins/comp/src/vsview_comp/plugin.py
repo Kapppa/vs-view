@@ -454,26 +454,34 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
     @cache
     @run_in_loop(return_future=False)
     def init_load(self) -> None:
-        vouputs = self.api.voutputs
-        self.outputs_dropdown.populate(vouputs)
+        voutputs = self.api.voutputs
 
-        shortest_output = min(vouputs, key=lambda v: v.info.total_duration)
+        max_total_frames = min(voutputs, key=lambda v: v.info.total_frames).info.total_frames
+        shortest = min(voutputs, key=lambda v: v.info.total_duration)
+        max_total_duration = shortest.frame_to_time(shortest.info.total_frames)
 
-        max_frame = shortest_output.info.total_frames - 1
+        self.outputs_dropdown.shortest_dur_text = f" - {max_total_duration.to_ts()} ({max_total_frames})"
+        self.outputs_dropdown.populate(voutputs)
+
+        max_frame = max_total_frames - 1
+        max_time = shortest.frame_to_time(shortest.info.total_frames - 1)
+
         self.frame_edit_start.setRange(0, max_frame)
         self.frame_edit_end.setRange(0, max_frame)
 
         self.frame_edit_start.setValue(0)
         self.frame_edit_end.setValue(max_frame)
 
-        qtime_s = Time().to_qtime()
-        qtime_e = shortest_output.frame_to_time(max_frame).to_qtime()
+        qtime_s = QTime()
+        qtime_e = max_time.to_qtime()
 
         self.time_edit_start.setTime(qtime_s)
-        self.time_edit_start.setTimeRange(qtime_s, qtime_e)
+        self.time_edit_start.setMinimumTime(qtime_s)
+        self.time_edit_start.setMaximumTime(qtime_e)
 
         self.time_edit_end.setTime(qtime_e)
-        self.time_edit_end.setTimeRange(qtime_s, qtime_e)
+        self.time_edit_end.setMinimumTime(qtime_s)
+        self.time_edit_end.setMaximumTime(qtime_e)
 
     def on_current_voutput_changed(self, voutput: VideoOutputProxy, tab_index: int) -> None:
         self.init_load()

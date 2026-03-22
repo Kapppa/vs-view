@@ -4,7 +4,7 @@ import asyncio
 import os
 import re
 import threading
-from collections.abc import Awaitable, Iterator, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from concurrent.futures import Future, wait
 from contextlib import aclosing
 from datetime import UTC, datetime
@@ -122,6 +122,11 @@ class ExtractFramesWorker:
         self.progress_bar.update_progress(increment=1)
 
 
+class _SourceInfo(NamedTuple):
+    clip: VideoNode
+    time_to_frame: Callable[[Time], int]
+
+
 class SelectFrameWorker:
     ALLOWED_FRAME_SEARCHES = 150
 
@@ -175,7 +180,16 @@ class SelectFrameWorker:
 
         random_frames = list[Time]()
         base_clip = core.std.BlankClip(width=1, height=1, format=GRAY8, length=len(self.api.voutputs), keep=True)
-        other_clips = [source.vs_output.clip for source in self.api.voutputs]
+        other_clips = [_SourceInfo(source.vs_output.clip, source.time_to_frame) for source in self.api.voutputs]
+
+        min_clip_length = min(clip.num_frames for clip, _ in other_clips)
+        end_frame = min(end_frame, min_clip_length - 1)
+
+        if start_frame > end_frame:
+            logger.warning(
+                "No valid frame range after clamping to all clips (start=%s, end=%s)", start_frame, end_frame
+            )
+            return random_frames
 
         while len(random_frames) < self.normal:
             for _ in range(self.ALLOWED_FRAME_SEARCHES):
@@ -190,11 +204,14 @@ class SelectFrameWorker:
 
                 is_valid = True
                 if self.should_check_pict or self.should_check_combed:
-                    # Check frame properties across all outputs
+                    # Convert frame -> time, then use each clip's own time_to_frame to get a valid frame index
+                    # for that specific clip
+                    rtime = v.frame_to_time(rnum)
+
                     node_frames = core.std.FrameEval(
                         base_clip,
-                        lambda n, r=rnum: base_clip.std.CopyFrameProps(
-                            other_clips[n][r], props=["_PictType", "_Combed"]
+                        lambda n, rt=rtime: base_clip.std.CopyFrameProps(
+                            (c := other_clips[n]).clip[c.time_to_frame(rt)], props=["_PictType", "_Combed"]
                         ),
                     )
 

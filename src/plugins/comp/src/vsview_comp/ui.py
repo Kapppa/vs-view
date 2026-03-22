@@ -153,7 +153,7 @@ class OutputDropdown(QPushButton):
         super().__init__(parent)
         self.items = list[OutputItemWidget]()
         self.total_outputs = 0
-        self.shortest_dur_text = ""
+        self.shortest_dur_text = ""  # Set in init_load
 
         self.setMenu(NonClosingMenu(self))
 
@@ -167,11 +167,6 @@ class OutputDropdown(QPushButton):
         self.menu().clear()
         self.items.clear()
         self.total_outputs = len(voutputs)
-
-        shortest = min(voutputs, key=lambda v: v.info.total_duration)
-        dur = shortest.info.total_duration.to_ts("{H:01d}:{M:02d}:{S:02d}.{ms:03d}")
-        frames = shortest.vs_output.clip.num_frames
-        self.shortest_dur_text = f" - {dur} ({frames})"
 
         for vout in voutputs:
             action = QWidgetAction(self.menu())
