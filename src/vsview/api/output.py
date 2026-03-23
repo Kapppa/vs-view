@@ -6,10 +6,9 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable, Iterable, Sequence
-from copy import deepcopy
 from functools import wraps
 from logging import getLogger
-from typing import Any, Literal, assert_never, overload
+from typing import Any, Literal, SupportsFloat, assert_never, overload
 
 import vapoursynth as vs
 from jetpytools import CustomValueError, flatten, to_arr
@@ -34,7 +33,7 @@ def set_output(
     /,
     *,
     alpha: vs.VideoNode | Literal[True] | None = ...,
-    framedurs: Sequence[float] | None = None,
+    framedurs: Sequence[SupportsFloat] | None = None,
     # scenes: ScenesT = None,
     **kwargs: Any,
 ) -> None: ...
@@ -47,7 +46,7 @@ def set_output(
     /,
     *,
     alpha: vs.VideoNode | Literal[True] | None = ...,
-    framedurs: Sequence[float] | None = None,
+    framedurs: Sequence[SupportsFloat] | None = None,
     # scenes: ScenesT = None,
     **kwargs: Any,
 ) -> None: ...
@@ -61,7 +60,7 @@ def set_output(
     /,
     alpha: vs.VideoNode | Literal[True] | None = ...,
     *,
-    framedurs: Sequence[float] | None = None,
+    framedurs: Sequence[SupportsFloat] | None = None,
     # scenes: ScenesT = None,
     **kwargs: Any,
 ) -> None: ...
@@ -131,7 +130,7 @@ def set_output(
     /,
     alpha: vs.VideoNode | Literal[True] | None = None,
     *,
-    framedurs: Sequence[float] | None = None,
+    framedurs: Sequence[SupportsFloat] | None = None,
     # scenes: ScenesT = None,
     downmix: bool | None = None,
     **kwargs: Any,
@@ -221,7 +220,7 @@ def set_output(
 
                 _output_metadata[file][i] = VideoMetadata(
                     effective_name or f"{title} {i}",
-                    deepcopy(framedurs),
+                    [float(f) for f in (framedurs or [])],
                     alpha is True or None,
                 )
             elif isinstance(n, vs.AudioNode):
@@ -241,7 +240,7 @@ def catch_output[**P, N: OutputNode](
     index: int | Sequence[int] = ...,
     name: str | bool | None = ...,
     alpha: vs.VideoNode | Literal[True] | None = ...,
-    framedurs: Sequence[float] | None = ...,
+    framedurs: Sequence[SupportsFloat] | None = ...,
     downmix: bool | None = ...,
     **kwargs: Any,
 ) -> Callable[[Callable[P, N]], Callable[P, N]]: ...
@@ -254,7 +253,7 @@ def catch_output[**P, N: OutputNode](
     name: str | bool | None = None,
     alpha: vs.VideoNode | Literal[True] | None = None,
     *,
-    framedurs: Sequence[float] | None = None,
+    framedurs: Sequence[SupportsFloat] | None = None,
     downmix: bool | None = None,
     **kwargs: Any,
 ) -> Callable[P, N] | Callable[[Callable[P, N]], Callable[P, N]]:
