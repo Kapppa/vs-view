@@ -12,19 +12,6 @@ cd vs-view
 uv sync --all-extras --all-groups
 ```
 
-Install and enable the local git hooks:
-
-```bash
-uv run prek install
-```
-
-You can run the configured hooks manually at any time:
-
-```bash
-uv run prek run --all-files
-uv run prek run --hook-stage pre-push --all-files
-```
-
 Run the development version:
 
 ```bash
