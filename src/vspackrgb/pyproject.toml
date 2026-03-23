@@ -91,6 +91,7 @@ default-tag = "vspackrgb/v0.0.0"
 rmprefix = "vspackrgb/v"
 
 [tool.cibuildwheel]
+build-frontend = "uv"
 build = "cp312-* cp313-* cp314-*"
 skip = "*-win32 *-manylinux_i686 *-musllinux_*"
 # Test would require vapoursynth
