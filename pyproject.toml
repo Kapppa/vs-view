@@ -71,6 +71,8 @@ dev = [
     "graphviz>=0.21",
     "cython>=3.0.0",
     "types-pygments>=2.19.0.20251121",
+    { include-group = "test" },
+    { include-group = "plugins" },
 ]
 test = [
     "pytest>=9.0.0, <10.0.0",
