@@ -488,6 +488,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         self.outputs_dropdown.shortest_dur_text = f" - {max_total_duration.to_ts()} ({max_total_frames})"
         self.outputs_dropdown.populate(voutputs)
+        self.frames_list.clear()
 
         max_frame = max_total_frames - 1
         max_time = shortest.frame_to_time(shortest.info.total_frames - 1)
@@ -508,6 +509,8 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.time_edit_end.setTime(qtime_e)
         self.time_edit_end.setMinimumTime(qtime_s)
         self.time_edit_end.setMaximumTime(qtime_e)
+
+        self._update_buttons_state()
 
     def on_current_voutput_changed(self, voutput: VideoOutputProxy, tab_index: int) -> None:
         self.init_load()
