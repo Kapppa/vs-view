@@ -19,7 +19,7 @@ on:
           - split-planes
 
 env:
-  PYTHON_VERSION: "3.14"
+  VSVIEW_PYTHON_VERSION: "3.14"
 
 jobs:
   prepare:
@@ -62,7 +62,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ env.VSVIEW_PYTHON_VERSION }}
           enable-cache: true
 
       - name: Generate SBOM
@@ -105,7 +105,6 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
 
       - name: Generate SBOM
@@ -138,7 +137,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ env.VSVIEW_PYTHON_VERSION }}
           enable-cache: true
 
       - name: Build sdist
@@ -174,7 +173,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ env.VSVIEW_PYTHON_VERSION }}
           enable-cache: false
 
       - name: Check the output
