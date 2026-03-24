@@ -17,7 +17,7 @@ from uuid import uuid4
 import anyio
 import niquests
 from jetpytools import cachedproperty, ndigits
-from niquests.cookies import RequestsCookieJar, cookiejar_from_dict
+from niquests.cookies import cookiejar_from_dict
 from pathvalidate import sanitize_filepath
 from PySide6.QtCore import QThreadPool
 from PySide6.QtGui import QImage
@@ -303,15 +303,29 @@ class TMDBWorker:
         api_headers = {"Authorization": f"Bearer {self.api_key}"}
 
         async with (
-            niquests.AsyncSession(base_url=self.BASE_URL, timeout=10, headers=api_headers) as client,
+            niquests.AsyncSession(
+                base_url=self.BASE_URL,
+                timeout=10,
+                headers=api_headers,
+                disable_http3=True,
+                multiplexed=True,
+            ) as client,
             LogNiquestsErrors("TMDB search"),
         ):
-            await self._ensure_genres_loaded(client)
-
             tv_task = client.get("/search/tv", params=search_params)
             movie_task = client.get("/search/movie", params=search_params)
 
-            tv_resp, movie_resp = await asyncio.gather(tv_task, movie_task)
+            num_reqs: list[Awaitable[niquests.Response]] = []
+            if query.isnumeric():
+                num_reqs.extend(
+                    (
+                        client.get(f"/tv/{query}", params=self.BASE_PARAMS),
+                        client.get(f"/movie/{query}", params=self.BASE_PARAMS),
+                    )
+                )
+
+            tv_resp, movie_resp, *_ = await asyncio.gather(tv_task, movie_task, self._ensure_genres_loaded(client))
+            await client.gather(tv_resp, movie_resp)
 
             title_tasks = list[TMDBTitle]()
 
@@ -326,17 +340,13 @@ class TMDBWorker:
             titles.extend(title_tasks)
 
             if query.isnumeric():
-                tv_id_task = client.get(f"/tv/{query}", params=self.BASE_PARAMS)
-                movie_id_task = client.get(f"/movie/{query}", params=self.BASE_PARAMS)
-
-                responses = await asyncio.gather(tv_id_task, movie_id_task, return_exceptions=True)
-
+                responses = await asyncio.gather(*num_reqs, return_exceptions=True)
                 for res, genre_type in zip(responses, ["tv", "movie"]):
-                    if isinstance(res, niquests.Response) and res.status_code == 200:
+                    if isinstance(res, niquests.Response):
+                        await client.gather(res)
                         item = TMDBTitleData.validate_logged(res.json(), f"TMDB /{genre_type}/{query}")
                         if item:
                             titles.append(self._create_title(item, genre_type))  # type: ignore[arg-type]
-
         return titles
 
     async def _ensure_genres_loaded(self, client: niquests.AsyncSession) -> None:
@@ -346,13 +356,15 @@ class TMDBWorker:
 
             tv_res, movie_res = await asyncio.gather(tv_req, movie_req, return_exceptions=True)
 
-            if isinstance(tv_res, niquests.Response) and tv_res.status_code == 200 and not self._tv_genres:
-                data = TMDBPayload.validate_logged(tv_res.json(), "TMDB /genre/tv/list")
+            if isinstance(tv_res, niquests.Response) and not self._tv_genres:
+                await client.gather(tv_res)
+                data = TMDBPayload.validate_logged(tv_res.raise_for_status().json(), "TMDB /genre/tv/list")
                 if data:
                     self._tv_genres = {g.id: g.name for g in data.genres}
 
-            if isinstance(movie_res, niquests.Response) and movie_res.status_code == 200 and not self._movie_genres:
-                data = TMDBPayload.validate_logged(movie_res.json(), "TMDB /genre/movie/list")
+            if isinstance(movie_res, niquests.Response) and not self._movie_genres:
+                await client.gather(movie_res)
+                data = TMDBPayload.validate_logged(movie_res.raise_for_status().json(), "TMDB /genre/movie/list")
                 if data:
                     self._movie_genres = {g.id: g.name for g in data.genres}
 
@@ -463,6 +475,7 @@ class SlowPicsWorker:
                 headers=self.headers,
                 timeout=20,
                 disable_http3=True,
+                multiplexed=True,
             ) as client,
             LogNiquestsErrors("Slowpics Upload"),
         ):
@@ -499,7 +512,9 @@ class SlowPicsWorker:
                 comp_info["removeAfter"] = str(remove_after)
 
             endpoint = f"/upload/{'comparison' if is_comparison else 'collection'}"
-            comp_data = (await client.post(endpoint, data=comp_upload | tag_data | comp_info)).raise_for_status().json()
+            start_resp = await client.post(endpoint, data=comp_upload | tag_data | comp_info)
+            await client.gather(start_resp)
+            comp_data = start_resp.raise_for_status().json()
 
             collection_uuid = comp_data["collectionUuid"]
             key = comp_data["key"]
@@ -531,6 +546,7 @@ class SlowPicsWorker:
         client.cookies = cookiejar_from_dict(cookies)
 
         homepage = await client.get("/comparison")
+        await client.gather(homepage)
         homepage.raise_for_status()
         client.headers.update({"X-XSRF-TOKEN": get_cookie(client.cookies, "XSRF-TOKEN")})
 
@@ -560,7 +576,7 @@ class SlowPicsWorker:
                         data=data,
                         files={"file": (image_path.name, await anyio.Path(image_path).read_bytes(), "image/png")},
                     )
-
+                    await client.gather(response)
                 if response.status_code == 429:
                     wait_time = int(response.headers.get("Retry-After", (retry + 1) * 2))
                     logger.warning("Rate limited for %s. Waiting %ds...", image_path.name, wait_time)
