@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
+from concurrent.futures import Future
 from contextlib import contextmanager, suppress
 from enum import StrEnum
 from pathlib import Path
@@ -38,7 +39,7 @@ from PySide6.QtWidgets import (
     QWidgetItem,
 )
 from shiboken6 import Shiboken
-from vapoursynth import VideoNode
+from vapoursynth import VideoFrame, VideoNode
 from vstools import core, get_prop
 
 from vsview.api import LineEdit, NonClosingMenu, PluginAPI, Time, VideoOutputProxy, run_in_background, run_in_loop
@@ -362,12 +363,22 @@ class FrameThumbnailList(QListWidget):
 
     @run_in_background(name="FetchThumbnail")
     def fetch_thumbnail(self, item: ThumbnailItem) -> None:
-        with self.api.vs_context(), self.thumbnail_clip.get_frame(item.frame) as f:
-            self.update_item_icon(
-                item,
-                self.api.packer.frame_to_qimage(f).copy(),
-                get_prop(f, "_PictType", str, default="?", func=self.fetch_thumbnail) if item.get_pict_type else "?",
-            )
+        with self.api.vs_context():
+
+            def on_frame_rendered(f: Future[VideoFrame]) -> None:
+                if f.exception():
+                    return
+                with f.result() as frame:
+                    self.update_item_icon(
+                        item,
+                        self.api.packer.frame_to_qimage(frame).copy(),
+                        get_prop(frame, "_PictType", str, default="?", func=self.fetch_thumbnail)
+                        if item.get_pict_type
+                        else "?",
+                    )
+
+            frame_fut = self.thumbnail_clip.get_frame_async(item.frame)
+            frame_fut.add_done_callback(on_frame_rendered)
 
     @run_in_loop(return_future=False)
     def update_item_icon(
