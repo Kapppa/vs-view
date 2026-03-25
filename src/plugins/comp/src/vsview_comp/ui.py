@@ -262,6 +262,7 @@ class FrameThumbnailList(QListWidget):
     def __init__(self, api: PluginAPI, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.api = api
+        self.clip_cache = dict[int, VideoNode]()
 
         self.setViewMode(QListWidget.ViewMode.IconMode)
         self.setFlow(QListWidget.Flow.LeftToRight)
@@ -283,6 +284,8 @@ class FrameThumbnailList(QListWidget):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
 
+        self.api.register_on_destroy(self.clip_cache.clear)
+
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Delete:
             self.remove_selected()
@@ -294,22 +297,27 @@ class FrameThumbnailList(QListWidget):
     def thumbnail_clip(self) -> VideoNode:
         voutput = self.api.current_voutput
 
-        ar = voutput.vs_output.clip.width / voutput.vs_output.clip.height
+        if voutput.vs_index not in self.clip_cache:
+            ar = voutput.vs_output.clip.width / voutput.vs_output.clip.height
 
-        target_h = self.ICON_SIZE.height()
-        target_w = round(target_h * ar)
+            target_h = self.ICON_SIZE.height()
+            target_w = round(target_h * ar)
 
-        if target_w > self.ICON_SIZE.width():
-            target_w = self.ICON_SIZE.width()
-            target_h = round(target_w * 1 / ar)
+            if target_w > self.ICON_SIZE.width():
+                target_w = self.ICON_SIZE.width()
+                target_h = round(target_w * 1 / ar)
 
-        downscaled = core.resize.Bilinear(
-            voutput.vs_output.clip,
-            target_w,
-            target_h,
-            format=self.api.packer.vs_format,
-        )
-        return self.api.packer.to_rgb_packed(downscaled, alpha=None)
+            downscaled = core.resize.Bilinear(
+                voutput.vs_output.clip,
+                target_w,
+                target_h,
+                format=self.api.packer.vs_format,
+            )
+            packed = self.api.packer.to_rgb_packed(downscaled, alpha=None)
+
+            self.clip_cache[voutput.vs_index] = packed
+
+        return self.clip_cache[voutput.vs_index]
 
     def add_item(
         self,
