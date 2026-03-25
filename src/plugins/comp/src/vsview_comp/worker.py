@@ -323,7 +323,7 @@ class TMDBWorker:
             async with asyncio.TaskGroup() as tg:
                 tg.create_task(self._ensure_genres_loaded(client))
                 tv_task = tg.create_task(client.get("/search/tv", params=search_params))
-                movie_task = tg.create_task(client.get("/search/tv", params=search_params))
+                movie_task = tg.create_task(client.get("/search/movie", params=search_params))
 
                 if query.isnumeric():
                     tv_id_task = tg.create_task(client.get(f"/tv/{query}", params=self.BASE_PARAMS))
