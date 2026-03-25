@@ -29,7 +29,14 @@ from vsview.api import PluginAPI, PluginSecrets, Time, run_in_background
 from ._metadata import COOKIE_KEY, LOGIN_CONTEXT
 from .models import ComparisonSource, TMDBPayload, TMDBTitle, TMDBTitleData
 from .ui import FrameSourceProvider, ProgressBar
-from .utils import LogNiquestsErrors, demote_niquests_logs, get_cookie, get_random_number_interval, get_slowpics_headers
+from .utils import (
+    LogNiquestsErrors,
+    _rev_conf,
+    demote_niquests_logs,
+    get_cookie,
+    get_random_number_interval,
+    get_slowpics_headers,
+)
 
 if TYPE_CHECKING:
     from .plugin import CompPlugin
@@ -309,22 +316,20 @@ class TMDBWorker:
                 headers=api_headers,
                 disable_http3=True,
                 multiplexed=True,
+                revocation_configuration=_rev_conf,
             ) as client,
             LogNiquestsErrors("TMDB search"),
         ):
-            tv_task = client.get("/search/tv", params=search_params)
-            movie_task = client.get("/search/movie", params=search_params)
+            async with asyncio.TaskGroup() as tg:
+                tg.create_task(self._ensure_genres_loaded(client))
+                tv_task = tg.create_task(client.get("/search/tv", params=search_params))
+                movie_task = tg.create_task(client.get("/search/tv", params=search_params))
 
-            num_reqs: list[Awaitable[niquests.Response]] = []
-            if query.isnumeric():
-                num_reqs.extend(
-                    (
-                        client.get(f"/tv/{query}", params=self.BASE_PARAMS),
-                        client.get(f"/movie/{query}", params=self.BASE_PARAMS),
-                    )
-                )
+                if query.isnumeric():
+                    tv_id_task = tg.create_task(client.get(f"/tv/{query}", params=self.BASE_PARAMS))
+                    movie_id_task = tg.create_task(client.get(f"/movie/{query}", params=self.BASE_PARAMS))
 
-            tv_resp, movie_resp, *_ = await asyncio.gather(tv_task, movie_task, self._ensure_genres_loaded(client))
+            tv_resp, movie_resp = tv_task.result(), movie_task.result()
             await client.gather(tv_resp, movie_resp)
 
             title_tasks = list[TMDBTitle]()
@@ -340,8 +345,7 @@ class TMDBWorker:
             titles.extend(title_tasks)
 
             if query.isnumeric():
-                responses = await asyncio.gather(*num_reqs, return_exceptions=True)
-                for res, genre_type in zip(responses, ["tv", "movie"]):
+                for res, genre_type in zip([tv_id_task.result(), movie_id_task.result()], ["tv", "movie"]):
                     if isinstance(res, niquests.Response):
                         await client.gather(res)
                         item = TMDBTitleData.validate_logged(res.json(), f"TMDB /{genre_type}/{query}")
@@ -476,6 +480,7 @@ class SlowPicsWorker:
                 timeout=20,
                 disable_http3=True,
                 multiplexed=True,
+                revocation_configuration=_rev_conf,
             ) as client,
             LogNiquestsErrors("Slowpics Upload"),
         ):

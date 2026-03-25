@@ -32,6 +32,8 @@ def get_slowpics_headers() -> dict[str, str]:
     }
 
 
+_rev_conf = niquests.RevocationConfiguration(niquests.RevocationStrategy.PREFER_CRL)
+
 _demote_niquests_ctx = ContextVar("_demote_niquests_ctx", default=False)
 
 
