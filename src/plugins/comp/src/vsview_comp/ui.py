@@ -248,7 +248,7 @@ class ThumbnailItem(QListWidgetItem):
     def update_tooltip(self) -> None:
         base_text = f"{self.time.to_ts('{H:01d}:{M:02d}:{S:02d}.{ms:03d}')} ({self.frame})"
         if self.pict_type != "?":
-            tooltip = f'{base_text} ({self.pict_type} - Frame) from "{self.src_provider}"'
+            tooltip = f'{base_text} ({self.pict_type}) from "{self.src_provider}"'
         else:
             tooltip = f'{base_text} from "{self.src_provider}"'
         self.setToolTip(tooltip)

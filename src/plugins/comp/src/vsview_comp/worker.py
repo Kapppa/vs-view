@@ -472,7 +472,7 @@ class SlowPicsWorker:
                     if is_comparison:
                         comp_upload[f"comparisons[{j}].name"] = time_str
                         comp_upload[f"comparisons[{j}].imageNames[{i}]"] = (
-                            f"{source_name}{f' - ({image.pict_type} Frame)' if image.pict_type != '?' else ''}"
+                            f"{source_name}{f' ({image.pict_type})' if image.pict_type != '?' else ''}"
                         )
                     else:
                         comp_upload[f"imageNames[{j}]"] = f"{time_str} - {source_name}"
