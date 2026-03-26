@@ -456,7 +456,7 @@ class ColorPickerPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
             ptr = frame.get_read_ptr(plane)
 
             plane_h, plane_w = frame[plane].shape
-            buffer_size = (stride * plane_h) // bps
+            buffer_size = (stride * plane_h) // ctypes.sizeof(data_type)
             buffer = (data_type * buffer_size).from_address(ptr.value or 0)
 
             # Get offsets to match the grid alignment
