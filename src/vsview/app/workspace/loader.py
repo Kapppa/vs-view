@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections import deque
 from collections.abc import Callable, Iterator
-from concurrent.futures import Future
+from concurrent.futures import Future, wait
 from contextlib import contextmanager
 from functools import partial
 from logging import DEBUG, getLogger
@@ -252,8 +252,7 @@ class LoaderWorkspace[T](BaseWorkspace):
     def clear_environment(self) -> None:
         if self._env and not self._env.disposed:
             with self._env.use():
-                for cb in self.cbs_on_destroy:
-                    self.loop.from_thread(cb)
+                wait(self.loop.from_thread(cb) for cb in self.cbs_on_destroy)
 
         self.outputs_manager.clear()
 
