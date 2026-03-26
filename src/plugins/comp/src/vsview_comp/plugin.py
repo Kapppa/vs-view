@@ -60,6 +60,7 @@ from .ui import (
     ProgressBar,
     TagsLineEdit,
     TagsListPopup,
+    ThumbnailItem,
     TMDBListPopup,
 )
 from .worker import ExtractFramesWorker, SelectFrameWorker, SlowPicsWorker, Tag, TMDBWorker
@@ -518,6 +519,8 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         if self.pict_types_supported and not any("_PictType" in props for props in voutput.props.values()):
             self.pict_types_supported = False
 
+        self.frames_list.update_thumbnails(voutput.vs_index)
+
     def set_progress_bar_on_top(self) -> None:
         self.progress_stack.setCurrentWidget(self.progress_bar)
         self.progress_stack.show()
@@ -764,7 +767,10 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             after_extract()
 
     @run_in_background(name="PrepareAndUpload")
-    def _prepare_and_upload(self, data: list[tuple[Time, str, FrameSourceProvider]]) -> None:
+    def _prepare_and_upload(
+        self,
+        data: list[tuple[Time, dict[int, ThumbnailItem.Metadata], FrameSourceProvider]],
+    ) -> None:
         if not self._extract_paths:
             logger.error("No extracted frames to upload")
             self._on_upload_error()
@@ -796,7 +802,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             images = list[ComparisonImage]()
             output = vouputs[index]
 
-            for time, pict_type, _ in data:
+            for time, metadata, _ in data:
                 frame = output.time_to_frame(time)
                 image_path = next(source_dir.glob(f"*{frame}.png"), None)
 
@@ -806,7 +812,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                     return
 
                 timestamp = time.to_ts("{M:02d}:{S:02d}.{ms:03d}")
-                images.append(ComparisonImage(image_path, pict_type, frame, timestamp))
+                images.append(ComparisonImage(image_path, metadata[output.vs_index].pict_type, frame, timestamp))
 
             sources.append(ComparisonSource(output.vs_name, images))
 

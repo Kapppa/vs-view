@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import threading
 from collections.abc import Iterator, Sequence
 from concurrent.futures import Future
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
+from dataclasses import dataclass
 from enum import StrEnum
+from functools import partial
+from logging import getLogger
 from pathlib import Path
 from typing import Any, NamedTuple, Self
 
@@ -45,6 +49,8 @@ from vstools import core, get_prop
 from vsview.api import LineEdit, NonClosingMenu, PluginAPI, Time, VideoOutputProxy, run_in_background, run_in_loop
 
 from .models import TMDBTitle
+
+logger = getLogger(__name__)
 
 
 class MainCompWidget(QScrollArea):
@@ -205,53 +211,61 @@ class FrameSourceProvider(StrEnum):
 
 
 TIME_ROLE = Qt.ItemDataRole.UserRole
-PICT_TYPE_ROLE = Qt.ItemDataRole.UserRole + 1
 
 
 class ThumbnailItem(QListWidgetItem):
+    @dataclass(slots=True)
+    class Metadata:
+        icon: QPixmap | QImage
+        pict_type: str
+
     def __init__(
         self,
         time: Time,
         frame: int,
         src_provider: FrameSourceProvider,
         get_pict_type: bool = False,
-        pict_type: str = "?",
-        parent: QListWidget | None = None,
     ) -> None:
         self.time = time
         self.frame = frame
         self.src_provider = src_provider
         self.get_pict_type = get_pict_type
-        self.pict_type = pict_type
+        self.metadata = dict[int, ThumbnailItem.Metadata]()
 
-        super().__init__(self._get_text(), parent)
+        super().__init__(self._get_text("?"))
 
         self.setData(TIME_ROLE, time)
-        self.setData(PICT_TYPE_ROLE, pict_type)
         self.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.update_tooltip()
+        self._update_tooltip("?")
 
-    def _get_text(self) -> str:
-        text = f"{self.time.to_ts('{H:01d}:{M:02d}:{S:02d}.{ms:03d}')} ({self.frame})"
-        if self.pict_type != "?":
-            text += f" ({self.pict_type})"
-        return text
+    def update_metadata(self, idx: int) -> None:
+        pict_type = "?"
 
-    def update_metadata(self, pict_type: str | None = None) -> None:
-        if pict_type is not None:
-            self.pict_type = pict_type
-            self.setData(PICT_TYPE_ROLE, self.pict_type)
-            self.setText(self._get_text())
+        if idx in self.metadata:
+            data = self.metadata[idx]
+            pict_type = data.pict_type
+            self.setText(self._get_text(pict_type))
+            if not isinstance(data.icon, QPixmap):
+                data.icon = QPixmap.fromImage(data.icon)
+            self.setIcon(data.icon)
 
-        self.update_tooltip()
+        self._update_tooltip(pict_type)
 
-    def update_tooltip(self) -> None:
+    def _update_tooltip(self, pict_type: str) -> None:
         base_text = f"{self.time.to_ts('{H:01d}:{M:02d}:{S:02d}.{ms:03d}')} ({self.frame})"
-        if self.pict_type != "?":
-            tooltip = f'{base_text} ({self.pict_type}) from "{self.src_provider}"'
+        if pict_type != "?":
+            tooltip = f'{base_text} ({pict_type}) from "{self.src_provider}"'
         else:
             tooltip = f'{base_text} from "{self.src_provider}"'
         self.setToolTip(tooltip)
+
+    def _get_text(self, pict_type: str) -> str:
+        text = f"{self.time.to_ts('{H:01d}:{M:02d}:{S:02d}.{ms:03d}')} ({self.frame})"
+
+        if pict_type != "?":
+            text += f" ({pict_type})"
+
+        return text
 
 
 class FrameThumbnailList(QListWidget):
@@ -262,7 +276,6 @@ class FrameThumbnailList(QListWidget):
     def __init__(self, api: PluginAPI, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.api = api
-        self.clip_cache = dict[int, VideoNode]()
 
         self.setViewMode(QListWidget.ViewMode.IconMode)
         self.setFlow(QListWidget.Flow.LeftToRight)
@@ -284,7 +297,7 @@ class FrameThumbnailList(QListWidget):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
 
-        self.api.register_on_destroy(self.clip_cache.clear)
+        self.api.register_on_destroy(lambda: cachedproperty.clear_cache(self))
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Delete:
@@ -293,11 +306,11 @@ class FrameThumbnailList(QListWidget):
         else:
             super().keyPressEvent(event)
 
-    @property
-    def thumbnail_clip(self) -> VideoNode:
-        voutput = self.api.current_voutput
+    @cachedproperty
+    def thumbnail_clips(self) -> dict[int, VideoNode]:
+        out = dict[int, VideoNode]()
 
-        if voutput.vs_index not in self.clip_cache:
+        for voutput in self.api.voutputs:
             ar = voutput.vs_output.clip.width / voutput.vs_output.clip.height
 
             target_h = self.ICON_SIZE.height()
@@ -315,9 +328,9 @@ class FrameThumbnailList(QListWidget):
             )
             packed = self.api.packer.to_rgb_packed(downscaled, alpha=None)
 
-            self.clip_cache[voutput.vs_index] = packed
+            out[voutput.vs_index] = packed
 
-        return self.clip_cache[voutput.vs_index]
+        return out
 
     def add_item(
         self,
@@ -362,42 +375,55 @@ class FrameThumbnailList(QListWidget):
 
         self.listSizeChanged.emit(-nb)
 
-    def get_data(self) -> list[tuple[Time, str, FrameSourceProvider]]:
+    def get_data(self) -> list[tuple[Time, dict[int, ThumbnailItem.Metadata], FrameSourceProvider]]:
         return [
-            (it.time, it.pict_type, it.src_provider)
+            (it.time, it.metadata, it.src_provider)
             for i in range(self.count())
             if isinstance(it := self.item(i), ThumbnailItem)
         ]
 
     @run_in_background(name="FetchThumbnail")
     def fetch_thumbnail(self, item: ThumbnailItem) -> None:
+        def on_frame_rendered(f: Future[VideoFrame], idx: int) -> None:
+            threading.current_thread().name = "FetchThumbnail"
+            if f.exception():
+                remove_item()
+
+                logger.warning(
+                    "Failed to fetch thumbnail for output %d at frame %d: %s",
+                    idx,
+                    item.frame,
+                    f.exception(),
+                )
+                return
+
+            with f.result() as frame:
+                image = self.api.packer.frame_to_qimage(frame).copy()
+                pict_type = (
+                    get_prop(frame, "_PictType", str, default="?", func=self.fetch_thumbnail)
+                    if item.get_pict_type
+                    else "?"
+                )
+                item.metadata[idx] = ThumbnailItem.Metadata(image, pict_type)
+
+                if idx == self.api.current_voutput.vs_index:
+                    item.update_metadata(idx)
+
+        @run_in_loop(return_future=False)
+        def remove_item() -> None:
+            if (row := self.row(item)) != -1:
+                self.takeItem(row)
+
         with self.api.vs_context():
-
-            def on_frame_rendered(f: Future[VideoFrame]) -> None:
-                if f.exception():
-                    return
-                with f.result() as frame:
-                    self.update_item_icon(
-                        item,
-                        self.api.packer.frame_to_qimage(frame).copy(),
-                        get_prop(frame, "_PictType", str, default="?", func=self.fetch_thumbnail)
-                        if item.get_pict_type
-                        else "?",
-                    )
-
-            frame_fut = self.thumbnail_clip.get_frame_async(item.frame)
-            frame_fut.add_done_callback(on_frame_rendered)
+            for i, tclip in self.thumbnail_clips.items():
+                frame_fut = tclip.get_frame_async(item.frame)
+                frame_fut.add_done_callback(partial(on_frame_rendered, idx=i))
 
     @run_in_loop(return_future=False)
-    def update_item_icon(
-        self,
-        item: ThumbnailItem,
-        image: QImage,
-        pict_type: str,
-    ) -> None:
-        with suppress(RuntimeError):
-            item.setIcon(QPixmap.fromImage(image))
-            item.update_metadata(pict_type)
+    def update_thumbnails(self, idx: int) -> None:
+        for i in range(self.count()):
+            if isinstance(it := self.item(i), ThumbnailItem):
+                it.update_metadata(idx)
 
     def show_context_menu(self, pos: QPoint) -> None:
         if not self.itemAt(pos):
