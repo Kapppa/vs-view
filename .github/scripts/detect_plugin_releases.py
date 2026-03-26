@@ -66,30 +66,32 @@ class PluginChange:
     commit_count: int
     commits: list[str] = field(default_factory=list)
 
-    def to_pr_body(self) -> str:
+    def to_release_notes(self) -> str:
         lines = [
             f"## 📦 Release `{self.plugin}`",
             "",
-            f"**{self.commit_count}** unreleased commit(s) since `{self.current_tag}`:",
+            f"**{self.commit_count}** commit(s) since `{self.current_tag}`:",
             "",
         ]
 
         lines.extend(f"- {commit}" for commit in self.commits)
 
-        lines.extend(
-            [
-                "",
-                "---",
-                "",
-                "### ⚠️ Action required before merging",
-                "",
-                "Edit the **PR title** to include the version:",
-                "",
-                f"    release: {self.plugin}/v<VERSION>",
-                "",
-                "*Merging this PR will create the tag and trigger PyPI publishing.*",
-            ]
-        )
+        return "\n".join(lines)
+
+    def to_pr_body(self) -> str:
+        lines = [
+            self.to_release_notes(),
+            "",
+            "---",
+            "",
+            "### ⚠️ Action required before merging",
+            "",
+            "Edit the **PR title** to include the version:",
+            "",
+            f"    release: {self.plugin}/v<VERSION>",
+            "",
+            "*Merging this PR will create the tag and trigger PyPI publishing.*",
+        ]
 
         return "\n".join(lines)
 
@@ -138,8 +140,8 @@ def main() -> None:
     releases_dir.mkdir(parents=True, exist_ok=True)
 
     for change in changes:
-        md_path = releases_dir / f"{change.plugin}.md"
-        md_path.write_text(change.to_pr_body(), encoding="utf-8")
+        (releases_dir / f"{change.plugin}.md").write_text(change.to_pr_body(), encoding="utf-8")
+        (releases_dir / f"{change.plugin}.release.md").write_text(change.to_release_notes(), encoding="utf-8")
 
         print(f"  {change.plugin}: {change.commit_count} unreleased commit(s) since {change.current_tag}")
 

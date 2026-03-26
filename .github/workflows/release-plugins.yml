@@ -12,8 +12,8 @@ jobs:
   release:
     name: Tag and release
     if: >-
-      github.event.pull_request.merged == true &&
-      contains(github.event.pull_request.labels.*.name, 'release')
+      github.event.pull_request.merged == true
+      && contains(github.event.pull_request.labels.*.name, 'release')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -21,6 +21,12 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+
+      - name: Download release notes
+        uses: actions/download-artifact@v8
+        with:
+          name: release-bodies
+          path: release-bodies/
 
       - name: Parse and push release tag
         id: tag
@@ -40,7 +46,16 @@ jobs:
           echo "plugin=$plugin" >> "$GITHUB_OUTPUT"
           echo "full_tag=$tag" >> "$GITHUB_OUTPUT"
 
-          python .github/scripts/push_release_tags.py "$tag"
+          python .github/scripts/push_release_tags.py "$tag" --notes-file "release-bodies/${plugin}.release.md"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.tag.outputs.full_tag }}" \
+            --title "${{ steps.tag.outputs.full_tag }}" \
+            --notes-file "release-bodies/${{ steps.tag.outputs.plugin }}.release.md" \
+            --no-latest
 
       - name: Trigger publish workflow
         env:

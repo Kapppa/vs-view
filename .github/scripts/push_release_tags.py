@@ -1,14 +1,12 @@
 """
-Create and push a git tag.
+Create and push an annotated git tag.
 
 Usage:
 
-    python .github/scripts/push_release_tags.py <tag>
-
-Validates the tag format (<plugin>/v<PEP 440 version>), checks it doesn't
-already exist, then creates and pushes it.
+    python .github/scripts/push_release_tags.py <tag> [--notes-file <path>]
 """
 
+import argparse
 import subprocess
 import sys
 from pathlib import Path
@@ -29,11 +27,18 @@ def run_git(*args: Any) -> str:
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <plugin/vVERSION>", file=sys.stderr)
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Create and push an annotated release tag.")
+    parser.add_argument("tag", help="Tag in the format <plugin>/v<version>")
+    parser.add_argument(
+        "--notes-file",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help="Path to a file whose contents become the tag annotation message.",
+    )
+    args = parser.parse_args()
 
-    tag = sys.argv[1].strip()
+    tag: str = args.tag.strip()
 
     if "/v" not in tag:
         print(f"Error: tag {tag!r} must be in the format <plugin>/v<version>", file=sys.stderr)
@@ -57,7 +62,14 @@ def main() -> None:
         sys.exit(1)
 
     print(f"🏷️  Creating tag: {tag}")
-    run_git("tag", tag)
+
+    if args.notes_file is not None:
+        if not args.notes_file.exists():
+            print(f"Error: notes file not found: {args.notes_file}", file=sys.stderr)
+            sys.exit(1)
+        run_git("tag", "-a", "-F", str(args.notes_file), tag)
+    else:
+        run_git("tag", "-a", "-m", tag, tag)
 
     print(f"📤 Pushing tag {tag}...")
     run_git("push", "origin", tag)
