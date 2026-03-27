@@ -473,6 +473,7 @@ class ProgressBar(QProgressBar):
     @run_in_loop(return_future=False)
     def reset_progress(self) -> None:
         self.reset()
+        self.setRange(0, 1)
         self.setFormat("%p%")
         self.progressReady.emit()
 
