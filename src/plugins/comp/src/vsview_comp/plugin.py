@@ -596,6 +596,8 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         @run_in_loop
         def on_finished(future: Future[list[tuple[Time, FrameSourceProvider]]]) -> None:
+            self.progress_bar.reset_progress()
+
             if future.exception():
                 return
 
