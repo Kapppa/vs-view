@@ -680,6 +680,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         @run_in_loop
         def on_finished(future: Future[list[TMDBTitle]]) -> None:
+            QApplication.restoreOverrideCursor()
             if future.exception():
                 self.tmdb_popup.hide()
                 return
@@ -694,6 +695,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             else:
                 self.tmdb_popup.show_results(results)
 
+        QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
         future = self.tmdb_worker.search(query)
         future.add_done_callback(on_finished)
 
@@ -724,6 +726,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         @run_in_loop
         def on_finished(future: Future[list[Tag]]) -> None:
+            QApplication.restoreOverrideCursor()
             self._pending_tags = None
             if future.exception():
                 self.tags_popup.hide()
@@ -732,6 +735,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             self.tags_popup.set_tags(future.result())
             self.on_tags_input_changed()
 
+        QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
         self._pending_tags = self.slowpics_worker.get_tags()
         self._pending_tags.add_done_callback(on_finished)
 
