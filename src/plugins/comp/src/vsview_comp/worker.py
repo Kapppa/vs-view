@@ -423,10 +423,9 @@ class SlowPicsWorker:
                 # Extract CSRF token
                 login_page = client.get("/login").raise_for_status()
 
-                assert login_page.text is not None
-
                 csrf_match = re.search(
-                    r'<input type="hidden" name="_csrf" value="([a-zA-Z0-9-_]+)"\/>', login_page.text
+                    r'<input type="hidden" name="_csrf" value="([a-zA-Z0-9-_]+)"\/>',
+                    login_page.text or "",
                 )
                 if not csrf_match:
                     logger.error("No CSRF found; Failed to login.")
