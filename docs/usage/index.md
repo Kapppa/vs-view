@@ -22,6 +22,12 @@ It can be toggled on or off from the **View** menu if more space is needed for t
 - **Reordering**: You can click and drag icons to move them up or down.
 - **Context Menu**: Right-click any sidebar icon to access workspace-specific actions:
     - **Reload**: Refresh the active workspace.
+
+        !!! info "Hot Reloading"
+            When reloading, only **local** Python modules are refreshed.
+
+            Standard library modules and installed packages (those found in `site-packages`) are skipped to ensure environment stability.
+
     - **Clear**: Reset the workspace to its default state.
     - **Delete**: Close the workspace and free up its resources.
 

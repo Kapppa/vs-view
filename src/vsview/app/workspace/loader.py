@@ -39,6 +39,7 @@ from ..views.timeline import Frame, TimelineControlBar
 from .base import BaseWorkspace
 from .playback import PlaybackManager
 from .tab_manager import PlayHeadToolButton, TabManager
+from .utils import evict_packages, find_local_packages
 
 loader_lock = Lock()
 logger = getLogger(__name__)
@@ -361,6 +362,11 @@ class LoaderWorkspace[T](BaseWorkspace):
             gc_collect()
 
             with loader_lock:
+                # 2.5. Hot-reload local packages
+                if local_packages := find_local_packages():
+                    evict_packages(local_packages)
+                    logger.info("Local packages reloaded: %r", sorted(local_packages))
+
                 # 3. Load New Content
                 outputs = self._get_outputs()
 
