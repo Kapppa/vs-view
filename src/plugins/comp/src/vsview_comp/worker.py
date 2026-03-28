@@ -29,17 +29,12 @@ from vsview.api import PluginAPI, PluginSecrets, Time, run_in_background
 from ._metadata import COOKIE_KEY, LOGIN_CONTEXT
 from .models import ComparisonSource, TMDBPayload, TMDBTitle, TMDBTitleData
 from .ui import FrameSourceProvider, ProgressBar
-from .utils import (
-    LogNiquestsErrors,
-    _rev_conf,
-    demote_niquests_logs,
-    get_cookie,
-    get_random_number_interval,
-    get_slowpics_headers,
-)
+from .utils import LogNiquestsErrors, demote_niquests_logs, get_cookie, get_random_number_interval, get_slowpics_headers
 
 if TYPE_CHECKING:
     from .plugin import CompPlugin
+
+REV_CONF = niquests.RevocationConfiguration(niquests.RevocationStrategy.PREFER_CRL)
 
 logger = getLogger(__name__)
 
@@ -316,7 +311,7 @@ class TMDBWorker:
                 headers=api_headers,
                 disable_http3=True,
                 multiplexed=True,
-                revocation_configuration=_rev_conf,
+                revocation_configuration=REV_CONF,
             ) as client,
             LogNiquestsErrors("TMDB search"),
         ):
@@ -480,7 +475,7 @@ class SlowPicsWorker:
                 timeout=20,
                 disable_http3=True,
                 multiplexed=True,
-                revocation_configuration=_rev_conf,
+                revocation_configuration=REV_CONF,
             ) as client,
             LogNiquestsErrors("Slowpics Upload"),
         ):
