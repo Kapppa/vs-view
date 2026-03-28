@@ -288,15 +288,17 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         self.content = content
 
+        unset_environment()
+        self.init_load(frame, tab_index)
+
         with loader_lock:
-            unset_environment()
-            self.init_load(frame, tab_index)
+            outputs = self._get_outputs()
 
-            if not (outputs := self._get_outputs()):
-                self.clear_failed_load()
-                return
+        if not outputs:
+            self.clear_failed_load()
+            return
 
-            voutputs, aoutputs = outputs
+        voutputs, aoutputs = outputs
 
         self.outputs_manager.current_video_index = clamp(self.outputs_manager.current_video_index, 0, len(voutputs) - 1)
         tabs = self.tab_manager.create_tabs(voutputs)
@@ -358,11 +360,13 @@ class LoaderWorkspace[T](BaseWorkspace):
             self.clear_environment()
             gc_collect()
 
-            # 3. Load New Content
             with loader_lock:
-                if not (outputs := self._get_outputs()):
-                    self.clear_failed_load()
-                    return
+                # 3. Load New Content
+                outputs = self._get_outputs()
+
+            if not outputs:
+                self.clear_failed_load()
+                return
 
             voutputs, aoutputs = outputs
 
