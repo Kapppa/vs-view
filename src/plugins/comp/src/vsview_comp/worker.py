@@ -584,7 +584,7 @@ class SlowPicsWorker:
                     continue
 
                 response.raise_for_status()
-                break
+                return
             except Exception as e:
                 if retry == 4:
                     raise
