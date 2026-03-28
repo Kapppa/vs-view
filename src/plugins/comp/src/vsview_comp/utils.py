@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import importlib.metadata
 import random
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
-from contextvars import ContextVar
-from functools import cache, wraps
+from functools import cache
 from http.cookiejar import CookieJar
-from inspect import iscoroutinefunction
-from logging import DEBUG, INFO, LogRecord, getLogger
+from logging import getLogger
 from types import TracebackType
 
 import niquests
@@ -30,44 +28,6 @@ def get_slowpics_headers() -> dict[str, str]:
             f"vs-view (https://github.com/Jaded-Encoding-Thaumaturgy/vs-view {version})"  # SlowBro asked for this
         ),
     }
-
-
-_demote_niquests_ctx = ContextVar("_demote_niquests_ctx", default=False)
-
-
-def niquests_demote_filter(record: LogRecord) -> bool:
-    if _demote_niquests_ctx.get() and record.levelno == INFO:
-        record.levelno = DEBUG
-        record.levelname = "DEBUG"
-    return True
-
-
-_niquests_logger = getLogger("niquests")
-_niquests_logger.addFilter(niquests_demote_filter)
-
-
-def demote_niquests_logs[**P, R](func: Callable[P, R]) -> Callable[P, R]:
-    if iscoroutinefunction(func):
-
-        @wraps(func)
-        async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            token = _demote_niquests_ctx.set(True)
-            try:
-                return await func(*args, **kwargs)
-            finally:
-                _demote_niquests_ctx.reset(token)
-
-        return async_wrapper  # type: ignore[return-value]
-
-    @wraps(func)
-    def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        token = _demote_niquests_ctx.set(True)
-        try:
-            return func(*args, **kwargs)
-        finally:
-            _demote_niquests_ctx.reset(token)
-
-    return sync_wrapper
 
 
 class LogNiquestsErrors(AbstractContextManager[None], AbstractAsyncContextManager[None]):

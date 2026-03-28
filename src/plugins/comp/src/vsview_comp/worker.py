@@ -29,7 +29,7 @@ from vsview.api import PluginAPI, PluginSecrets, Time, run_in_background
 from ._metadata import COOKIE_KEY, LOGIN_CONTEXT
 from .models import ComparisonSource, TMDBPayload, TMDBTitle, TMDBTitleData
 from .ui import FrameSourceProvider, ProgressBar
-from .utils import LogNiquestsErrors, demote_niquests_logs, get_cookie, get_random_number_interval, get_slowpics_headers
+from .utils import LogNiquestsErrors, get_cookie, get_random_number_interval, get_slowpics_headers
 
 if TYPE_CHECKING:
     from .plugin import CompPlugin
@@ -298,7 +298,6 @@ class TMDBWorker:
         return self.API_KEY_PATH.read_text().strip()
 
     @run_in_background(name="TMDBSearch")
-    @demote_niquests_logs
     async def search(self, query: str) -> list[TMDBTitle]:
         titles = list[TMDBTitle]()
         search_params = {**self.BASE_PARAMS, "query": query}
@@ -393,7 +392,6 @@ class SlowPicsWorker:
         self.sema = asyncio.Semaphore(self.MAX_CONCURRENT_REQUESTS)
 
     @run_in_background(name="SlowPicsTags")
-    @demote_niquests_logs
     def get_tags(self) -> list[Tag]:
         with (
             niquests.Session(base_url=self.BASE_URL, headers=self.headers) as client,
@@ -403,7 +401,6 @@ class SlowPicsWorker:
             return [Tag(tag["value"], tag["label"].strip()) for tag in tags]
 
     @run_in_background(name="SlowPicsLogin")
-    @demote_niquests_logs
     def get_cookies(self) -> dict[str, str]:
         if cookies := self.secrets.get_json(COOKIE_KEY, COOKIE_KEY):
             return cookies
@@ -451,7 +448,6 @@ class SlowPicsWorker:
             return {}
 
     @run_in_background(name="SlowPicsUpload")
-    @demote_niquests_logs
     async def upload(
         self,
         *,
