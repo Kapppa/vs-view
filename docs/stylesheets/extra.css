@@ -219,27 +219,3 @@ a {
     background-color: var(--md-primary-fg-color);
     color: var(--md-default-fg-color) !important;
 }
-
-/* ============================================================================
- * Firefox Triple-Click Selection Fix
- * ============================================================================
- * Prevents line breaks from being inserted when triple-clicking code blocks.
- * ========================================================================== */
-
-@-moz-document url-prefix() {
-    /* Ensure line anchors don't create block boundaries in selection */
-    .md-code__content [id^="__codelineno"] {
-        display: inline !important;
-        pointer-events: none;
-        user-select: none;
-    }
-
-    /* Prevent navigation buttons from interfering with text selection */
-    .md-code__nav {
-        user-select: none;
-    }
-
-    .md-code__button {
-        user-select: none;
-    }
-}
