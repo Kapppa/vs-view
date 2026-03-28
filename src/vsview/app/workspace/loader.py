@@ -162,7 +162,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         )
 
         # Connect PlaybackManager signals to UI handlers
-        self.playback.frameRendered.connect(lambda image, sar: self.tab_manager.update_current_view(image, sar=sar))
+        self.playback.frameRendered.connect(self.tab_manager.update_current_view)
         self.playback.timelineCursorChanged.connect(self.update_timeline_cursor)
         self.playback.loadFailed.connect(self.clear_failed_load)
 
