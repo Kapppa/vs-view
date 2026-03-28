@@ -5,7 +5,6 @@ import random
 from collections.abc import Sequence
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from functools import cache
-from http.cookiejar import CookieJar
 from logging import getLogger
 from types import TracebackType
 
@@ -59,13 +58,6 @@ class LogNiquestsErrors(AbstractContextManager[None], AbstractAsyncContextManage
         tb: TracebackType | None,
     ) -> bool | None:
         return self.__exit__(exc_t, exc_val, tb)
-
-
-def get_cookie(jar: CookieJar, name: str) -> str | None:
-    for cookie in jar:
-        if cookie.name == name:
-            return cookie.value
-    return ""
 
 
 def get_random_number_interval(min_val: int, max_val: int, count: int, index: int, exclude: Sequence[int]) -> int:

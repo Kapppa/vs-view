@@ -29,7 +29,7 @@ from vsview.api import PluginAPI, PluginSecrets, Time, run_in_background
 from ._metadata import COOKIE_KEY, LOGIN_CONTEXT
 from .models import ComparisonSource, TMDBPayload, TMDBTitle, TMDBTitleData
 from .ui import FrameSourceProvider, ProgressBar
-from .utils import LogNiquestsErrors, get_cookie, get_random_number_interval, get_slowpics_headers
+from .utils import LogNiquestsErrors, get_random_number_interval, get_slowpics_headers
 
 if TYPE_CHECKING:
     from .plugin import CompPlugin
@@ -418,7 +418,7 @@ class SlowPicsWorker:
                 # Grab initial XSRF token
                 client.get("/comparison").raise_for_status()
 
-                client.headers.update({"X-XSRF-TOKEN": get_cookie(client.cookies, "XSRF-TOKEN")})
+                client.headers.update({"X-XSRF-TOKEN": self._get_cookie(client.cookies, "XSRF-TOKEN")})
 
                 # Extract CSRF token
                 login_page = client.get("/login").raise_for_status()
@@ -549,7 +549,7 @@ class SlowPicsWorker:
         homepage = await client.get("/comparison")
         await client.gather(homepage)
         homepage.raise_for_status()
-        client.headers.update({"X-XSRF-TOKEN": get_cookie(client.cookies, "XSRF-TOKEN")})
+        client.headers.update({"X-XSRF-TOKEN": self._get_cookie(client.cookies, "XSRF-TOKEN")})
 
         if cookies:
             if homepage.text is not None and 'id="logoutBtn"' in homepage.text:
@@ -596,3 +596,10 @@ class SlowPicsWorker:
     @staticmethod
     def _cookies_jar(cookies: CookieJar) -> dict[str, str]:
         return {c.name: c.value or "" for c in cookies}
+
+    @staticmethod
+    def _get_cookie(jar: CookieJar, name: str) -> str | None:
+        for cookie in jar:
+            if cookie.name == name:
+                return cookie.value
+        return ""
