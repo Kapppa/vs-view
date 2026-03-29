@@ -61,7 +61,7 @@ jobs:
           gh release create "${{ steps.tag.outputs.full_tag }}" \
             --title "${{ steps.tag.outputs.full_tag }}" \
             --notes-file ".github/releases/${{ steps.tag.outputs.plugin }}.release.md" \
-            --no-latest
+            --latest=false
 
       - name: Trigger publish workflow
         env:
