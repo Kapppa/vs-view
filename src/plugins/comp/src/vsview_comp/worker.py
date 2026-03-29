@@ -6,8 +6,8 @@ import re
 import threading
 from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from concurrent.futures import Future, wait
-from contextlib import aclosing
 from datetime import UTC, datetime
+from http.cookiejar import CookieJar
 from itertools import chain
 from logging import getLogger
 from operator import attrgetter
@@ -16,8 +16,9 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 from uuid import uuid4
 
 import anyio
-import httpx
+import niquests
 from jetpytools import cachedproperty, ndigits
+from niquests.cookies import cookiejar_from_dict
 from pathvalidate import sanitize_filepath
 from PySide6.QtCore import QThreadPool
 from PySide6.QtGui import QImage
@@ -29,10 +30,12 @@ from vsview.api import PluginAPI, PluginSecrets, Time, get_packer, run_in_backgr
 from ._metadata import COOKIE_KEY, LOGIN_CONTEXT
 from .models import ComparisonSource, TMDBPayload, TMDBTitle, TMDBTitleData
 from .ui import FrameSourceProvider, ProgressBar
-from .utils import LogHTTPXErrors, demote_httpx_logs, get_random_number_interval, get_slowpics_headers
+from .utils import LogNiquestsErrors, get_random_number_interval, get_slowpics_headers
 
 if TYPE_CHECKING:
     from .plugin import CompPlugin
+
+REV_CONF = niquests.RevocationConfiguration(niquests.RevocationStrategy.PREFER_CRL)
 
 logger = getLogger(__name__)
 
@@ -301,22 +304,38 @@ class TMDBWorker:
         return self.API_KEY_PATH.read_text().strip()
 
     @run_in_background(name="TMDBSearch")
-    @demote_httpx_logs
     async def search(self, query: str) -> list[TMDBTitle]:
         titles = list[TMDBTitle]()
         search_params = {**self.BASE_PARAMS, "query": query}
         api_headers = {"Authorization": f"Bearer {self.api_key}"}
 
         async with (
-            httpx.AsyncClient(base_url=self.BASE_URL, timeout=10, headers=api_headers) as client,
-            LogHTTPXErrors("TMDB search"),
+            niquests.AsyncSession(
+                base_url=self.BASE_URL,
+                timeout=10,
+                headers=api_headers,
+                disable_http3=True,
+                multiplexed=True,
+                revocation_configuration=REV_CONF,
+            ) as client,
+            LogNiquestsErrors("TMDB search"),
         ):
-            await self._ensure_genres_loaded(client)
+            tv_resp = await client.get("/search/tv", params=search_params)
+            await client.gather(tv_resp)
 
-            tv_task = client.get("/search/tv", params=search_params)
-            movie_task = client.get("/search/movie", params=search_params)
+            num_tv_task = None
+            num_movie_task = None
 
-            tv_resp, movie_resp = await asyncio.gather(tv_task, movie_task)
+            async with asyncio.TaskGroup() as tg:
+                tg.create_task(self._ensure_genres_loaded(client))
+                movie_task = tg.create_task(client.get("/search/movie", params=search_params))
+
+                if query.isnumeric():
+                    num_tv_task = tg.create_task(client.get(f"/tv/{query}", params=self.BASE_PARAMS))
+                    num_movie_task = tg.create_task(client.get(f"/movie/{query}", params=self.BASE_PARAMS))
+
+            movie_resp = movie_task.result()
+            await client.gather(movie_resp)
 
             title_tasks = list[TMDBTitle]()
 
@@ -330,34 +349,31 @@ class TMDBWorker:
 
             titles.extend(title_tasks)
 
-            if query.isnumeric():
-                tv_id_task = client.get(f"/tv/{query}", params=self.BASE_PARAMS)
-                movie_id_task = client.get(f"/movie/{query}", params=self.BASE_PARAMS)
-
-                responses = await asyncio.gather(tv_id_task, movie_id_task, return_exceptions=True)
-
-                for res, genre_type in zip(responses, ["tv", "movie"]):
-                    if isinstance(res, httpx.Response) and res.status_code == 200:
+            if num_tv_task and num_movie_task:
+                for res, genre_type in zip([num_tv_task.result(), num_movie_task.result()], ["tv", "movie"]):
+                    if isinstance(res, niquests.Response):
+                        await client.gather(res)
                         item = TMDBTitleData.validate_logged(res.json(), f"TMDB /{genre_type}/{query}")
                         if item:
                             titles.append(self._create_title(item, genre_type))  # type: ignore[arg-type]
-
         return titles
 
-    async def _ensure_genres_loaded(self, client: httpx.AsyncClient) -> None:
+    async def _ensure_genres_loaded(self, client: niquests.AsyncSession) -> None:
         if not self._tv_genres or not self._movie_genres:
             tv_req = client.get("/genre/tv/list")
             movie_req = client.get("/genre/movie/list")
 
             tv_res, movie_res = await asyncio.gather(tv_req, movie_req, return_exceptions=True)
 
-            if isinstance(tv_res, httpx.Response) and tv_res.status_code == 200 and not self._tv_genres:
-                data = TMDBPayload.validate_logged(tv_res.json(), "TMDB /genre/tv/list")
+            if isinstance(tv_res, niquests.Response) and not self._tv_genres:
+                await client.gather(tv_res)
+                data = TMDBPayload.validate_logged(tv_res.raise_for_status().json(), "TMDB /genre/tv/list")
                 if data:
                     self._tv_genres = {g.id: g.name for g in data.genres}
 
-            if isinstance(movie_res, httpx.Response) and movie_res.status_code == 200 and not self._movie_genres:
-                data = TMDBPayload.validate_logged(movie_res.json(), "TMDB /genre/movie/list")
+            if isinstance(movie_res, niquests.Response) and not self._movie_genres:
+                await client.gather(movie_res)
+                data = TMDBPayload.validate_logged(movie_res.raise_for_status().json(), "TMDB /genre/movie/list")
                 if data:
                     self._movie_genres = {g.id: g.name for g in data.genres}
 
@@ -384,24 +400,18 @@ class SlowPicsWorker:
         self.progress_bar = progress_bar
         self.browser_id = str(uuid4())
         self.headers = get_slowpics_headers()
-        self.limits = httpx.Limits(
-            max_connections=self.MAX_CONCURRENT_REQUESTS,
-            max_keepalive_connections=self.MAX_CONCURRENT_REQUESTS,
-        )
         self.sema = asyncio.Semaphore(self.MAX_CONCURRENT_REQUESTS)
 
     @run_in_background(name="SlowPicsTags")
-    @demote_httpx_logs
     def get_tags(self) -> list[Tag]:
         with (
-            httpx.Client(base_url=self.BASE_URL, headers=self.headers) as client,
-            LogHTTPXErrors("Slowpics Tags"),
+            niquests.Session(base_url=self.BASE_URL, headers=self.headers) as client,
+            LogNiquestsErrors("Slowpics Tags"),
         ):
             tags = client.get("/api/tags").raise_for_status().json()
             return [Tag(tag["value"], tag["label"].strip()) for tag in tags]
 
     @run_in_background(name="SlowPicsLogin")
-    @demote_httpx_logs
     def get_cookies(self) -> dict[str, str]:
         if cookies := self.secrets.get_json(COOKIE_KEY, COOKIE_KEY):
             return cookies
@@ -410,16 +420,18 @@ class SlowPicsWorker:
             return {}
 
         try:
-            with httpx.Client(base_url=self.BASE_URL, headers=self.headers, timeout=20) as client:
+            with niquests.Session(base_url=self.BASE_URL, headers=self.headers, timeout=20) as client:
                 # Grab initial XSRF token
                 client.get("/comparison").raise_for_status()
-                client.headers.update({"X-XSRF-TOKEN": client.cookies.get("XSRF-TOKEN") or ""})
+
+                client.headers.update({"X-XSRF-TOKEN": self._get_cookie(client.cookies, "XSRF-TOKEN")})
 
                 # Extract CSRF token
                 login_page = client.get("/login").raise_for_status()
 
                 csrf_match = re.search(
-                    r'<input type="hidden" name="_csrf" value="([a-zA-Z0-9-_]+)"\/>', login_page.text
+                    r'<input type="hidden" name="_csrf" value="([a-zA-Z0-9-_]+)"\/>',
+                    login_page.text or "",
                 )
                 if not csrf_match:
                     logger.error("No CSRF found; Failed to login.")
@@ -432,7 +444,7 @@ class SlowPicsWorker:
                     "_csrf": csrf_match.group(1),
                     "remember-me": "on",
                 }
-                client.post("/login", data=data, follow_redirects=True).raise_for_status()
+                client.post("/login", data=data, allow_redirects=True).raise_for_status()
 
                 # Save and return cookies
                 cookies = self._cookies_jar(client.cookies)
@@ -440,13 +452,12 @@ class SlowPicsWorker:
 
                 return cookies
 
-        except httpx.HTTPError as e:
+        except niquests.HTTPError as e:
             logger.error("Login sequence failed: %s", e)
             logger.debug("Full traceback", exc_info=True)
             return {}
 
     @run_in_background(name="SlowPicsUpload")
-    @demote_httpx_logs
     async def upload(
         self,
         *,
@@ -461,10 +472,18 @@ class SlowPicsWorker:
     ) -> str:
         is_comparison = len(sources) > 1
         total_images = sum(len(images) for _, images in sources)
-
         async with (
-            httpx.AsyncClient(base_url=self.BASE_URL, limits=self.limits, headers=self.headers, timeout=20) as client,
-            LogHTTPXErrors("Slowpics Upload"),
+            niquests.AsyncSession(
+                base_url=self.BASE_URL,
+                pool_maxsize=self.MAX_CONCURRENT_REQUESTS,
+                pool_connections=self.MAX_CONCURRENT_REQUESTS,
+                headers=self.headers,
+                timeout=20,
+                disable_http3=True,
+                multiplexed=True,
+                revocation_configuration=REV_CONF,
+            ) as client,
+            LogNiquestsErrors("Slowpics Upload"),
         ):
             await self._setup_client(client, cookies)
 
@@ -499,7 +518,9 @@ class SlowPicsWorker:
                 comp_info["removeAfter"] = str(remove_after)
 
             endpoint = f"/upload/{'comparison' if is_comparison else 'collection'}"
-            comp_data = (await client.post(endpoint, data=comp_upload | tag_data | comp_info)).raise_for_status().json()
+            start_resp = await client.post(endpoint, data=comp_upload | tag_data | comp_info)
+            await client.gather(start_resp)
+            comp_data = start_resp.raise_for_status().json()
 
             collection_uuid = comp_data["collectionUuid"]
             key = comp_data["key"]
@@ -527,24 +548,24 @@ class SlowPicsWorker:
 
             return f"https://slow.pics/c/{key}"
 
-    async def _setup_client(self, client: httpx.AsyncClient, cookies: dict[str, str]) -> None:
-        for key, value in cookies.items():
-            client.cookies.set(key, value)
+    async def _setup_client(self, client: niquests.AsyncSession, cookies: dict[str, str]) -> None:
+        client.cookies = cookiejar_from_dict(cookies)
 
-        async with aclosing(await client.get("/comparison")) as homepage:
-            homepage.raise_for_status()
-            client.headers.update({"X-XSRF-TOKEN": client.cookies.get("XSRF-TOKEN") or ""})
+        homepage = await client.get("/comparison")
+        await client.gather(homepage)
+        homepage.raise_for_status()
+        client.headers.update({"X-XSRF-TOKEN": self._get_cookie(client.cookies, "XSRF-TOKEN")})
 
-            if cookies:
-                if 'id="logoutBtn"' in homepage.text:
-                    logger.debug("Cookies not stale, logged in.")
-                    self.secrets.set_json(COOKIE_KEY, COOKIE_KEY, self._cookies_jar(client.cookies))
-                else:
-                    logger.warning("Cookies have expired, uploading as anonymous")
+        if cookies:
+            if homepage.text is not None and 'id="logoutBtn"' in homepage.text:
+                logger.debug("Cookies not stale, logged in.")
+                self.secrets.set_json(COOKIE_KEY, COOKIE_KEY, self._cookies_jar(client.cookies))
+            else:
+                logger.warning("Cookies have expired, uploading as anonymous")
 
     async def _upload_image(
         self,
-        client: httpx.AsyncClient,
+        client: niquests.AsyncSession,
         collection: str,
         image_uuid: str,
         image_path: Path,
@@ -561,7 +582,7 @@ class SlowPicsWorker:
                         data=data,
                         files={"file": (image_path.name, await anyio.Path(image_path).read_bytes(), "image/png")},
                     )
-
+                    await client.gather(response)
                 if response.status_code == 429:
                     wait_time = int(response.headers.get("Retry-After", (retry + 1) * 2))
                     logger.warning("Rate limited for %s. Waiting %ds...", image_path.name, wait_time)
@@ -578,5 +599,12 @@ class SlowPicsWorker:
                 await asyncio.sleep((retry + 1) * 2)
 
     @staticmethod
-    def _cookies_jar(cookies: httpx.Cookies) -> dict[str, str]:
-        return {c.name: c.value or "" for c in cookies.jar}
+    def _cookies_jar(cookies: CookieJar) -> dict[str, str]:
+        return {c.name: c.value or "" for c in cookies}
+
+    @staticmethod
+    def _get_cookie(jar: CookieJar, name: str) -> str | None:
+        for cookie in jar:
+            if cookie.name == name:
+                return cookie.value
+        return ""

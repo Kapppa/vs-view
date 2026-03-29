@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import importlib.metadata
 import random
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
-from contextvars import ContextVar
-from functools import cache, wraps
-from inspect import iscoroutinefunction
-from logging import DEBUG, INFO, LogRecord, getLogger
+from functools import cache
+from logging import getLogger
 from types import TracebackType
 
-import httpx
+import niquests
 
 logger = getLogger(__name__)
 
@@ -31,45 +29,7 @@ def get_slowpics_headers() -> dict[str, str]:
     }
 
 
-_demote_httpx_ctx = ContextVar("_demote_httpx_ctx", default=False)
-
-
-def httpx_demote_filter(record: LogRecord) -> bool:
-    if _demote_httpx_ctx.get() and record.levelno == INFO:
-        record.levelno = DEBUG
-        record.levelname = "DEBUG"
-    return True
-
-
-_httpx_logger = getLogger("httpx")
-_httpx_logger.addFilter(httpx_demote_filter)
-
-
-def demote_httpx_logs[**P, R](func: Callable[P, R]) -> Callable[P, R]:
-    if iscoroutinefunction(func):
-
-        @wraps(func)
-        async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            token = _demote_httpx_ctx.set(True)
-            try:
-                return await func(*args, **kwargs)
-            finally:
-                _demote_httpx_ctx.reset(token)
-
-        return async_wrapper  # type: ignore[return-value]
-
-    @wraps(func)
-    def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        token = _demote_httpx_ctx.set(True)
-        try:
-            return func(*args, **kwargs)
-        finally:
-            _demote_httpx_ctx.reset(token)
-
-    return sync_wrapper
-
-
-class LogHTTPXErrors(AbstractContextManager[None], AbstractAsyncContextManager[None]):
+class LogNiquestsErrors(AbstractContextManager[None], AbstractAsyncContextManager[None]):
     def __init__(self, ctx_message: str) -> None:
         self.ctx_message = ctx_message
 
@@ -82,7 +42,7 @@ class LogHTTPXErrors(AbstractContextManager[None], AbstractAsyncContextManager[N
         exc_val: BaseException | None,
         tb: TracebackType | None,
     ) -> bool | None:
-        if isinstance(exc_val, httpx.HTTPError):
+        if isinstance(exc_val, niquests.HTTPError):
             logger.error("%s failed: %s", self.ctx_message, exc_val, stacklevel=4)
             logger.debug("Full traceback", exc_info=exc_val, stacklevel=4)
             return True
