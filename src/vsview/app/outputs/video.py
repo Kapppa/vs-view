@@ -42,6 +42,14 @@ class VideoOutput:
         self.framedurs = metadata.framedurs if metadata else None
         self._alpha_prop: Literal[True] | None = metadata.alpha_prop if metadata else None
 
+        if self._alpha_prop:
+            try:
+                alpha_plane = self.vs_output.clip.std.PropToClip("_Alpha")
+            except vs.Error:
+                logger.warning("Alpha plane not found")
+            else:
+                self.vs_output = self.vs_output._replace(alpha=alpha_plane)
+
         if self.framedurs:
             self.cum_durations: list[float] | None = list(accumulate(self.framedurs))
         elif self.vs_output.clip.fps > 0:
