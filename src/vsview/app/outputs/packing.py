@@ -120,6 +120,16 @@ def _is_vszip_available() -> bool:
 
 
 def get_packer(method: str | None = None, bit_depth: int | None = None) -> Packer:
+    """
+    Get the packer to use for packing clips.
+
+    Args:
+        method: The packing method to use. If None, the global setting will be used.
+        bit_depth: The bit depth to use. If None, the global setting will be used.
+
+    Returns:
+        The packer to use for packing clips.
+    """
     method = method or SettingsManager.global_settings.view.packing_method
     bit_depth = bit_depth or SettingsManager.global_settings.view.bit_depth
 

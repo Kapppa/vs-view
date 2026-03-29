@@ -1,5 +1,6 @@
 """API for vsview"""
 
+from ..app.outputs import get_packer
 from ..app.plugins import (
     AudioOutputProxy,
     GraphicsViewProxy,
@@ -79,6 +80,7 @@ __all__ = [
     "WidgetPluginBase",
     "WidgetTimeEdit",
     "catch_output",
+    "get_packer",
     "hookimpl",
     "is_preview",
     "run_in_background",
