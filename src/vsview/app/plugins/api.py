@@ -12,6 +12,7 @@ from datetime import timedelta
 from fractions import Fraction
 from logging import getLogger
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, Self, TypeVar, cast
 
 import vapoursynth as vs
@@ -523,6 +524,29 @@ class PluginAPI(_PluginAPI):
     def packer(self) -> Packer:
         """Return the packer used by the workspace."""
         return self.__workspace.outputs_manager.packer
+
+    @property
+    def settings(self) -> SimpleNamespace:
+        """
+        !!! Unstable API !!!
+
+        Return the application's global and local settings as nested SimpleNamespace proxy objects.
+        """
+
+        def recursive_ns(data: dict[str, Any]) -> SimpleNamespace:
+            return SimpleNamespace(**{k: recursive_ns(v) if isinstance(v, dict) else v for k, v in data.items()})
+
+        global_ = SettingsManager.global_settings.model_copy(deep=True).model_dump(exclude={"plugins"})
+        local_ = (
+            SettingsManager.get_local_settings(p).model_copy(deep=True).model_dump(exclude={"plugins"})
+            if (p := self._settings_store.file_path)
+            else {}
+        )
+        settings = SimpleNamespace()
+        settings.global_ = recursive_ns(global_)
+        settings.local_ = recursive_ns(local_)
+
+        return settings
 
     @property
     def current_view(self) -> GraphicsViewProxy:
