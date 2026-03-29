@@ -22,11 +22,12 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Download release notes
-        uses: actions/download-artifact@v8
-        with:
-          name: release-bodies
-          path: release-bodies/
+      - name: Generate release notes
+        run: |
+          python .github/scripts/detect_plugin_releases.py || exit_code=$?
+          if [ "${exit_code:-0}" -ne 0 ] && [ "${exit_code:-0}" -ne 2 ]; then
+            exit 1
+          fi
 
       - name: Parse and push release tag
         id: tag
@@ -46,7 +47,7 @@ jobs:
           echo "plugin=$plugin" >> "$GITHUB_OUTPUT"
           echo "full_tag=$tag" >> "$GITHUB_OUTPUT"
 
-          python .github/scripts/push_release_tags.py "$tag" --notes-file "release-bodies/${plugin}.release.md"
+          python .github/scripts/push_release_tags.py "$tag" --notes-file ".github/releases/${plugin}.release.md"
 
       - name: Create GitHub Release
         env:
@@ -54,7 +55,7 @@ jobs:
         run: |
           gh release create "${{ steps.tag.outputs.full_tag }}" \
             --title "${{ steps.tag.outputs.full_tag }}" \
-            --notes-file "release-bodies/${{ steps.tag.outputs.plugin }}.release.md" \
+            --notes-file ".github/releases/${{ steps.tag.outputs.plugin }}.release.md" \
             --no-latest
 
       - name: Trigger publish workflow
