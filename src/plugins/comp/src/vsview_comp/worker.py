@@ -10,6 +10,7 @@ from contextlib import aclosing
 from datetime import UTC, datetime
 from itertools import chain
 from logging import getLogger
+from operator import attrgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 from uuid import uuid4
@@ -20,10 +21,10 @@ from jetpytools import cachedproperty, ndigits
 from pathvalidate import sanitize_filepath
 from PySide6.QtCore import QThreadPool
 from PySide6.QtGui import QImage
-from vapoursynth import GRAY8, RGB24, VideoNode
-from vstools import clip_data_gather, core, get_prop, remap_frames
+from vapoursynth import GRAY8, VideoNode
+from vstools import DitherType, clip_data_gather, core, depth, get_prop, remap_frames
 
-from vsview.api import PluginAPI, PluginSecrets, Time, run_in_background
+from vsview.api import PluginAPI, PluginSecrets, Time, get_packer, run_in_background
 
 from ._metadata import COOKIE_KEY, LOGIN_CONTEXT
 from .models import ComparisonSource, TMDBPayload, TMDBTitle, TMDBTitleData
@@ -42,6 +43,7 @@ class ExtractFramesWorker:
         self.progress_bar = parent.progress_bar
         self.data = parent.frames_list.get_data()
         self.included_outputs = parent.outputs_dropdown.included_outputs
+        self.packer = get_packer("cython", 8)
 
         if not (storage := self.api.get_local_storage(parent)):
             raise NotImplementedError
@@ -59,6 +61,11 @@ class ExtractFramesWorker:
         workers = list[Future[None]]()
         images_paths = list[tuple[int, Path]]()
 
+        try:
+            dither_type = attrgetter("settings.view")(self.api)
+        except AttributeError:
+            dither_type = DitherType.RANDOM
+
         with self.api.vs_context():
             is_fpng_available = hasattr(core, "fpng")
 
@@ -71,14 +78,15 @@ class ExtractFramesWorker:
                 images_path.mkdir(parents=True, exist_ok=True)
                 images_paths.append((output.vs_index, images_path))
 
-                clip = self.api.packer.to_rgb_planar(output.vs_output.clip, format=RGB24)
+                clip = self.packer.to_rgb_planar(output.vs_output.clip)
+                alpha = depth(a, 8, dither_type=dither_type) if (a := output.vs_output.alpha) else None
                 frames = [output.time_to_frame(t) for t, *_ in self.data]
                 clip_image_path = images_path / f"%0{ndigits(max(frames))}d.png"
 
                 if is_fpng_available:
-                    f = self._fpng_extract(clip, clip_image_path, frames)
+                    f = self._fpng_extract(clip, alpha, clip_image_path, frames)
                 else:
-                    f = self._qt_extract(clip, clip_image_path, frames)
+                    f = self._qt_extract(clip, alpha, clip_image_path, frames)
 
                 workers.append(f)
 
@@ -88,20 +96,18 @@ class ExtractFramesWorker:
         return images_paths
 
     @run_in_background(name="ExtractFPNG")
-    def _fpng_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
-        # TODO: Maybe add alpha support?
+    def _fpng_extract(self, clip: VideoNode, alpha: VideoNode | None, path: Path, frames: Sequence[int]) -> None:
         with self.api.vs_context():
-            # 1 - slow compression (smaller output file)
-            clip = clip.fpng.Write(filename=str(path), compression=1)
+            clip = clip.fpng.Write(filename=str(path), compression=1, alpha=alpha)
             remapped = remap_frames(clip, frames)
 
             with open(os.devnull, "wb") as sink:
                 remapped.output(sink, progress_update=lambda *_: self.progress_bar.update_progress(increment=1))
 
     @run_in_background(name="ExtractQt")
-    def _qt_extract(self, clip: VideoNode, path: Path, frames: Sequence[int]) -> None:
+    def _qt_extract(self, clip: VideoNode, alpha: VideoNode | None, path: Path, frames: Sequence[int]) -> None:
         with self.api.vs_context():
-            clip = self.api.packer.to_rgb_packed(clip)
+            clip = self.packer.to_rgb_packed(clip, alpha)
             remapped = remap_frames(clip, frames)
 
             sema = threading.Semaphore(QThreadPool.globalInstance().maxThreadCount() // 2)
@@ -109,7 +115,7 @@ class ExtractFramesWorker:
 
             for n, vs_frame in zip(frames, remapped.frames(close=True)):
                 sema.acquire()
-                qimage = self.api.packer.frame_to_qimage(vs_frame, format=QImage.Format.Format_RGB32).copy()
+                qimage = self.packer.frame_to_qimage(vs_frame).copy()
                 f = self._qt_save(qimage, path.with_stem(path.stem % n))
                 f.add_done_callback(lambda _: sema.release())
                 workers.append(f)
