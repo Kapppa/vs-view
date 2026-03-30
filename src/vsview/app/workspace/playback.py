@@ -8,9 +8,11 @@ from time import perf_counter_ns
 from typing import TYPE_CHECKING
 
 from jetpytools import clamp, cround
-from PySide6.QtCore import QObject, Qt, QTime, QTimer, Signal, Slot
-from PySide6.QtGui import QImage
+from PySide6.QtCore import QObject, QPoint, Qt, QTime, QTimer, Signal, Slot
+from PySide6.QtGui import QColor, QFontMetrics, QImage, QPainter, QPolygon
+from PySide6.QtWidgets import QMessageBox
 
+from ...assets import get_monospace_font
 from ...vsenv import run_in_background, run_in_loop
 from ..outputs import AudioBuffer, FrameBuffer
 from ..settings import SettingsManager
@@ -246,6 +248,8 @@ class PlaybackManager(QObject):
             return
 
         self.can_reload = False
+        failed = False
+        error_msg = ""
 
         with self._env.use():
             if self.state.is_playing:
@@ -253,9 +257,22 @@ class PlaybackManager(QObject):
             else:
                 self.statusLoadingStarted.emit(f"Rendering frame {n}...")
 
-            with voutput.prepared_clip.get_frame(n) as frame:
-                logger.debug("Frame %d rendered", n)
-                image = voutput.packer.frame_to_qimage(frame)
+            try:
+                with voutput.prepared_clip.get_frame(n) as frame:
+                    logger.debug("Frame %d rendered", n)
+                    image = voutput.packer.frame_to_qimage(frame)
+            except Exception as e:
+                try:
+                    voutput.vs_output.clip.get_frame(n).close()
+                except Exception as exc_user:
+                    raise exc_user from None
+
+                error_msg = (
+                    f"An error occurred during rendering or packing of frame {n}:\n({{e.__class__.__qualname__}}) {{e}}"
+                )
+                image = create_failed_image(str(e), voutput.vs_output.clip.width, voutput.vs_output.clip.height)
+                logger.error(error_msg)
+                failed = True
 
             self._api._on_current_frame_changed(n, None)
 
@@ -265,6 +282,23 @@ class PlaybackManager(QObject):
         self.frameRendered.emit(image, self._get_sar_from_props(n))
         self.timelineCursorChanged.emit(n)
         self.can_reload = True
+
+        if failed:
+
+            @run_in_loop(return_future=False)
+            def show_warning() -> None:
+                msg = QMessageBox(
+                    self._tbar.window(),
+                    text=error_msg,
+                    icon=QMessageBox.Icon.Warning,
+                    standardButtons=QMessageBox.StandardButton.Ok,  # type: ignore[call-overload]
+                )
+                msg.setWindowTitle("Playback Error")
+                msg.setModal(False)
+                msg.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+                msg.show()
+
+            show_warning()
 
     @Slot(int)
     def seek_frame(self, delta: int) -> None:
@@ -401,9 +435,9 @@ class PlaybackManager(QObject):
                 result = self.state.buffer.get_next_frame()
             except Exception as e:
                 logger.error(
-                    "An error occured during the rendering of the frame %d with the message: (%s): %s",
+                    "An error occurred during rendering of frame %d:\n(%s) %s",
                     self.state.current_frame + 1,
-                    e.__class__.__name__,
+                    e.__class__.__qualname__,
                     e,
                 )
                 self.loadFailed.emit()
@@ -714,3 +748,75 @@ class PlaybackManager(QObject):
             self._render_pending_frame()
 
         self.request_frame(frame, cb_render=on_render_complete)
+
+
+def create_failed_image(text: str, width: int, height: int) -> QImage:
+    image = QImage(width, height, QImage.Format.Format_RGB32)
+
+    image.fill(QColor("#FF00FF"))
+
+    with QPainter(image) as painter:
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor("#39FF14"))
+
+        step = 60
+        for i in range(-max(width, height), width + height, step * 2):
+            painter.drawPolygon(
+                QPolygon(
+                    [
+                        QPoint(i, 0),
+                        QPoint(i + step, 0),
+                        QPoint(i + step + height, height),
+                        QPoint(i + height, height),
+                    ]
+                )
+            )
+
+        margin = min(width, height) // 10
+        rect = image.rect().adjusted(margin, margin, -margin, -margin)
+
+        painter.setBrush(QColor(0, 0, 0))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRect(rect)
+
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QColor(255, 255, 255))
+        pen = painter.pen()
+        pen.setWidth(clamp(min(width, height) // 60, 2, 10))
+        painter.setPen(pen)
+        painter.drawRect(rect)
+
+        padding = max(5, margin // 2)
+        text_rect = rect.adjusted(padding, padding, -padding, -padding)
+
+        # Dynamically find the largest font size that fits without truncation
+        font_size = clamp(min(width, height) // 12, 10, 72)
+        flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
+
+        font = get_monospace_font(font_size)
+        font.setBold(True)
+
+        while font_size > 6:
+            font = get_monospace_font(font_size)
+            font.setBold(True)
+            metrics = QFontMetrics(font)
+            if metrics.boundingRect(text_rect, flags, text).height() <= text_rect.height():
+                break
+            font_size -= 1
+
+        painter.setFont(font)
+
+        offset = max(1, font_size // 15)
+
+        painter.setPen(QColor("#00FFFF"))
+        painter.drawText(text_rect.translated(-offset, -offset), flags, text)
+
+        painter.setPen(QColor("#FF0000"))
+        painter.drawText(text_rect.translated(offset, offset), flags, text)
+
+        painter.setPen(QColor(255, 255, 255))
+        painter.drawText(text_rect, flags, text)
+
+    return image
