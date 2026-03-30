@@ -60,6 +60,8 @@ class LoaderWorkspace[T](BaseWorkspace):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
+        self._is_failed = False
+
         self.stack = QStackedWidget(self)
         self.current_layout.addWidget(self.stack)
 
@@ -316,20 +318,20 @@ class LoaderWorkspace[T](BaseWorkspace):
         @run_in_loop(return_future=False)
         def on_complete(f: Future[None]) -> None:
             if f.exception():
+                logger.error("Failed to load content: %r", self.content)
+                self.clear_failed_load()
                 return
 
             self.content_area.setEnabled(True)
             self.tab_manager._on_global_autofit_changed(self.tab_manager.autofit_btn.isChecked())
             self.tab_manager.disable_switch = False
             self.playback.can_reload = True
+            self._is_failed = False
 
-        if not self._on_tab_changed(self.tab_manager.tabs.currentIndex(), cb_render=on_complete):
-            logger.error("Failed to load content: %r", self.content)
-            self.clear_failed_load()
-            return
+            logger.info("Content loaded successfully: %r", self.content)
+            self.statusLoadingFinished.emit("Completed")
 
-        logger.info("Content loaded successfully: %r", self.content)
-        self.statusLoadingFinished.emit("Completed")
+        self._on_tab_changed(self.tab_manager.tabs.currentIndex(), cb_render=on_complete)
 
     @run_in_background(name="ReloadContent")
     def reload_content(self) -> None:
@@ -343,7 +345,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.playback.can_reload = False
         self.statusLoadingStarted.emit("Reloading Content...")
 
-        with self.tbar.disabled(), self.tab_manager.clear_voutputs_on_fail(), self.freeze_viewport():
+        with self.tbar.disabled(), self.freeze_viewport():
             self.loop.from_thread(self.content_area.setDisabled, True).result()
             self.tab_manager.disable_switch = True
             self.playback.state.wait_for_cleanup(
@@ -398,22 +400,24 @@ class LoaderWorkspace[T](BaseWorkspace):
             @run_in_loop(return_future=False)
             def on_complete(f: Future[None]) -> None:
                 if f.exception():
+                    logger.error("Failed to reload content: %r", self.content)
+                    self.clear_failed_load()
                     return
                 self.content_area.setEnabled(True)
                 self.tab_manager.tabs.setEnabled(True)
                 self.content_area.setFocus()
                 self.playback.can_reload = True
                 self.tab_manager.disable_switch = False
+                self._is_failed = False
 
-            if not self._on_tab_changed(
+                logger.info("Content reloaded successfully: %r", self.content)
+
+            self._on_tab_changed(
                 self.tab_manager.tabs.currentIndex(),
                 seamless=True,
                 cb_render=on_complete,
                 refresh_plugins=True,
-            ):
-                logger.error("Failed to reload content: %r", self.content)
-                self.clear_failed_load()
-                raise RuntimeError("Reload failed") from None
+            )
 
             logger.info("Content reloaded successfully: %r", self.content)
 
@@ -443,6 +447,10 @@ class LoaderWorkspace[T](BaseWorkspace):
 
     @run_in_loop(return_future=False)
     def clear_failed_load(self) -> None:
+        if self._is_failed:
+            logger.debug("Workspace already in failed state, skipping clear_failed_load...")
+            return
+
         self.playback.stop()
         self.playback.state.wait_for_cleanup(0, stall_cb=lambda: self.statusLoadingStarted.emit("Clearing buffer..."))
 
@@ -454,6 +462,8 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.statusLoadingErrored.emit("Error while loading content")
         self.set_error_page()
         gc_collect()
+
+        self._is_failed = True
 
     @run_in_loop
     def init_timeline(self) -> None:
@@ -580,11 +590,11 @@ class LoaderWorkspace[T](BaseWorkspace):
                     self.loaded_page.setEnabled(True)
                     self.set_loaded_page()
 
-                    if cb_render:
-                        cb_render(f)
-
                     with self.env.use():
                         self.api._on_current_voutput_changed(refresh_plugins)
+
+                if cb_render:
+                    cb_render(f)
 
             logger.debug("Requesting frame %d", target_frame)
             try:

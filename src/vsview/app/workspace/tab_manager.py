@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
+from collections.abc import Sequence
 from enum import IntEnum
 from functools import partial
 from itertools import cycle
@@ -320,14 +319,6 @@ class TabManager(QWidget, IconReloadMixin):
 
         self.current_view.set_pixmap(QPixmap.fromImage(image, Qt.ImageConversionFlag.NoFormatConversion))
         self.current_view.set_sar(sar)
-
-    @contextmanager
-    def clear_voutputs_on_fail(self) -> Iterator[None]:
-        try:
-            yield
-        except Exception:
-            self.tabs.clear()
-            raise
 
     # SIGNALS
     def _on_tab_changed(self, index: int) -> None:

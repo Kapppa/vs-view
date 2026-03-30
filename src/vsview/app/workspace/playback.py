@@ -209,7 +209,7 @@ class PlaybackManager(QObject):
     def _env(self) -> ManagedEnvironment:
         return self._get_env()
 
-    @run_in_loop
+    @run_in_loop(return_future=False)
     def request_frame(self, n: int, cb_render: Callable[[Future[None]], None] | None = None) -> None:
         """Request a specific frame to be rendered and displayed."""
         logger.debug("Frame requested: %d", n)
@@ -221,18 +221,21 @@ class PlaybackManager(QObject):
 
         fut = self._render_frame(n)
 
+        @run_in_loop(return_future=False)
         def on_complete(f: Future[None]) -> None:
             if f.exception():
-                logger.error("Frame render failed", exc_info=f.exception())
-                self.loadFailed.emit()
+                logger.error("Frame render failed with the message: %r", f.exception())
             elif self._tab_manager.tabs.currentIndex() != -1:
                 voutput.last_frame = n
                 self.state.current_frame = n
 
-        fut.add_done_callback(on_complete)
+            if cb_render:
+                cb_render(f)
 
-        if cb_render:
-            fut.add_done_callback(cb_render)
+            if f.exception():
+                self.loadFailed.emit()
+
+        fut.add_done_callback(on_complete)
 
     @run_in_background(name="RenderFrame")
     def _render_frame(self, n: int) -> None:
