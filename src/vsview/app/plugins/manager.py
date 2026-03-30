@@ -150,7 +150,12 @@ class PluginManager(Singleton):
             self.manager.register(import_module(f"vsview.app.tools.{name}"))
 
         logger.debug("Loading entrypoints...")
-        n = self.manager.load_setuptools_entrypoints("vsview")
+        try:
+            n = self.manager.load_setuptools_entrypoints("vsview")
+        except BaseException:
+            logger.exception("Couldn't load entry points!")
+            n = 0
+
         logger.debug("Loaded %d second/third party plugins", n)
         self._entry_points_loaded = True
 
