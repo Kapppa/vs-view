@@ -249,19 +249,17 @@ class PlaybackManager(QObject):
 
         with self._env.use():
             if self.state.is_playing:
-                with voutput.prepared_clip.get_frame(n) as frame:
-                    logger.debug("Frame %d rendered", n)
-                    image = voutput.packer.frame_to_qimage(frame)
-
-                self._api._on_current_frame_changed(n, None)
+                logger.warning("Slow rendering path; this shouldn't happen")
             else:
                 self.statusLoadingStarted.emit(f"Rendering frame {n}...")
 
-                with voutput.prepared_clip.get_frame(n) as frame:
-                    logger.debug("Frame %d rendered", n)
-                    image = voutput.packer.frame_to_qimage(frame)
+            with voutput.prepared_clip.get_frame(n) as frame:
+                logger.debug("Frame %d rendered", n)
+                image = voutput.packer.frame_to_qimage(frame)
 
-                self._api._on_current_frame_changed(n, None)
+            self._api._on_current_frame_changed(n, None)
+
+            if not self.state.is_playing:
                 self.statusLoadingFinished.emit("Completed")
 
         self.frameRendered.emit(image, self._get_sar_from_props(n))
