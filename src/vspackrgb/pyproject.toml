@@ -85,6 +85,7 @@ source = "versioningit"
 
 [tool.versioningit.vcs]
 match = ["vspackrgb/v*"]
+exclude = ["*.post*"]
 default-tag = "vspackrgb/v0.0.0"
 
 [tool.versioningit.tag2version]

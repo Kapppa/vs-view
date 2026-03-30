@@ -45,6 +45,7 @@ source = "versioningit"
 
 [tool.versioningit.vcs]
 match = ["fftspectrum/v*"]
+exclude = ["*.post*"]
 default-tag = "fftspectrum/v0.0.0"
 
 [tool.versioningit.tag2version]

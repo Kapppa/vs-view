@@ -56,6 +56,7 @@ source = "versioningit"
 
 [tool.versioningit.vcs]
 match = ["comp/v*"]
+exclude = ["*.post*"]
 default-tag = "comp/v0.0.0"
 
 [tool.versioningit.tag2version]
