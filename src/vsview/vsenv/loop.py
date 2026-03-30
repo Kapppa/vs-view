@@ -75,7 +75,6 @@ class QtEventLoop(QObject, EventLoop):
             try:
                 result = func(*args, **kwargs)
             except BaseException as e:
-                _logger.error(e)
                 _logger.debug(e, exc_info=True)
                 fut.set_exception(e)
             else:
@@ -95,7 +94,6 @@ class QtEventLoop(QObject, EventLoop):
             try:
                 result = func(*args, **kwargs)
             except BaseException as e:
-                _logger.error(e)
                 _logger.debug(e, exc_info=True)
                 fut.set_exception(e)
             else:
