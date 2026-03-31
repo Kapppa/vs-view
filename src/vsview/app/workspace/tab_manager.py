@@ -310,7 +310,7 @@ class TabManager(QWidget, IconReloadMixin):
                 else:
                     tabs.tabBar().show()
 
-    @run_in_loop
+    @run_in_loop(return_future=False)
     def update_current_view(self, image: QImage, sar: float | None = None) -> None:
         """Update the view with a new rendered frame."""
 
