@@ -35,7 +35,9 @@ from ..plugins.manager import PluginManager
 from ..settings import ActionID, ShortcutManager
 from ..views import PluginDock, PluginSplitter
 from ..views.components import CustomLoadingPage, DockButton
+from ..views.tab import TabViewWidget
 from ..views.timeline import Frame, TimelineControlBar
+from ..views.video import ViewState
 from .base import BaseWorkspace
 from .playback import PlaybackManager
 from .tab_manager import PlayHeadToolButton, TabManager
@@ -344,9 +346,9 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.playback.stop()
         self.playback.can_reload = False
         self.statusLoadingStarted.emit("Reloading Content...")
+        self.loop.from_thread(self.content_area.setDisabled, True).result()
 
         with self.tbar.disabled(), self.freeze_viewport():
-            self.loop.from_thread(self.content_area.setDisabled, True).result()
             self.tab_manager.disable_switch = True
             self.playback.state.wait_for_cleanup(
                 0.25,
@@ -354,10 +356,8 @@ class LoaderWorkspace[T](BaseWorkspace):
             )
 
             # 1. Capture state
-            saved_state = self.tab_manager.current_view.state
-
-            for view in self.tab_manager.tabs.views():
-                self.loop.from_thread(view.clear_scene).result()
+            saved_state, current_tab_i, autofit_enabled = self._capture_reload_ui_state()
+            self._clear_reload_views()
 
             # 2. Reset Environment
             self.clear_environment()
@@ -380,20 +380,7 @@ class LoaderWorkspace[T](BaseWorkspace):
 
             # 4. Reconstruct UI
             tabs = self.tab_manager.create_tabs(voutputs, enabled=False)
-
-            # Apply saved pixmap
-            for view, voutput in zip(tabs.views(), voutputs, strict=True):
-                saved_state.apply_pixmap(view, (voutput.vs_output.clip.width, voutput.vs_output.clip.height))
-                saved_state.apply_frozen_state(view)
-
-            with QSignalBlocker(self.tab_manager):
-                self.tab_manager.swap_tabs(tabs, clamp(self.tab_manager.tabs.currentIndex(), 0, tabs.count() - 1))
-
-            self.loop.from_thread(
-                self.tab_manager._on_global_autofit_changed,
-                self.tab_manager.autofit_btn.isChecked(),
-                under_reload=True,
-            ).result()
+            current_tab_i = self._restore_reload_tabs(tabs, voutputs, saved_state, current_tab_i, autofit_enabled)
 
             self.tbar.playback_container.set_audio_outputs(aoutputs, self.outputs_manager.current_audio_index)
 
@@ -412,14 +399,44 @@ class LoaderWorkspace[T](BaseWorkspace):
 
                 logger.info("Content reloaded successfully: %r", self.content)
 
-            self._on_tab_changed(
-                self.tab_manager.tabs.currentIndex(),
-                seamless=True,
-                cb_render=on_complete,
-                refresh_plugins=True,
-            )
+            self._on_tab_changed(current_tab_i, seamless=True, cb_render=on_complete, refresh_plugins=True)
 
             logger.info("Content reloaded successfully: %r", self.content)
+
+    @run_in_loop(return_future=False)
+    def _capture_reload_ui_state(self) -> tuple[ViewState, int, bool]:
+        return (
+            self.tab_manager.current_view.state,
+            self.tab_manager.tabs.currentIndex(),
+            self.tab_manager.autofit_btn.isChecked(),
+        )
+
+    @run_in_loop(return_future=False)
+    def _clear_reload_views(self) -> None:
+        for view in self.tab_manager.tabs.views():
+            view.clear_scene()
+
+    @run_in_loop(return_future=False)
+    def _restore_reload_tabs(
+        self,
+        tabs: TabViewWidget,
+        voutputs: list[VideoOutput],
+        saved_state: ViewState,
+        current_tab_index: int,
+        autofit_enabled: bool,
+    ) -> int:
+        for view, voutput in zip(tabs.views(), voutputs, strict=True):
+            saved_state.apply_pixmap(view, (voutput.vs_output.clip.width, voutput.vs_output.clip.height))
+            saved_state.apply_frozen_state(view)
+
+        resolved_index = clamp(current_tab_index, 0, len(voutputs) - 1)
+
+        with QSignalBlocker(self.tab_manager):
+            self.tab_manager.swap_tabs(tabs, resolved_index)
+
+        self.tab_manager._on_global_autofit_changed(autofit_enabled, under_reload=True)
+
+        return resolved_index
 
     @contextmanager
     def freeze_viewport(self) -> Iterator[None]:

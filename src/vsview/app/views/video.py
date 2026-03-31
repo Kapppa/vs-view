@@ -71,7 +71,7 @@ class ViewState(NamedTuple):
     scene_y: float
     slider_value: int
 
-    @run_in_loop
+    @run_in_loop(return_future=False)
     def apply_pixmap(self, view: GraphicsView, target_size: tuple[int, int] | None = None) -> None:
         pixmap = self.pixmap
 
