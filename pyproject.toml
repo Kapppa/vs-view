@@ -149,7 +149,7 @@ vsview-comp = { workspace = true }
 
 [tool.mypy]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/stubs"
-exclude = ['submodules\.py$']
+exclude = ["^submodules/"]
 exclude_gitignore = true
 
 # Flags changed by --strict

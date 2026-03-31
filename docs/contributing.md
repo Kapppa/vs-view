@@ -60,7 +60,8 @@ Copy them into your `vsview/.vscode/settings.json`:
         "*.vpy": "python"
     },
     "mypy-type-checker.args": [
-        "--fixed-format-cache"
+        "--fixed-format-cache",
+        "--config-file .\\pyproject.toml"
     ],
     "mypy-type-checker.importStrategy": "fromEnvironment",
     "python.analysis.autoFormatStrings": true,
