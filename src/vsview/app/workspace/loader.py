@@ -354,6 +354,8 @@ class LoaderWorkspace[T](BaseWorkspace):
                 0.25,
                 stall_cb=lambda: self.statusLoadingStarted.emit("Clearing buffer..."),
             )
+            self.loop.wait_for_threads()
+            self.loop.next_cycle().result()
 
             # 1. Capture state
             saved_state, current_tab_i, autofit_enabled = self._capture_reload_ui_state()
