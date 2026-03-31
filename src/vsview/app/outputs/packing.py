@@ -59,6 +59,7 @@ class Packer(ABC):
         """Converts planar vs.RGB24 or vs.RGB30 to interleaved BGRA32 or RGB30 to packed A2R10G10B10"""
 
     def pack_clip(self, clip: vs.VideoNode, alpha: vs.VideoNode | Literal[True] | None = None) -> vs.VideoNode:
+        """Converts a planar VideoNode and an optional alpha mask to a packed RGB/RGBA VideoNode."""
         if isinstance(alpha, vs.VideoNode):
             alpha = alpha.resize.Point(
                 format=self.vs_aformat,
@@ -71,6 +72,16 @@ class Packer(ABC):
         return packed.std.SetFrameProp("VSViewHasAlpha", True) if alpha else packed
 
     def frame_to_qimage(self, frame: vs.VideoFrame, **kwargs: Any) -> QImage:
+        """
+        Wraps a packed VapourSynth VideoFrame into a QImage.
+
+        !!! warning
+            The returned QImage **does not own its memory**. It points directly to the VapourSynth frame's buffer.
+
+            You MUST either keep the source `frame` alive as long as the QImage is used,
+            or call ``.copy()`` on the returned QImage to transfer ownership to Qt.
+        """
+
         alpha = "VSViewHasAlpha" in frame.props or "_Alpha" in frame.props
 
         params = dict[str, Any](format=self.qt_aformat if alpha else self.qt_format) | kwargs

@@ -1,6 +1,6 @@
 """API for vsview"""
 
-from ..app.outputs import get_packer
+from ..app.outputs import Packer, get_packer
 from ..app.plugins import (
     AudioOutputProxy,
     GraphicsViewProxy,
@@ -66,6 +66,7 @@ __all__ = [
     "NodeProcessor",
     "NonClosingMenu",
     "OutputInfo",
+    "Packer",
     "PlainTextEdit",
     "PluginAPI",
     "PluginGraphicsView",

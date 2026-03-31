@@ -528,9 +528,8 @@ class PluginAPI(_PluginAPI):
     @property
     def settings(self) -> SimpleNamespace:
         """
-        !!! Unstable API !!!
-
-        Return the application's global and local settings as nested SimpleNamespace proxy objects.
+        !!! warning "Unstable API"
+            Return the application's global and local settings as nested SimpleNamespace proxy objects.
         """
 
         def recursive_ns(data: dict[str, Any]) -> SimpleNamespace:
