@@ -274,7 +274,7 @@ class PlaybackManager(QObject):
                     raise exc_user from None
 
                 error_msg = (
-                    f"An error occurred during rendering or packing of frame {n}:\n({{e.__class__.__qualname__}}) {{e}}"
+                    f"An error occurred during rendering or packing of frame {n}:\n({e.__class__.__qualname__}) {e}"
                 )
                 image = create_failed_image(str(e), voutput.vs_output.clip.width, voutput.vs_output.clip.height)
                 logger.error(error_msg)
