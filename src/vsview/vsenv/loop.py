@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable, Coroutine
 from concurrent.futures import Future
 from functools import wraps
@@ -8,7 +9,7 @@ from logging import getLogger
 from threading import Lock, current_thread
 from typing import Any, Literal, Protocol, cast, overload
 
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
+from PySide6.QtCore import QObject, QRunnable, QThread, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import QApplication
 from vsengine.loops import EventLoop, get_loop
 
@@ -26,11 +27,13 @@ class QtEventLoop(QObject, EventLoop):
     def attach(self) -> None:
         self._lock = Lock()
         self._counter = 0
+        self._tasks_lock = Lock()
+        self._active_tasks = Counter[str]()
         self._pending = dict[int, Callable[[], None]]()
         self._invoke.connect(self._on_invoke)
 
     def detach(self) -> None:
-        self.wait_for_threads(100)
+        self.wait_for_threads(5000)
         self._invoke.disconnect(self._on_invoke)
         self._pending.clear()
 
@@ -70,15 +73,22 @@ class QtEventLoop(QObject, EventLoop):
         fut = Future[R]()
 
         def wrapper() -> None:
-            if not fut.set_running_or_notify_cancel():
-                return
+            with self._tasks_lock:
+                self._active_tasks[func.__name__] += 1
+
             try:
-                result = func(*args, **kwargs)
-            except BaseException as e:
-                _logger.debug(e, exc_info=True)
-                fut.set_exception(e)
-            else:
-                fut.set_result(result)
+                if not fut.set_running_or_notify_cancel():
+                    return
+                try:
+                    result = func(*args, **kwargs)
+                except BaseException as e:
+                    _logger.debug(e, exc_info=True)
+                    fut.set_exception(e)
+                else:
+                    fut.set_result(result)
+            finally:
+                with self._tasks_lock:
+                    self._active_tasks[func.__name__] -= 1
 
         QThreadPool.globalInstance().start(QRunnable.create(wrapper))
         return fut
@@ -88,33 +98,79 @@ class QtEventLoop(QObject, EventLoop):
         fut = Future[R]()
 
         def wrapper() -> None:
-            current_thread().name = name
-            if not fut.set_running_or_notify_cancel():
-                return
+            with self._tasks_lock:
+                self._active_tasks[name] += 1
+
             try:
-                result = func(*args, **kwargs)
-            except BaseException as e:
-                _logger.debug(e, exc_info=True)
-                fut.set_exception(e)
-            else:
-                fut.set_result(result)
+                current_thread().name = name
+                if not fut.set_running_or_notify_cancel():
+                    return
+                try:
+                    result = func(*args, **kwargs)
+                except BaseException as e:
+                    _logger.debug(e, exc_info=True)
+                    fut.set_exception(e)
+                else:
+                    fut.set_result(result)
+            finally:
+                with self._tasks_lock:
+                    self._active_tasks[name] -= 1
 
         QThreadPool.globalInstance().start(QRunnable.create(wrapper))
         return fut
 
     def wait_for_threads(self, timeout_ms: int = 500) -> None:
-        """Wait for all background threads in the global thread pool to finish."""
+        """
+        Wait for background threads to finish.
+        If called from a background thread, it ignores itself in the count.
+        """
+        _logger.debug("Calling wait_for_threads...")
+
+        if not (app := QApplication.instance()):
+            _logger.warning("No QApplication instance found")
+            return
+
+        is_main_thread = QThread.currentThread() == app.thread()
+        current_name = current_thread().name
+
+        with self._tasks_lock:
+            target_count = int(self._active_tasks.get(current_name, 0) > 0)
 
         pool = QThreadPool.globalInstance()
 
         for _ in range(max(1, timeout_ms // 10)):
-            if pool.activeThreadCount() == 0:
+            count = pool.activeThreadCount()
+
+            if count <= target_count:
+                _logger.debug("Target thread count reached (%s), breaking loop.", count)
                 break
+
+            with self._tasks_lock:
+                running = [k for k, v in self._active_tasks.items() if v > 0]
+
+            _logger.debug("Active threads: %s (Target: %s)", count, target_count)
+            _logger.debug("Running tasks: %r", running)
+
+            _logger.debug("Waiting 10 ms...")
             pool.waitForDone(10)
+
+            if is_main_thread:
+                QApplication.processEvents()
+        else:
+            _logger.warning(
+                "Timeout of %dms reached while waiting for threads. "  # No fmt
+                "Proceeding while %d thread(s) are still active.",
+                timeout_ms,
+                pool.activeThreadCount(),
+            )
+
+        if is_main_thread:
+            # Final flush to process any signals from threads that just finished
             QApplication.processEvents()
 
-        # Final flush to process any signals from threads that just finished
-        QApplication.processEvents()
+        with self._tasks_lock:
+            _logger.debug("Final active threads count: %s", pool.activeThreadCount())
+            _logger.debug("Remaining thread(s): %s", [k for k, v in self._active_tasks.items() if v > 0])
 
 
 class _DecoratorFuture(Protocol):
