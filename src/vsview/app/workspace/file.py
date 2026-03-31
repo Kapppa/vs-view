@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from base64 import b64decode, b64encode
 from collections.abc import Callable, Iterator, Sequence
+from concurrent.futures import Future
 from contextlib import contextmanager
 from functools import wraps
 from importlib.util import find_spec
@@ -16,7 +17,7 @@ from PySide6.QtWidgets import QFileDialog, QWidget
 
 from ...api._helpers import output_metadata
 from ...assets import IconName
-from ...vsenv import run_in_background, run_in_loop
+from ...vsenv import run_in_loop
 from ..plugins.manager import PluginManager
 from ..settings import SettingsManager
 from ..settings.models import LocalSettings
@@ -197,15 +198,13 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
     def get_output_metadata(self) -> dict[int, Any]:
         return output_metadata.get(str(self.content), {})
 
-    @run_in_background(name="LoadContent")
-    def load_content(self, content: Path, /, frame: int | None = None, tab_index: int | None = None) -> None:
+    def load_content(self, content: Path, /, frame: int | None = None, tab_index: int | None = None) -> Future[None]:
         with self._restart_autosave():
-            super().load_content(content, frame, tab_index).result()
+            return super().load_content(content, frame, tab_index)
 
-    @run_in_background(name="ReloadContent")
-    def reload_content(self) -> None:
+    def reload_content(self) -> Future[None]:
         with self._restart_autosave():
-            super().reload_content().result()
+            return super().reload_content()
 
     @run_in_loop(return_future=False)
     def clear_failed_load(self) -> None:
