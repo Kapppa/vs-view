@@ -221,6 +221,7 @@ class PlaybackManager(QObject):
 
         n = clamp(n, 0, voutput.vs_output.clip.num_frames - 1)
 
+        self.can_reload = False
         fut = self._render_frame(n)
 
         @run_in_loop(return_future=False)
@@ -237,6 +238,8 @@ class PlaybackManager(QObject):
             if f.exception():
                 self.loadFailed.emit()
 
+            self.can_reload = True
+
         fut.add_done_callback(on_complete)
 
     @run_in_background(name="RenderFrame")
@@ -247,7 +250,6 @@ class PlaybackManager(QObject):
         if not (voutput := self._outputs_manager.current_voutput):
             return
 
-        self.can_reload = False
         failed = False
         error_msg = ""
 
@@ -281,7 +283,6 @@ class PlaybackManager(QObject):
 
         self.frameRendered.emit(image, self._get_sar_from_props(n))
         self.timelineCursorChanged.emit(n)
-        self.can_reload = True
 
         if failed:
 
