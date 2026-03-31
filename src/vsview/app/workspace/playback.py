@@ -219,6 +219,10 @@ class PlaybackManager(QObject):
         if not (voutput := self._outputs_manager.current_voutput):
             return
 
+        if self._api.busy:
+            logger.warning("At least one plugin is busy, cannot request frame")
+            return
+
         n = clamp(n, 0, voutput.vs_output.clip.num_frames - 1)
 
         self.can_reload = False
@@ -335,6 +339,10 @@ class PlaybackManager(QObject):
         logger.debug("Starting playback")
 
         if not (voutput := self._outputs_manager.current_voutput):
+            return
+
+        if self._api.busy:
+            logger.warning("At least one plugin is busy, cannot request frame")
             return
 
         self._tbar.set_playback_controls_enabled(False)

@@ -341,6 +341,10 @@ class LoaderWorkspace[T](BaseWorkspace):
             logger.warning("Workspace is busy, cannot reload content")
             return
 
+        if self.api.busy:
+            logger.warning("At least one plugin is busy, cannot reload content")
+            return
+
         logger.debug("Reloading content: %r", self.content)
 
         self.playback.stop()

@@ -6,7 +6,7 @@ import os
 import sys
 import weakref
 from collections import OrderedDict, UserDict
-from collections.abc import Iterator, MutableSet
+from collections.abc import Callable, Container, Iterator, MutableSet, Sized
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -181,3 +181,59 @@ class QObjectSet[T: QObject](MutableSet[T]):
 
     def discard(self, value: T) -> None:
         self._data.discard(value)
+
+
+class QObjectCounter[T: QObject](Container[T], Sized):
+    """
+    Refcount QObjects while cleaning up entries when Qt destroys the object.
+    """
+
+    __slots__ = ("_cleanup", "_counts")
+
+    def __init__(self) -> None:
+        self._counts = weakref.WeakKeyDictionary[T, int]()
+        self._cleanup = weakref.WeakKeyDictionary[T, Callable[..., None]]()
+
+    def __contains__(self, value: object) -> bool:
+        return value in self._counts
+
+    def __len__(self) -> int:
+        return len(self._counts)
+
+    def __bool__(self) -> bool:
+        return bool(self._counts)
+
+    def count(self, value: T) -> int:
+        return self._counts.get(value, 0)
+
+    def add(self, value: T) -> int:
+        if value in self._counts:
+            self._counts[value] += 1
+            return self._counts[value]
+
+        def cleanup(*_: object, ref: weakref.ReferenceType[T] = weakref.ref(value)) -> None:
+            if obj := ref():
+                self._counts.pop(obj, None)
+                self._cleanup.pop(obj, None)
+
+        self._counts[value] = 1
+        self._cleanup[value] = cleanup
+        value.destroyed.connect(cleanup)
+
+        return 1
+
+    def discard(self, value: T) -> int:
+        count = self._counts.get(value)
+
+        if count is None:
+            return 0
+
+        if count <= 1:
+            self._counts.pop(value, None)
+            self._cleanup.pop(value, None)
+            return 0
+
+        count -= 1
+        self._counts[value] = count
+
+        return count

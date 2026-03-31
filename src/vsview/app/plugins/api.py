@@ -563,6 +563,11 @@ class PluginAPI(_PluginAPI):
         """Return a proxy for the playback."""
         return PlaybackProxy(self.__workspace, self.__workspace.playback)
 
+    @property
+    def busy(self) -> bool:
+        """Return whether the plugin API is busy by any plugins."""
+        return bool(self.__busy_callers)
+
     def get_local_storage(self, plugin: _PluginBase[Any, Any]) -> Path | None:
         """
         Return a path to a local storage directory for the given plugin,
@@ -591,6 +596,23 @@ class PluginAPI(_PluginAPI):
         """
         with self.__workspace.env.use():
             yield
+
+    @contextmanager
+    def block_workspace(self, caller: WidgetPluginBase[Any, Any]) -> Iterator[None]:
+        """
+        Mark the workspace as busy for the duration of the context.
+
+        Specifically, a busy workspace will prevent:
+
+        * Automatic or manual reloading.
+        * Frame requests (via seeking, programmatic calls, or playback start).
+        """
+        self.__busy_callers.add(caller)
+
+        try:
+            yield
+        finally:
+            self.__busy_callers.discard(caller)
 
     def register_action(
         self,

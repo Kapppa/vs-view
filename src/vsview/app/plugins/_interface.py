@@ -16,7 +16,7 @@ from PySide6.QtWidgets import QDockWidget, QSplitter, QTabWidget, QWidget
 
 from vsview.app.outputs import VideoOutput
 from vsview.app.settings import SecretsManager, SettingsManager
-from vsview.app.utils import ObjectType
+from vsview.app.utils import ObjectType, QObjectCounter
 from vsview.app.views.timeline import Timeline
 from vsview.app.views.video import GraphicsView
 from vsview.vsenv.loop import run_in_loop
@@ -165,6 +165,7 @@ class _PluginAPI(QObject):
         super().__init__()
         self.__workspace = workspace
         self.__settings_store: _PluginSettingsStore | None = None
+        self.__busy_callers = QObjectCounter[QObject]()
 
         SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
         SettingsManager.signals.localChanged.connect(self._on_local_settings_changed)
