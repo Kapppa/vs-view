@@ -119,7 +119,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.content_layout.addWidget(self.dock_toggle_btn, alignment=Qt.AlignmentFlag.AlignRight)
 
         # Embedded QMainWindow for dock widget support in the view area
-        self.dock_container = QMainWindow(self.content_area)
+        self.dock_container = QMainWindow(self.content_area, documentMode=True)
         self.dock_container.setWindowFlags(Qt.WindowType.Widget)
         for area in (
             Qt.DockWidgetArea.LeftDockWidgetArea,
