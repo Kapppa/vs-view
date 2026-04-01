@@ -605,7 +605,7 @@ class LoaderWorkspace[T](BaseWorkspace):
                     self.set_loading_page()
                 else:
                     self.loaded_page.setDisabled(True)
-                    self.tab_manager.update_current_view(prev_pixmap.toImage())
+                    self.tab_manager.update_current_view(prev_pixmap)
             current_voutput.loaded_once = True
 
             def on_complete(f: Future[None]) -> None:

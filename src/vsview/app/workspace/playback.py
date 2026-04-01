@@ -143,7 +143,7 @@ class PlaybackManager(QObject):
     """
 
     # Signals for UI communication
-    frameRendered = Signal(QImage, float)  # image, sar
+    frameRendered = Signal(QImage, object, float)  # image, backing frame, sar
     timelineCursorChanged = Signal(int)  # frame number
 
     audioOutputChanged = Signal(int)  # index
@@ -285,7 +285,7 @@ class PlaybackManager(QObject):
             if not self.state.is_playing:
                 self.statusLoadingFinished.emit("Completed")
 
-        self.frameRendered.emit(image, self._get_sar_from_props(n))
+        self.frameRendered.emit(image, None, self._get_sar_from_props(n))
         self.timelineCursorChanged.emit(n)
 
         if failed:
@@ -461,10 +461,9 @@ class PlaybackManager(QObject):
                 voutput.last_frame = frame_n
 
                 try:
-                    with self._env.use(), frame:
-                        image = voutput.packer.frame_to_qimage(frame)
+                    image = voutput.packer.frame_to_qimage(frame)
 
-                    self.frameRendered.emit(image, self._get_sar_from_props(frame_n))
+                    self.frameRendered.emit(image, frame, self._get_sar_from_props(frame_n))
                     self.timelineCursorChanged.emit(frame_n)
 
                     self._api._on_current_frame_changed(frame_n, plugin_frames)

@@ -12,6 +12,7 @@ from jetpytools import fallback
 from PySide6.QtCore import QSignalBlocker, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QIcon, QImage, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QToolButton, QVBoxLayout, QWidget
+from vapoursynth import VideoFrame
 
 from ...assets import IconName, IconReloadMixin
 from ...vsenv import run_in_loop
@@ -311,14 +312,30 @@ class TabManager(QWidget, IconReloadMixin):
                     tabs.tabBar().show()
 
     @run_in_loop(return_future=False)
-    def update_current_view(self, image: QImage, sar: float | None = None) -> None:
+    def update_current_view(
+        self,
+        image: QImage | QPixmap,
+        backing_frame: VideoFrame | None = None,
+        sar: float | None = None,
+    ) -> None:
         """Update the view with a new rendered frame."""
 
         if self.tabs.currentIndex() == -1:
+            if backing_frame:
+                backing_frame.close()
             return
 
-        self.current_view.set_pixmap(QPixmap.fromImage(image, Qt.ImageConversionFlag.NoFormatConversion))
-        self.current_view.set_sar(sar)
+        try:
+            image = (
+                image
+                if isinstance(image, QPixmap)
+                else QPixmap.fromImage(image, Qt.ImageConversionFlag.NoFormatConversion)
+            )
+            self.current_view.set_pixmap(image)
+            self.current_view.set_sar(sar)
+        finally:
+            if backing_frame:
+                backing_frame.close()
 
     # SIGNALS
     def _on_tab_changed(self, index: int) -> None:
