@@ -93,7 +93,7 @@ def _make_pack_frame_8bit(pack_bgra_8bit: Callable[..., None], use_alpha_prop: b
         b_plane = get_plane_buffer(frame_src, 2)
         g_plane = get_plane_buffer(frame_src, 1)
         r_plane = get_plane_buffer(frame_src, 0)
-        a_plane = get_plane_buffer(frame_alpha, 0) if frame_alpha is not None else None  # type: ignore[call-overload]
+        a_plane = get_plane_buffer(frame_alpha, 0) if frame_alpha is not None else None
 
         pack_bgra_8bit(b_plane, g_plane, r_plane, a_plane, width, height, src_stride, dst_ptr, dst_stride)
 
@@ -128,7 +128,7 @@ def _make_pack_frame_10bit(pack_rgb30_10bit: Callable[..., None], use_alpha_prop
         r_plane = get_plane_buffer(frame_src, 0, bytes_per_sample=2)
         g_plane = get_plane_buffer(frame_src, 1, bytes_per_sample=2)
         b_plane = get_plane_buffer(frame_src, 2, bytes_per_sample=2)
-        a_plane = get_plane_buffer(frame_alpha, 0, bytes_per_sample=2) if frame_alpha is not None else None  # type: ignore[call-overload]
+        a_plane = get_plane_buffer(frame_alpha, 0, bytes_per_sample=2) if frame_alpha is not None else None
 
         pack_rgb30_10bit(r_plane, g_plane, b_plane, a_plane, width, height, samples_per_row, dst_ptr, dst_stride)
 
