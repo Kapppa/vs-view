@@ -14,6 +14,7 @@ from jetpytools import cachedproperty, to_arr
 from PySide6.QtCore import QByteArray, Qt, QTimer
 from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
 from PySide6.QtWidgets import QFileDialog, QWidget
+from vapoursynth import VideoNode
 
 from ...api._helpers import output_metadata
 from ...assets import IconName
@@ -334,19 +335,24 @@ class VideoFileWorkspace(GenericFileWorkspace):
                 if not hasattr(self.env.core, "bs"):
                     raise RuntimeError("The BestSource plugin 'bs' is required to load a file")
 
-                if find_spec("vssource"):
-                    from vssource import BestSource
-
-                    clip = BestSource(show_pretty_progress=True).source(self.content, 0)
-                else:
-                    clip = self.env.core.bs.VideoSource(str(self.content))
-
-                clip.set_output()
+                self._source().set_output()
         except Exception:
             logger.exception("There was an error:")
             raise
 
         logger.debug("Loaded file: %s", self.content)
+
+    def _source(self) -> VideoNode:
+        if find_spec("vssource"):
+            from vssource import BestSource
+
+            try:
+                return BestSource(show_pretty_progress=True).source(self.content, 0)
+            except Exception as e:
+                logger.warning("vssource.BestSource failed to index with the error %r", str(e))
+
+        logger.info("Using fallback bs.VideoSource...")
+        return self.env.core.bs.VideoSource(str(self.content))
 
 
 class PythonScriptWorkspace(GenericFileWorkspace, VSEngineWorkspace[Path]):
