@@ -75,11 +75,14 @@ class Packer(ABC):
         """
         Wraps a packed VapourSynth VideoFrame into a QImage.
 
-        !!! warning
-            The returned QImage **does not own its memory**. It points directly to the VapourSynth frame's buffer.
+        If the `copy_qimage` setting is enabled, ownership of the memory is transferred to Qt
+        by returning a copy of the image.
+        Otherwise, the returned QImage **does not own its memory** and points directly
+        to the VapourSynth frame's buffer.
 
-            You MUST either keep the source `frame` alive as long as the QImage is used,
-            or call ``.copy()`` on the returned QImage to transfer ownership to Qt.
+        !!! warning
+            When `copy_qimage` is disabled, you MUST either keep the source `frame` alive as long
+            as the QImage is used, or call ``.copy()`` on the returned QImage.
         """
 
         alpha = "VSViewHasAlpha" in frame.props or "_Alpha" in frame.props
@@ -87,7 +90,7 @@ class Packer(ABC):
         params = dict[str, Any](format=self.qt_aformat if alpha else self.qt_format) | kwargs
 
         # QImage supports Buffer inputs
-        return QImage(
+        img = QImage(
             get_plane_buffer(frame, 0),  # type: ignore[call-overload]
             frame.width,
             frame.height,
@@ -95,6 +98,11 @@ class Packer(ABC):
             params.pop("format"),
             **params,
         )
+
+        if SettingsManager.global_settings.view.copy_qimage:
+            return img.copy()
+
+        return img
 
 
 class VszipPacker(Packer):
