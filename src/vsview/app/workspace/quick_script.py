@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from jetpytools import SPath
 from pygments.style import Style
 from pygments.styles import get_style_by_name
 from pygments.token import Token
@@ -413,7 +414,7 @@ class QuickScriptWorkspace(VSEngineWorkspace[CodeContent]):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.filename = f"<vsview quickscript {uuid4().hex[:8].upper()}>"
+        self.filename = (SPath.cwd() / f"<vsview quickscript {uuid4().hex[:8].upper()}>").to_str()
         self.loaded_once = False
 
         self.tbar.setVisible(False)
