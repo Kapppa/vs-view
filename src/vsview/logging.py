@@ -97,7 +97,4 @@ def setup_logging(
     getLogger("qt").setLevel(fallback(qt_level, level))
 
     if capture_warnings:
-        import warnings
-
-        warnings.filterwarnings("always")
         captureWarnings(True)

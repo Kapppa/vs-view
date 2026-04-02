@@ -1133,6 +1133,21 @@ class ViewSettings(BaseModel):
         ),
     ] = Resizer.LANCZOS3
 
+    props_policy: Annotated[
+        Literal["error", "warn", "ignore"],
+        Dropdown(
+            label="Frame property policy",
+            items=[(policy.title(), policy) for policy in ("error", "warn", "ignore")],
+            tooltip=(
+                "Handles missing or unspecified color properties (_Transfer and _Primaries).\n\n"
+                "- Error: Strict conversion using default parameters (BT.709). No guessing is performed.\n"
+                "- Warn: Guess properties based on the matrix and emit a warning once.\n"
+                "- Ignore: Guess properties based on the matrix silently.\n\n"
+                "Guessing follows common standards (e.g. BT.709 for HD, BT.601 for SD)."
+            ),
+        ),
+    ] = "error"
+
     zoom_factors: Annotated[
         list[float],
         LineEdit(
