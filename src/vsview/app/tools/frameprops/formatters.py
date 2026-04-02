@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Iterable
 from dataclasses import dataclass
-from logging import getLogger
+from logging import DEBUG, getLogger
 from typing import Any
 
 from jetpytools import Singleton, flatten, inject_self
@@ -51,7 +51,11 @@ class FormatterProperty:
     def default_format(value: Any, repr_frame: bool = False) -> str:
         match value:
             case bytes():
-                return value.decode("utf-8")
+                try:
+                    return value.decode("utf-8")
+                except UnicodeDecodeError as e:
+                    logger.log(DEBUG - 1, "Can't decode value %r, with the error %r", value, str(e))
+                    return str(value)
             case float():
                 return f"{value:.6g}"
             case VideoFrame():
