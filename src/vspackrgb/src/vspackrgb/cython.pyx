@@ -13,7 +13,7 @@ cpdef void pack_bgra_8bit(
     int src_stride,
     uintptr_t dest_ptr,
     int dest_stride,
-):
+) noexcept nogil:
     """Pack planar 8-bit RGB to interleaved BGRA with straight alpha."""
 
     cdef:
@@ -53,7 +53,7 @@ cpdef void pack_rgb30_10bit(
     int samples_per_row,
     uintptr_t dest_ptr,
     int dest_stride,
-):
+) noexcept nogil:
     """Pack planar 10-bit RGB to A2R10G10B10 with premultiplied alpha."""
 
     cdef:
