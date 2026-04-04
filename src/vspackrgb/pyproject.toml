@@ -13,7 +13,8 @@ name = "vspackrgb"
 dynamic = ["version"]
 description = "RGB packing for VapourSynth frames"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 keywords = [
     "vapoursynth",
     "rgb",
@@ -30,7 +31,6 @@ maintainers = [
     { name = "Jaded Encoding Thaumaturgy", email = "jaded.encoding.thaumaturgy@gmail.com" },
 ]
 classifiers = [
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
