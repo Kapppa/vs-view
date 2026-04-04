@@ -1,7 +1,3 @@
-# cython: language_level=3
-# cython: boundscheck=False
-# cython: wraparound=False
-# cython: cdivision=True
 """Cython-accelerated RGB packing functions."""
 
 from libc.stdint cimport uint8_t, uint16_t, uint32_t, uintptr_t

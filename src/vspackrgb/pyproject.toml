@@ -72,7 +72,7 @@ dependencies = ["hatch-cython"]
 compile_py = false
 
 # Cython directives
-directives = { boundscheck = false, wraparound = false, nonecheck = false, language_level = 3 }
+directives = { boundscheck = false, wraparound = false, nonecheck = false, language_level = 3, cdivision = true }
 
 # Platform-specific compilation arguments
 compile_args = [ # nofmt
