@@ -87,6 +87,7 @@ class AudioOutput:
             if metadata and metadata.downmix is not None
             else SettingsManager.global_settings.playback.downmix
         )
+        self.kwargs = metadata.kwargs if metadata else {}
         self.chanels_layout = PrettyChannelsLayout(tuple(self.vs_output.channels))
 
         self._cache_delay_audio = LRUCache[float, vs.AudioNode]()
@@ -172,7 +173,7 @@ class AudioOutput:
             self.sink.deleteLater()
             del self.sink
 
-        for name in ["prepared_audio", "vs_output", "playback_audio"]:
+        for name in ["prepared_audio", "vs_output", "playback_audio", "kwargs"]:
             with suppress(AttributeError):
                 delattr(self, name)
 

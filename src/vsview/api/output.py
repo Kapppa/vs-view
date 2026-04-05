@@ -165,7 +165,7 @@ def set_output(
         framedurs: Optional sequence of frame durations in seconds for VFR clips (only for VideoNode outputs).
         downmix: if None (default), follows the global settings downmix of vsview if previewed
             through vsview. Otherwise True or False forces the behavior.
-        **kwargs: Additional keyword arguments (reserved for future use).
+        **kwargs: Additional metadata passed to VSView plugins for custom configuration of this output.
     """
     if isinstance(index_or_name, (str, bool)):
         index = None
@@ -215,16 +215,17 @@ def set_output(
             if isinstance(n, vs.VideoNode):
                 if framedurs and len(framedurs) != n.num_frames:
                     raise CustomValueError(
-                        "framedurs length must match number of frames", kwargs.get("func", set_output)
+                        "framedurs length must match number of frames", kwargs.pop("func", set_output)
                     )
 
                 _output_metadata[file][i] = VideoMetadata(
                     effective_name or f"{title} {i}",
                     [float(f) for f in (framedurs or [])],
                     alpha is True or None,
+                    kwargs,
                 )
             elif isinstance(n, vs.AudioNode):
-                _output_metadata[file][i] = AudioMetadata(effective_name or f"{title} {i}", downmix)
+                _output_metadata[file][i] = AudioMetadata(effective_name or f"{title} {i}", downmix, kwargs)
 
         #     if scenes:
         #         set_scening(scenes, n, effective_name or f"{title} {i}")
@@ -283,7 +284,7 @@ def catch_output[**P, N: OutputNode](
         framedurs: Optional sequence of frame durations in seconds for VFR clips (only for VideoNode outputs).
         downmix: If None (default), follows the global settings downmix of vsview if previewed through vsview.
             Otherwise True or False forces the behavior.
-        **kwargs: Additional keyword arguments forwarded to :func:`set_output`.
+        **kwargs: Additional metadata passed to VSView plugins for custom configuration of this output.
 
     Returns:
         The decorated function (its original return type is preserved).

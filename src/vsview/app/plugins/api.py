@@ -84,6 +84,9 @@ class VideoOutputProxy:
     Cumulative durations of the clip.
     """
 
+    kwargs: Mapping[str, Any] = field(hash=False, compare=False)
+    """Additional metadata provided by the user via `set_output()`."""
+
     info: OutputInfo = field(hash=False, compare=False)
     """
     Output information.
@@ -122,6 +125,9 @@ class AudioOutputProxy:
 
     vs_output: vs.AudioNode = field(hash=False, compare=False)
     """The object created by `vapoursynth.get_outputs()`."""
+
+    kwargs: Mapping[str, Any] = field(hash=False, compare=False)
+    """Additional metadata provided by the user via `set_output()`."""
 
 
 class GraphicsViewProxy(_GraphicsViewProxy):
@@ -504,14 +510,14 @@ class PluginAPI(_PluginAPI):
     def aoutputs(self) -> list[AudioOutputProxy]:
         """Return a list of AudioOutputProxy objects."""
         return [
-            AudioOutputProxy(aoutput.vs_index, aoutput.vs_name, aoutput.vs_output)
+            AudioOutputProxy(aoutput.vs_index, aoutput.vs_name, aoutput.vs_output, aoutput.kwargs)
             for aoutput in self.__workspace.outputs_manager.aoutputs
         ]
 
     @property
     def current_aoutput(self) -> AudioOutputProxy | None:
         if aoutput := self.__workspace.outputs_manager.current_aoutput:
-            return AudioOutputProxy(aoutput.vs_index, aoutput.vs_name, aoutput.vs_output)
+            return AudioOutputProxy(aoutput.vs_index, aoutput.vs_name, aoutput.vs_output, aoutput.kwargs)
 
         return None
 

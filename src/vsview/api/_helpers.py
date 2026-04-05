@@ -10,11 +10,13 @@ class VideoMetadata(NamedTuple):
     name: str
     framedurs: Sequence[float] | None
     alpha_prop: Literal[True] | None
+    kwargs: dict[str, Any]
 
 
 class AudioMetadata(NamedTuple):
     name: str
     downmix: bool | None
+    kwargs: dict[str, Any]
 
 
 class DefaultUserDict[K, V](UserDict[K, V]):

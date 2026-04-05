@@ -40,6 +40,7 @@ class VideoOutput:
         self.packer = packer
         self.vs_name = metadata.name if metadata else f"Clip {vs_index}"  # Matches vsview.set_output
         self.framedurs = metadata.framedurs if metadata else None
+        self.kwargs = metadata.kwargs if metadata else {}
         self._alpha_prop: Literal[True] | None = metadata.alpha_prop if metadata else None
 
         if self._alpha_prop:
@@ -131,7 +132,7 @@ class VideoOutput:
         """Clear VapourSynth resources."""
         self.props.clear()
 
-        for attr in ["vs_output", "prepared_clip"]:
+        for attr in ["vs_output", "prepared_clip", "kwargs"]:
             with suppress(AttributeError):
                 delattr(self, attr)
 
