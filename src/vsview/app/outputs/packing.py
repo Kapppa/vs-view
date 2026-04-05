@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from enum import IntEnum
 from functools import cache
-from logging import DEBUG, getLogger
+from logging import Filter, LogRecord, getLogger
 from typing import Any, ClassVar, Literal
 
 import vapoursynth as vs
@@ -20,6 +19,23 @@ from ..settings import SettingsManager
 logger = getLogger(__name__)
 
 
+class FramePropsFilter(Filter):
+    def __init__(self, name: str = "") -> None:
+        super().__init__(name)
+        self.msgs = set[str]()
+
+    def filter(self, record: LogRecord) -> bool | LogRecord:
+        logged = super().filter(record)
+
+        if logged and record.msg not in self.msgs:
+            self.msgs.add(record.msg)
+            return logged
+        return False
+
+
+logger.addFilter(FramePropsFilter(logger.name))
+
+
 class AlphaNotImplementedError(NotImplementedError):
     """Alpha packing hasn't been implemented for this packer"""
 
@@ -30,96 +46,28 @@ class AlphaNotImplementedError(NotImplementedError):
         self.packer = packer
 
 
-class FramePropsWarning(Warning):
-    """Base class for warnings related to VapourSynth frame properties."""
-
-
-class TransferPropWarning(FramePropsWarning):
-    """Warning emitted when the '_Transfer' property is missing or unspecified."""
-
-
-class PrimariesPropWarning(FramePropsWarning):
-    """Warning emitted when the '_Primaries' property is missing or unspecified."""
-
-
-def _guess_primaries_transfer(matrix: int) -> tuple[IntEnum, IntEnum]:
-    match matrix:
-        case vs.MATRIX_RGB:
-            return vs.PRIMARIES_BT709, vs.TRANSFER_IEC_61966_2_1
-        case vs.MATRIX_BT709:
-            return vs.PRIMARIES_BT709, vs.TRANSFER_BT709
-        case vs.MATRIX_BT470_BG:
-            return vs.PRIMARIES_BT709, vs.TRANSFER_BT601
-        case vs.MATRIX_ST170_M:
-            return vs.PRIMARIES_BT709, vs.TRANSFER_BT601
-        case vs.MATRIX_ST240_M:
-            return vs.PRIMARIES_BT709, vs.TRANSFER_BT601
-        case vs.MATRIX_YCGCO:
-            return vs.PRIMARIES_BT709, vs.TRANSFER_BT709
-        case vs.MATRIX_BT2020_CL | vs.MATRIX_BT2020_NCL:
-            return vs.PRIMARIES_BT2020, vs.TRANSFER_BT2020_10
-        case vs.MATRIX_ICTCP:
-            return vs.PRIMARIES_BT709, vs.TRANSFER_BT2020_10
-        case _:
-            return vs.PRIMARIES_UNSPECIFIED, vs.TRANSFER_UNSPECIFIED
-
-
-def _normalize_color_props(
-    n: int,
-    f: vs.VideoFrame,
-    props_policy: Literal["warn", "ignore"],
-    warned: dict[str, dict[IntEnum, bool]],
-) -> vs.VideoFrame:
+def select_in_matrix(n: int, f: vs.VideoFrame) -> vs.VideoFrame:
     if f.props.get("_Matrix", vs.MATRIX_UNSPECIFIED) == vs.MATRIX_UNSPECIFIED:
         match f.format.color_family:
-            case vs.YUV:
-                # Too ambiguous, this will error in the resize call
-                return f
             case vs.GRAY:
-                # Silently set the matrix prop to BT709 if format is GRAY
                 f = f.copy()
                 f.props["_Matrix"] = vs.MATRIX_BT709
             case vs.RGB:
-                # Silently set the matrix prop to RGB if format is also RGB
                 f = f.copy()
                 f.props["_Matrix"] = vs.MATRIX_RGB
+    return f
 
-    if (
-        f.props.get("_Transfer", vs.TRANSFER_UNSPECIFIED) != vs.TRANSFER_UNSPECIFIED
-        and f.props.get("_Primaries", vs.PRIMARIES_UNSPECIFIED) != vs.PRIMARIES_UNSPECIFIED
-    ):
-        return f
 
-    primaries, transfer = _guess_primaries_transfer(f.props["_Matrix"])
+def warn_missing_props(n: int, f: vs.VideoFrame) -> vs.VideoFrame:
+    specs: list[IntEnum] = [
+        vs.MatrixCoefficients(f.props.get("_Matrix", 2)),
+        vs.ColorPrimaries(f.props.get("_Primaries", 2)),
+        vs.TransferCharacteristics(f.props.get("_Transfer", 2)),
+    ]
 
-    def ensure_prop(prop: str, value: IntEnum, unspecified: IntEnum, category: type[FramePropsWarning]) -> None:
-        nonlocal f
-        if f.props.get(prop, unspecified) != unspecified:
-            return
-
-        if f.readonly:
-            f = f.copy()
-        f.props[prop] = value
-
-        if props_policy == "warn" and not warned[prop].get(value):
-            warned[prop][value] = True
-            assumed = value.name.removeprefix(f"{prop[1:].upper()}_")
-            warnings.warn(
-                f"Unspecified {prop!r} property for frame {n}. Assuming {assumed!r} ({value}) based on '_Matrix'.",
-                category=category,
-                stacklevel=2,
-            )
-            logger.log(
-                DEBUG - 1,
-                "Set %s to %r (%d) based on '_Matrix' (%d)",
-                prop,
-                assumed,
-                value,
-                f.props["_Matrix"],
-            )
-
-    ensure_prop("_Transfer", transfer, vs.TRANSFER_UNSPECIFIED, TransferPropWarning)
-    ensure_prop("_Primaries", primaries, vs.PRIMARIES_UNSPECIFIED, PrimariesPropWarning)
+    if unknowns := [spec for spec in specs if spec == 2]:
+        prop_names = [e.name.split("_")[0].title() for e in unknowns]
+        logger.warning("The following properties are missing: %r", prop_names)
 
     return f
 
@@ -140,9 +88,6 @@ class Packer(ABC):
 
     def to_rgb_planar(self, clip: vs.VideoNode, **kwargs: Any) -> vs.VideoNode:
         """Converts clip to planar vs.RGB24 or vs.RGB30."""
-        if (ppolicy := SettingsManager.global_settings.view.props_policy) != "error":
-            warned: dict[str, dict[IntEnum, bool]] = {"_Transfer": {}, "_Primaries": {}}
-            clip = clip.std.ModifyFrame(clip, lambda n, f: _normalize_color_props(n, f, ppolicy, warned))
 
         params = dict[str, Any](
             format=self.vs_format,
@@ -153,7 +98,32 @@ class Packer(ABC):
             transfer=vs.TRANSFER_BT709,
             primaries=vs.PRIMARIES_BT709,
         )
-        return clip.resize.Point(**params | kwargs)
+
+        # Returns directly the clip without checking anything.
+        # If color specs are set, this will work.
+        if (policy := SettingsManager.global_settings.view.props_policy) == "error":
+            return clip.resize.Point(**params | kwargs)
+
+        if policy == "warn":
+            clip = clip.std.ModifyFrame(clip, warn_missing_props)
+
+        # If the corresponding frameprop is set to a value other than unspecified,
+        # the frameprop is used instead of this parameter
+        in_params = dict[str, Any](transfer_in=vs.TRANSFER_BT709, primaries_in=vs.PRIMARIES_BT709)
+        if clip.format.id == vs.PresetVideoFormat.NONE:
+            clip = clip.std.ModifyFrame(clip, select_in_matrix)
+        else:
+            match clip.format.color_family:
+                case vs.RGB:
+                    in_params["matrix_in"] = vs.MATRIX_RGB
+                case vs.GRAY:
+                    clip = clip.std.SetFrameProps(
+                        _Matrix=vs.MATRIX_BT709,
+                        _Primaries=vs.PRIMARIES_BT709,
+                        _Transfer=vs.TRANSFER_BT709,
+                    )
+
+        return clip.resize.Point(**params | in_params | kwargs)
 
     @abstractmethod
     def to_rgb_packed(self, clip: vs.VideoNode, alpha: vs.VideoNode | Literal[True] | None = None) -> vs.VideoNode:

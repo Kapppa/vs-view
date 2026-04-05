@@ -1139,11 +1139,10 @@ class ViewSettings(BaseModel):
             label="Frame property policy",
             items=[(policy.title(), policy) for policy in ("error", "warn", "ignore")],
             tooltip=(
-                "Handles missing or unspecified color properties (_Transfer and _Primaries).\n\n"
-                "- Error: Strict conversion using default parameters (BT.709). No guessing is performed.\n"
-                "- Warn: Guess properties based on the matrix and emit a warning once.\n"
-                "- Ignore: Guess properties based on the matrix silently.\n\n"
-                "Guessing follows common standards (e.g. BT.709 for HD, BT.601 for SD)."
+                "Handles missing or unspecified color properties (_Transfer, _Primaries and _Matrix).\n\n"
+                "– Error: Conversion fails if properties are missing.\n"  # noqa: RUF001
+                "– Warn: No conversion is performed for missing properties. A warning is logged instead.\n"  # noqa: RUF001
+                "– Ignore: Same as Warn but no warnings are emitted to the log."  # noqa: RUF001
             ),
         ),
     ] = "error"
