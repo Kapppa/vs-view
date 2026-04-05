@@ -44,17 +44,12 @@ You can control how VSView reacts to missing properties via the **Settings Dialo
 
 - **Error (Default)**
 
-    If `_Matrix`, `_Transfer`, or `_Primaries` are missing, VSView stops rendering and displays a failure image because VapourSynth does not have enough information to convert between color spaces.
+    If `_Transfer`, or `_Primaries` are missing, VSView stops rendering and displays a failure image
+    because VapourSynth does not have enough information to convert between color spaces.
 
 -  **Warn**
 
-    Preprocessing steps:
-
-    - If the clip's color family is `RGB`, `_Matrix` is set to `MATRIX_RGB` (if unspecified).
-    - If the clip's color family is `GRAY`, `_Matrix`, `_Transfer`, and `_Primaries` are forced to BT709 to prevent any conversion.
-    - If the clip's color family is `YUV`, `_Matrix` is left as is.
-
-    No conversion is performed if `_Transfer` or `_Primaries` is missing. A warning is logged instead.
+    If `_Transfer` or `_Primaries` are missing, no transfer or primaries conversion is performed and a warning is logged instead.
 
 -  **Ignore**
 

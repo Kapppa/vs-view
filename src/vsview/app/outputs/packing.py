@@ -47,14 +47,9 @@ class AlphaNotImplementedError(NotImplementedError):
 
 
 def select_in_matrix(n: int, f: vs.VideoFrame) -> vs.VideoFrame:
-    if f.props.get("_Matrix", vs.MATRIX_UNSPECIFIED) == vs.MATRIX_UNSPECIFIED:
-        match f.format.color_family:
-            case vs.GRAY:
-                f = f.copy()
-                f.props["_Matrix"] = vs.MATRIX_BT709
-            case vs.RGB:
-                f = f.copy()
-                f.props["_Matrix"] = vs.MATRIX_RGB
+    if f.format.color_family == vs.RGB and f.props.get("_Matrix", vs.MATRIX_UNSPECIFIED) == vs.MATRIX_UNSPECIFIED:
+        f = f.copy()
+        f.props["_Matrix"] = vs.MATRIX_RGB
     return f
 
 
@@ -112,16 +107,8 @@ class Packer(ABC):
         in_params = dict[str, Any](transfer_in=vs.TRANSFER_BT709, primaries_in=vs.PRIMARIES_BT709)
         if clip.format.id == vs.PresetVideoFormat.NONE:
             clip = clip.std.ModifyFrame(clip, select_in_matrix)
-        else:
-            match clip.format.color_family:
-                case vs.RGB:
-                    in_params["matrix_in"] = vs.MATRIX_RGB
-                case vs.GRAY:
-                    clip = clip.std.SetFrameProps(
-                        _Matrix=vs.MATRIX_BT709,
-                        _Primaries=vs.PRIMARIES_BT709,
-                        _Transfer=vs.TRANSFER_BT709,
-                    )
+        elif clip.format.color_family is vs.RGB:
+            in_params["matrix_in"] = vs.MATRIX_RGB
 
         return clip.resize.Point(**params | in_params | kwargs)
 
