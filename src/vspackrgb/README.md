@@ -4,10 +4,13 @@ RGB packing for VapourSynth frames.
 
 Converts planar RGB VapourSynth clips into display-ready packed formats:
 
-- **RGB24 → BGRA** (8-bit interleaved)
-- **RGB30 → RGB30** (10-bit packed, 2-bit alpha)
+- **RGB24 → BGRA** (8-bit interleaved, stored in `GRAY32`)
+- **RGB30 → A2R10G10B10** (10-bit packed, stored in `GRAY32`)
+- **RGB48 → RGBA64** (16-bit interleaved, stored in `GRAY16`)
+- **RGBH → RGBA16F** (16-bit float interleaved, stored in `GRAYH`)
+- **RGBS → RGBA32F** (32-bit float interleaved, stored in `GRAYS`)
 
-Output is stored in a GRAY32 clip.
+For higher-than-10-bit formats, the output clip is 4x wider than the input to accommodate the interleaved R, G, B, and A channels.
 
 ## Installation
 
@@ -91,5 +94,5 @@ You only need a working C compiler/toolchain for your platform:
 - macOS: Xcode Command Line Tools
 
 ```bash
-uv build --sdist --wheel
+uv build --sdist --wheel --verbose
 ```

@@ -95,3 +95,109 @@ def pack_rgb30_10bit(
 
         # B (just cast) and final OR into output
         np.add(temp, b_arr, out=out_view, dtype=np.uint32)
+
+
+def pack_rgba64_16bit(
+    r_data: ctypes.Array[ctypes.c_uint16],
+    g_data: ctypes.Array[ctypes.c_uint16],
+    b_data: ctypes.Array[ctypes.c_uint16],
+    a_data: ctypes.Array[ctypes.c_uint16] | None,
+    width: int,
+    height: int,
+    samples_per_row: int,
+    dest_ptr: int,
+    dest_stride: int,
+) -> None:
+    """Pack planar 16-bit RGB to interleaved RGBA64."""
+    import numpy as np
+
+    r_arr = np.frombuffer(r_data, dtype=np.uint16).reshape((height, samples_per_row))[:, :width]
+    g_arr = np.frombuffer(g_data, dtype=np.uint16).reshape((height, samples_per_row))[:, :width]
+    b_arr = np.frombuffer(b_data, dtype=np.uint16).reshape((height, samples_per_row))[:, :width]
+
+    # RGBA64 is 16-bit per channel: R16 G16 B16 A16
+    rgba64 = np.empty((height, width, 4), dtype=np.uint16)
+    rgba64[:, :, 0] = r_arr
+    rgba64[:, :, 1] = g_arr
+    rgba64[:, :, 2] = b_arr
+
+    if a_data is not None:
+        rgba64[:, :, 3] = np.frombuffer(a_data, dtype=np.uint16).reshape((height, samples_per_row))[:, :width]
+    else:
+        rgba64[:, :, 3] = 65535  # Full alpha
+
+    out = (ctypes.c_uint16 * (dest_stride // 2 * height)).from_address(dest_ptr)
+    out_arr = np.frombuffer(out, dtype=np.uint16).reshape((height, dest_stride // 2))
+
+    row_samples = width * 4
+    out_arr[:, :row_samples] = rgba64.reshape((height, row_samples))
+
+
+def pack_rgba16f_16bit(
+    r_data: ctypes.Array[ctypes.c_uint16],
+    g_data: ctypes.Array[ctypes.c_uint16],
+    b_data: ctypes.Array[ctypes.c_uint16],
+    a_data: ctypes.Array[ctypes.c_uint16] | None,
+    width: int,
+    height: int,
+    samples_per_row: int,
+    dest_ptr: int,
+    dest_stride: int,
+) -> None:
+    """Pack planar 16-bit RGB to interleaved float16 RGBA."""
+    import numpy as np
+
+    r_arr = np.frombuffer(r_data, dtype=np.float16).reshape((height, samples_per_row))[:, :width]
+    g_arr = np.frombuffer(g_data, dtype=np.float16).reshape((height, samples_per_row))[:, :width]
+    b_arr = np.frombuffer(b_data, dtype=np.float16).reshape((height, samples_per_row))[:, :width]
+
+    rgba16f = np.empty((height, width, 4), dtype=np.float16)
+    rgba16f[:, :, 0] = r_arr
+    rgba16f[:, :, 1] = g_arr
+    rgba16f[:, :, 2] = b_arr
+
+    if a_data is not None:
+        rgba16f[:, :, 3] = np.frombuffer(a_data, dtype=np.float16).reshape((height, samples_per_row))[:, :width]
+    else:
+        rgba16f[:, :, 3] = 1.0
+
+    out = (ctypes.c_uint16 * (dest_stride // 2 * height)).from_address(dest_ptr)
+    out_arr = np.frombuffer(out, dtype=np.uint16).reshape((height, dest_stride // 2))
+
+    row_samples = width * 4
+    out_arr[:, :row_samples] = rgba16f.view(np.uint16).reshape((height, row_samples))
+
+
+def pack_rgba32f_32bit(
+    r_data: ctypes.Array[ctypes.c_uint32],
+    g_data: ctypes.Array[ctypes.c_uint32],
+    b_data: ctypes.Array[ctypes.c_uint32],
+    a_data: ctypes.Array[ctypes.c_uint32] | None,
+    width: int,
+    height: int,
+    samples_per_row: int,
+    dest_ptr: int,
+    dest_stride: int,
+) -> None:
+    """Pack planar 32-bit RGB to interleaved float32 RGBA."""
+    import numpy as np
+
+    r_arr = np.frombuffer(r_data, dtype=np.float32).reshape((height, samples_per_row))[:, :width]
+    g_arr = np.frombuffer(g_data, dtype=np.float32).reshape((height, samples_per_row))[:, :width]
+    b_arr = np.frombuffer(b_data, dtype=np.float32).reshape((height, samples_per_row))[:, :width]
+
+    rgba32f = np.empty((height, width, 4), dtype=np.float32)
+    rgba32f[:, :, 0] = r_arr
+    rgba32f[:, :, 1] = g_arr
+    rgba32f[:, :, 2] = b_arr
+
+    if a_data is not None:
+        rgba32f[:, :, 3] = np.frombuffer(a_data, dtype=np.float32).reshape((height, samples_per_row))[:, :width]
+    else:
+        rgba32f[:, :, 3] = 1.0
+
+    out = (ctypes.c_uint32 * (dest_stride // 4 * height)).from_address(dest_ptr)
+    out_arr = np.frombuffer(out, dtype=np.uint32).reshape((height, dest_stride // 4))
+
+    row_samples = width * 4
+    out_arr[:, :row_samples] = rgba32f.view(np.uint32).reshape((height, row_samples))

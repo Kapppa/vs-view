@@ -1,4 +1,5 @@
 import ctypes
+import struct
 from typing import Any, Protocol, cast
 
 import pytest
@@ -27,6 +28,45 @@ class BackendModule(Protocol):
         g_data: ctypes.Array[ctypes.c_uint16],
         b_data: ctypes.Array[ctypes.c_uint16],
         a_data: ctypes.Array[ctypes.c_uint16] | None,
+        width: int,
+        height: int,
+        samples_per_row: int,
+        dest_ptr: int,
+        dest_stride: int,
+    ) -> None: ...
+
+    def pack_rgba64_16bit(
+        self,
+        r_data: ctypes.Array[ctypes.c_uint16],
+        g_data: ctypes.Array[ctypes.c_uint16],
+        b_data: ctypes.Array[ctypes.c_uint16],
+        a_data: ctypes.Array[ctypes.c_uint16] | None,
+        width: int,
+        height: int,
+        samples_per_row: int,
+        dest_ptr: int,
+        dest_stride: int,
+    ) -> None: ...
+
+    def pack_rgba16f_16bit(
+        self,
+        r_data: ctypes.Array[ctypes.c_uint16],
+        g_data: ctypes.Array[ctypes.c_uint16],
+        b_data: ctypes.Array[ctypes.c_uint16],
+        a_data: ctypes.Array[ctypes.c_uint16] | None,
+        width: int,
+        height: int,
+        samples_per_row: int,
+        dest_ptr: int,
+        dest_stride: int,
+    ) -> None: ...
+
+    def pack_rgba32f_32bit(
+        self,
+        r_data: ctypes.Array[ctypes.c_uint32],
+        g_data: ctypes.Array[ctypes.c_uint32],
+        b_data: ctypes.Array[ctypes.c_uint32],
+        a_data: ctypes.Array[ctypes.c_uint32] | None,
         width: int,
         height: int,
         samples_per_row: int,
@@ -133,6 +173,93 @@ def test_pack_rgb30_10bit(backend_name: str) -> None:
 
 
 @pytest.mark.parametrize("backend_name", BACKENDS)
+def test_pack_rgba64_16bit(backend_name: str) -> None:
+    backend = get_backend_module(backend_name)
+    width, height = 4, 4
+    src_stride_samples = width
+    dest_stride = width * 4 * 2  # 4 channels * 2 bytes
+
+    r = (ctypes.c_uint16 * (width * height))(*(x * 100 for x in range(width * height)))
+    g = (ctypes.c_uint16 * (width * height))(*(x * 200 for x in range(width * height)))
+    b = (ctypes.c_uint16 * (width * height))(*(x * 300 for x in range(width * height)))
+    a = (ctypes.c_uint16 * (width * height))(*(x * 400 for x in range(width * height)))
+
+    dest = (ctypes.c_uint16 * (width * height * 4))()
+    dest_ptr = ctypes.addressof(dest)
+
+    backend.pack_rgba64_16bit(r, g, b, a, width, height, src_stride_samples, dest_ptr, dest_stride)
+
+    for y in range(height):
+        for x in range(width):
+            idx = y * width + x
+            out_idx = idx * 4
+            assert dest[out_idx + 0] == r[idx]
+            assert dest[out_idx + 1] == g[idx]
+            assert dest[out_idx + 2] == b[idx]
+            assert dest[out_idx + 3] == a[idx]
+
+
+@pytest.mark.parametrize("backend_name", BACKENDS)
+def test_pack_rgba16f_16bit(backend_name: str) -> None:
+    backend = get_backend_module(backend_name)
+    width, height = 4, 4
+    src_stride_samples = width
+    dest_stride = width * 4 * 2
+
+    def to_f16(val: float) -> int:
+        return struct.unpack("H", struct.pack("e", val))[0]
+
+    r = (ctypes.c_uint16 * (width * height))(*(to_f16(x * 0.1) for x in range(width * height)))
+    g = (ctypes.c_uint16 * (width * height))(*(to_f16(x * 0.05) for x in range(width * height)))
+    b = (ctypes.c_uint16 * (width * height))(*(to_f16(x * 0.02) for x in range(width * height)))
+
+    dest = (ctypes.c_uint16 * (width * height * 4))()
+    dest_ptr = ctypes.addressof(dest)
+
+    backend.pack_rgba16f_16bit(r, g, b, None, width, height, src_stride_samples, dest_ptr, dest_stride)
+
+    for y in range(height):
+        for x in range(width):
+            idx = y * width + x
+            out_idx = idx * 4
+
+            assert dest[out_idx + 0] == to_f16((x + y * width) * 0.1)
+            assert dest[out_idx + 1] == to_f16((x + y * width) * 0.05)
+            assert dest[out_idx + 2] == to_f16((x + y * width) * 0.02)
+            assert dest[out_idx + 3] == to_f16(1.0)
+
+
+@pytest.mark.parametrize("backend_name", BACKENDS)
+def test_pack_rgba32f_32bit(backend_name: str) -> None:
+    backend = get_backend_module(backend_name)
+    width, height = 4, 4
+    src_stride_samples = width
+    dest_stride = width * 4 * 4  # 4 channels * 4 bytes
+
+    def to_f32(val: float) -> int:
+        return struct.unpack("I", struct.pack("f", val))[0]
+
+    r = (ctypes.c_uint32 * (width * height))(*(to_f32(x * 0.1) for x in range(width * height)))
+    g = (ctypes.c_uint32 * (width * height))(*(to_f32(x * 0.05) for x in range(width * height)))
+    b = (ctypes.c_uint32 * (width * height))(*(to_f32(x * 0.02) for x in range(width * height)))
+
+    dest = (ctypes.c_uint32 * (width * height * 4))()
+    dest_ptr = ctypes.addressof(dest)
+
+    backend.pack_rgba32f_32bit(r, g, b, None, width, height, src_stride_samples, dest_ptr, dest_stride)
+
+    for y in range(height):
+        for x in range(width):
+            idx = y * width + x
+            out_idx = idx * 4
+
+            assert dest[out_idx + 0] == to_f32((x + y * width) * 0.1)
+            assert dest[out_idx + 1] == to_f32((x + y * width) * 0.05)
+            assert dest[out_idx + 2] == to_f32((x + y * width) * 0.02)
+            assert dest[out_idx + 3] == 0x3F800000  # 1.0f bits
+
+
+@pytest.mark.parametrize("backend_name", BACKENDS)
 def test_helpers_packrgb_integration(backend_name: str) -> None:
     width, height = 16, 16
     src = vs.core.std.BlankClip(width=width, height=height, format=vs.RGB24, color=[10, 20, 30])
@@ -153,3 +280,61 @@ def test_helpers_packrgb_integration(backend_name: str) -> None:
     assert out[1] == 20  # G
     assert out[2] == 10  # R
     assert out[3] == 255  # A
+
+
+@pytest.mark.parametrize("backend_name", BACKENDS)
+def test_helpers_packrgb_rgba16f(backend_name: str) -> None:
+    width, height = 8, 8
+
+    # Test Integer packing
+    src_int = vs.core.std.BlankClip(width=width, height=height, format=vs.RGB48, color=[65535, 32768, 0])
+    packed_int = helpers.packrgb(src_int, backend=cast(Any, backend_name))
+    assert packed_int.format.id == vs.GRAY16
+    assert packed_int.width == width * 4
+    assert packed_int.get_frame(0).props.get("VSViewPacked16") == 1
+
+    # Test Float packing (now use RGBH input)
+    src_float = vs.core.std.BlankClip(width=width, height=height, format=vs.RGBH, color=[1.0, 0.5, 0.0])
+    packed_float = helpers.packrgb(src_float, backend=cast(Any, backend_name))
+
+    assert packed_float.format.id == vs.GRAYH
+    assert packed_float.width == width * 4
+    assert packed_float.get_frame(0).props.get("VSViewPacked16F") == 1
+
+    frame = packed_float.get_frame(0)
+    ptr = frame.get_read_ptr(0)
+    assert ptr.value is not None
+    out = (ctypes.c_uint16 * (width * height * 4)).from_address(ptr.value)
+    # First pixel [1.0, 0.5, 0.0] in float16
+    # 1.0 = 0x3C00, 0.5 = 0x3800, 0.0 = 0x0000
+    assert out[0] == 0x3C00  # R
+    assert out[1] == 0x3800  # G
+    assert out[2] == 0x0000  # B
+    assert out[3] == 0x3C00  # A
+
+
+@pytest.mark.parametrize("backend_name", BACKENDS)
+def test_helpers_packrgb_rgbs(backend_name: str) -> None:
+    width, height = 8, 8
+
+    # Test Float packing (RGBS input)
+    src_float = vs.core.std.BlankClip(width=width, height=height, format=vs.RGBS, color=[1.0, 0.5, 0.0])
+    packed_float = helpers.packrgb(src_float, backend=cast(Any, backend_name))
+
+    assert packed_float.format.id == vs.GRAYS
+    assert packed_float.width == width * 4
+    assert packed_float.get_frame(0).props.get("VSViewPacked32F") == 1
+
+    frame = packed_float.get_frame(0)
+    ptr = frame.get_read_ptr(0)
+    assert ptr.value is not None
+    out = (ctypes.c_uint32 * (width * height * 4)).from_address(ptr.value)
+
+    def to_bits(val: float) -> int:
+        return struct.unpack("I", struct.pack("f", val))[0]
+
+    # First pixel [1.0, 0.5, 0.0] * 2.0 = [2.0, 1.0, 0.0]
+    assert out[0] == to_bits(1.0)  # R
+    assert out[1] == to_bits(0.5)  # G
+    assert out[2] == to_bits(0.0)  # B
+    assert out[3] == to_bits(1.0)  # A

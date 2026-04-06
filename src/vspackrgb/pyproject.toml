@@ -70,6 +70,7 @@ dependencies = ["hatch-cython"]
 
 [tool.hatch.build.targets.wheel.hooks.cython.options]
 compile_py = false
+files.exclude = ["**/half.pxd"]
 
 # Cython directives
 directives = { boundscheck = false, wraparound = false, nonecheck = false, language_level = 3, cdivision = true }
@@ -77,7 +78,7 @@ directives = { boundscheck = false, wraparound = false, nonecheck = false, langu
 # Platform-specific compilation arguments
 compile_args = [ # nofmt
     { platforms = ["linux", "darwin"], arg = "-O3" },
-    { platforms = ["windows"], arg = "/O2" },
+    { platforms = ["win32", "windows"], arg = "/O2" },
 ]
 
 [tool.hatch.version]
@@ -92,7 +93,7 @@ default-tag = "vspackrgb/v0.0.0"
 rmprefix = "vspackrgb/v"
 
 [tool.cibuildwheel]
-build-frontend = "uv"
+build-frontend = { name = "build[uv]", args = ["--verbose"] }
 build = "cp312-* cp313-* cp314-*"
 skip = "*-win32 *-manylinux_i686 *-musllinux_*"
 # Test would require vapoursynth

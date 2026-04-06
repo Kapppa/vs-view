@@ -18,16 +18,21 @@ def packrgb(
     """
     Pack a planar RGB clip into a display-ready format.
 
-    Converts RGB24 to interleaved BGRA32 (with straight alpha)
-    or RGB30 to packed A2R10G10B10 (with premultiplied alpha), stored in a GRAY32 clip.
+    Converts:
+
+    - RGB24 -> interleaved BGRA32 (with straight alpha)
+    - RGB30 -> packed A2R10G10B10 (with premultiplied alpha)
+    - RGB48 -> interleaved RGBA64 (with straight alpha) stored in a 4x wider GRAY16 clip.
+    - RGBH  -> interleaved RGBA16F (with straight alpha) stored in a 4x wider GRAYH clip.
+    - RGBS  -> interleaved RGBA32F (with straight alpha) stored in a 4x wider GRAYS clip.
 
     Args:
-        clip: Input clip in RGB24 or RGB30 format.
-        alpha: Optional alpha channel clip (GRAY8 for RGB24, GRAY10 for RGB30) or if True, fetch the `_Alpha` prop.
-        backend: Packing backend ("cython", "numpy", "python"). "python" is *very* slow.
+        clip: Input clip in RGB24, RGB30, RGB48, RGBH or RGBS format.
+        alpha: Optional alpha channel clip or if True, fetch the `_Alpha` prop.
+        backend: Packing backend ("cython", "numpy", "python").
 
     Returns:
-        GRAY32 clip with packed pixel data.
+        GRAY32, GRAY16, GRAYH, GRAYS clip with packed pixel data.
 
     Raises:
         ValueError: If format or backend is unsupported or resolution is variable.
@@ -47,15 +52,39 @@ def packrgb(
         case _:
             assert_never(backend)
 
+    width, height = clip.width, clip.height
+
+    match clip.format.id:
+        case vs.RGB24 | vs.RGB30:
+            out_format = vs.GRAY32
+        case vs.RGB48:
+            width *= 4
+            out_format = vs.GRAY16
+        case vs.RGBH:
+            width *= 4
+            out_format = vs.GRAYH
+        case vs.RGBS:
+            width *= 4
+            out_format = vs.GRAYS
+        case _:
+            raise ValueError(f"Unsupported input format: {clip.format.name}")
+
+    blank = clip.std.BlankClip(width=width, height=height, format=out_format, keep=True)
+
     match clip.format.id, alpha.format.id if isinstance(alpha, vs.VideoNode) else alpha:
         case vs.RGB24, vs.GRAY8 | True | None:
             pack_fn = _make_pack_frame_8bit(module.pack_bgra_8bit, use_alpha_prop=alpha is True)
         case vs.RGB30, vs.GRAY10 | True | None:
             pack_fn = _make_pack_frame_10bit(module.pack_rgb30_10bit, use_alpha_prop=alpha is True)
+        case vs.RGB48, vs.GRAY16 | True | None:
+            pack_fn = _make_pack_frame_16bit(module.pack_rgba64_16bit, use_alpha_prop=alpha is True)
+        case vs.RGBH, vs.GRAYH | vs.GRAY16 | True | None:
+            pack_fn = _make_pack_frame_16f(module.pack_rgba16f_16bit, use_alpha_prop=alpha is True)
+        case vs.RGBS, vs.GRAYS | True | None:
+            pack_fn = _make_pack_frame_32f(module.pack_rgba32f_32bit, use_alpha_prop=alpha is True)
         case _:
-            raise ValueError("Unsupported input format or alpha type")
+            raise ValueError(f"Unsupported input format: {clip.format.name}")
 
-    blank = clip.std.BlankClip(format=vs.GRAY32, keep=True)
     clips = [clip, blank]
 
     if isinstance(alpha, vs.VideoNode):
@@ -137,6 +166,114 @@ def _make_pack_frame_10bit(pack_rgb30_10bit: Callable[..., None], use_alpha_prop
     return _pack_frame
 
 
+def _make_pack_frame_16bit(pack_rgba64_16bit: Callable[..., None], use_alpha_prop: bool) -> _ModifyFrameFunction:
+    def _pack_frame(n: int, f: list[vs.VideoFrame]) -> vs.VideoFrame:
+        frame_src, frame_dst = f[0], f[1].copy()
+
+        if use_alpha_prop:
+            frame_alpha = frame_src.props["_Alpha"]
+
+            if isinstance(frame_alpha, vs.VideoFrame) and frame_alpha.format.bits_per_sample != 16:
+                raise ValueError("Alpha bit depth must be 16")
+        elif len(f) > 2:
+            frame_alpha = f[2]
+        else:
+            frame_alpha = None
+
+        width, height = frame_src.width, frame_src.height
+        src_stride = frame_src.get_stride(0)
+        samples_per_row = src_stride // 2
+        dst_stride = frame_dst.get_stride(0)
+        dst_ptr = frame_dst.get_write_ptr(0).value
+
+        if dst_ptr is None:
+            raise ValueError("Destination frame pointer is NULL")
+
+        r_plane = get_plane_buffer(frame_src, 0, bytes_per_sample=2)
+        g_plane = get_plane_buffer(frame_src, 1, bytes_per_sample=2)
+        b_plane = get_plane_buffer(frame_src, 2, bytes_per_sample=2)
+        a_plane = get_plane_buffer(frame_alpha, 0, bytes_per_sample=2) if frame_alpha is not None else None
+
+        pack_rgba64_16bit(r_plane, g_plane, b_plane, a_plane, width, height, samples_per_row, dst_ptr, dst_stride)
+
+        frame_dst.props["VSViewPacked16"] = 1
+        return frame_dst
+
+    return _pack_frame
+
+
+def _make_pack_frame_16f(pack_rgba16f_16bit: Callable[..., None], use_alpha_prop: bool) -> _ModifyFrameFunction:
+    def _pack_frame(n: int, f: list[vs.VideoFrame]) -> vs.VideoFrame:
+        frame_src, frame_dst = f[0], f[1].copy()
+
+        if use_alpha_prop:
+            frame_alpha = frame_src.props["_Alpha"]
+
+            if isinstance(frame_alpha, vs.VideoFrame) and frame_alpha.format.bits_per_sample != 16:
+                raise ValueError("Alpha bit depth must be 16")
+        elif len(f) > 2:
+            frame_alpha = f[2]
+        else:
+            frame_alpha = None
+
+        width, height = frame_src.width, frame_src.height
+        src_stride = frame_src.get_stride(0)
+        samples_per_row = src_stride // 2
+        dst_stride = frame_dst.get_stride(0)
+        dst_ptr = frame_dst.get_write_ptr(0).value
+
+        if dst_ptr is None:
+            raise ValueError("Destination frame pointer is NULL")
+
+        r_plane = get_plane_buffer(frame_src, 0, bytes_per_sample=2)
+        g_plane = get_plane_buffer(frame_src, 1, bytes_per_sample=2)
+        b_plane = get_plane_buffer(frame_src, 2, bytes_per_sample=2)
+        a_plane = get_plane_buffer(frame_alpha, 0, bytes_per_sample=2) if frame_alpha is not None else None
+
+        pack_rgba16f_16bit(r_plane, g_plane, b_plane, a_plane, width, height, samples_per_row, dst_ptr, dst_stride)
+
+        frame_dst.props["VSViewPacked16F"] = 1
+        return frame_dst
+
+    return _pack_frame
+
+
+def _make_pack_frame_32f(pack_rgba32f_32bit: Callable[..., None], use_alpha_prop: bool) -> _ModifyFrameFunction:
+    def _pack_frame(n: int, f: list[vs.VideoFrame]) -> vs.VideoFrame:
+        frame_src, frame_dst = f[0], f[1].copy()
+
+        if use_alpha_prop:
+            frame_alpha = frame_src.props["_Alpha"]
+
+            if isinstance(frame_alpha, vs.VideoFrame) and frame_alpha.format.bits_per_sample != 32:
+                raise ValueError("Alpha bit depth must be 32")
+        elif len(f) > 2:
+            frame_alpha = f[2]
+        else:
+            frame_alpha = None
+
+        width, height = frame_src.width, frame_src.height
+        src_stride = frame_src.get_stride(0)
+        samples_per_row = src_stride // 4
+        dst_stride = frame_dst.get_stride(0)
+        dst_ptr = frame_dst.get_write_ptr(0).value
+
+        if dst_ptr is None:
+            raise ValueError("Destination frame pointer is NULL")
+
+        r_plane = get_plane_buffer(frame_src, 0, bytes_per_sample=4)
+        g_plane = get_plane_buffer(frame_src, 1, bytes_per_sample=4)
+        b_plane = get_plane_buffer(frame_src, 2, bytes_per_sample=4)
+        a_plane = get_plane_buffer(frame_alpha, 0, bytes_per_sample=4) if frame_alpha is not None else None
+
+        pack_rgba32f_32bit(r_plane, g_plane, b_plane, a_plane, width, height, samples_per_row, dst_ptr, dst_stride)
+
+        frame_dst.props["VSViewPacked32F"] = 1
+        return frame_dst
+
+    return _pack_frame
+
+
 @overload
 def get_plane_buffer(
     frame: vs.VideoFrame, plane: int, bytes_per_sample: Literal[1] = 1
@@ -149,16 +286,22 @@ def get_plane_buffer(
 ) -> ctypes.Array[ctypes.c_uint16]: ...
 
 
+@overload
+def get_plane_buffer(
+    frame: vs.VideoFrame, plane: int, bytes_per_sample: Literal[4]
+) -> ctypes.Array[ctypes.c_uint32]: ...
+
+
 def get_plane_buffer(
     frame: vs.VideoFrame, plane: int, bytes_per_sample: int = 1
-) -> ctypes.Array[ctypes.c_uint8] | ctypes.Array[ctypes.c_uint16]:
+) -> ctypes.Array[ctypes.c_uint8] | ctypes.Array[ctypes.c_uint16] | ctypes.Array[ctypes.c_uint32]:
     """
     Get a ctypes array from a VideoFrame plane.
 
     Args:
         frame: VideoFrame to read from.
         plane: Plane index (0=R, 1=G, 2=B for RGB).
-        bytes_per_sample: 1 for 8-bit, 2 for 10/16-bit.
+        bytes_per_sample: 1 for 8-bit, 2 for 10/16-bit, 4 for 32-bit
 
     Returns:
         ctypes array of the plane's pixel data.
@@ -175,11 +318,14 @@ def get_plane_buffer(
 
     buf_size = stride * height
 
-    if bytes_per_sample == 1:
-        c_buffer = (ctypes.c_uint8 * buf_size).from_address(ptr_val)
-    elif bytes_per_sample == 2:
-        c_buffer = (ctypes.c_uint16 * (buf_size // 2)).from_address(ptr_val)
-    else:
-        raise ValueError(f"Unsupported bytes_per_sample: {bytes_per_sample}")
+    match bytes_per_sample:
+        case 1:
+            c_buffer = (ctypes.c_uint8 * buf_size).from_address(ptr_val)
+        case 2:
+            c_buffer = (ctypes.c_uint16 * (buf_size // 2)).from_address(ptr_val)
+        case 4:
+            c_buffer = (ctypes.c_uint32 * (buf_size // 4)).from_address(ptr_val)
+        case _:
+            raise ValueError(f"Unsupported bytes_per_sample: {bytes_per_sample}")
 
     return c_buffer

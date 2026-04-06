@@ -70,3 +70,96 @@ def pack_rgb30_10bit(
                 out[dst_row + x] = (a << 30) | (r << 20) | (g << 10) | b
             else:
                 out[dst_row + x] = 0xC0000000 | (r << 20) | (g << 10) | b
+
+
+def pack_rgba64_16bit(
+    r_data: ctypes.Array[ctypes.c_uint16],
+    g_data: ctypes.Array[ctypes.c_uint16],
+    b_data: ctypes.Array[ctypes.c_uint16],
+    a_data: ctypes.Array[ctypes.c_uint16] | None,
+    width: int,
+    height: int,
+    samples_per_row: int,
+    dest_ptr: int,
+    dest_stride: int,
+) -> None:
+    """Pack planar 16-bit RGB to interleaved RGBA64 (reference implementation)."""
+    out = (ctypes.c_uint16 * ((dest_stride // 2) * height)).from_address(dest_ptr)
+    dest_samples_per_row = dest_stride // 2
+
+    for y in range(height):
+        src_row = y * samples_per_row
+        dst_row = y * dest_samples_per_row
+
+        for x in range(width):
+            dst_offset = dst_row + x * 4
+            out[dst_offset + 0] = r_data[src_row + x]
+            out[dst_offset + 1] = g_data[src_row + x]
+            out[dst_offset + 2] = b_data[src_row + x]
+            out[dst_offset + 3] = a_data[src_row + x] if a_data is not None else 65535
+
+
+def pack_rgba16f_16bit(
+    r_data: ctypes.Array[ctypes.c_uint16],
+    g_data: ctypes.Array[ctypes.c_uint16],
+    b_data: ctypes.Array[ctypes.c_uint16],
+    a_data: ctypes.Array[ctypes.c_uint16] | None,
+    width: int,
+    height: int,
+    samples_per_row: int,
+    dest_ptr: int,
+    dest_stride: int,
+) -> None:
+    """Pack planar 16-bit RGB to interleaved float16 RGBA."""
+
+    out = (ctypes.c_uint16 * ((dest_stride // 2) * height)).from_address(dest_ptr)
+    dest_samples_per_row = dest_stride // 2
+
+    for y in range(height):
+        src_row = y * samples_per_row
+        dst_row = y * dest_samples_per_row
+
+        for x in range(width):
+            dst_offset = dst_row + x * 4
+
+            out[dst_offset + 0] = r_data[src_row + x]
+            out[dst_offset + 1] = g_data[src_row + x]
+            out[dst_offset + 2] = b_data[src_row + x]
+
+            if a_data is not None:
+                out[dst_offset + 3] = a_data[src_row + x]
+            else:
+                out[dst_offset + 3] = 0x3C00  # float16 bits for 1.0
+
+
+def pack_rgba32f_32bit(
+    r_data: ctypes.Array[ctypes.c_uint32],
+    g_data: ctypes.Array[ctypes.c_uint32],
+    b_data: ctypes.Array[ctypes.c_uint32],
+    a_data: ctypes.Array[ctypes.c_uint32] | None,
+    width: int,
+    height: int,
+    samples_per_row: int,
+    dest_ptr: int,
+    dest_stride: int,
+) -> None:
+    """Pack planar 32-bit RGB to interleaved float32 RGBA."""
+
+    out = (ctypes.c_uint32 * ((dest_stride // 4) * height)).from_address(dest_ptr)
+    dest_samples_per_row = dest_stride // 4
+
+    for y in range(height):
+        src_row = y * samples_per_row
+        dst_row = y * dest_samples_per_row
+
+        for x in range(width):
+            dst_offset = dst_row + x * 4
+
+            out[dst_offset + 0] = r_data[src_row + x]
+            out[dst_offset + 1] = g_data[src_row + x]
+            out[dst_offset + 2] = b_data[src_row + x]
+
+            if a_data is not None:
+                out[dst_offset + 3] = a_data[src_row + x]
+            else:
+                out[dst_offset + 3] = 0x3F800000  # float32 bits for 1.0

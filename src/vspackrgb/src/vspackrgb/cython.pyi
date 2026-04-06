@@ -22,3 +22,38 @@ def pack_rgb30_10bit(
     dest_ptr: int,
     dest_stride: int,
 ) -> None: ...
+def pack_rgba64_16bit(
+    r_data: ctypes.Array[ctypes.c_uint16],
+    g_data: ctypes.Array[ctypes.c_uint16],
+    b_data: ctypes.Array[ctypes.c_uint16],
+    a_data: ctypes.Array[ctypes.c_uint16] | None,
+    width: int,
+    height: int,
+    samples_per_row: int,
+    dest_ptr: int,
+    dest_stride: int,
+) -> None: ...
+def pack_rgba16f_16bit(
+    r_data: ctypes.Array[ctypes.c_uint16],
+    g_data: ctypes.Array[ctypes.c_uint16],
+    b_data: ctypes.Array[ctypes.c_uint16],
+    a_data: ctypes.Array[ctypes.c_uint16] | None,
+    width: int,
+    height: int,
+    samples_per_row: int,
+    dest_ptr: int,
+    dest_stride: int,
+    multiplier: float = 1.0,
+) -> None: ...
+def pack_rgba32f_32bit(
+    r_data: ctypes.Array[ctypes.c_uint32],
+    g_data: ctypes.Array[ctypes.c_uint32],
+    b_data: ctypes.Array[ctypes.c_uint32],
+    a_data: ctypes.Array[ctypes.c_uint32] | None,
+    width: int,
+    height: int,
+    samples_per_row: int,
+    dest_ptr: int,
+    dest_stride: int,
+    multiplier: float = 1.0,
+) -> None: ...
