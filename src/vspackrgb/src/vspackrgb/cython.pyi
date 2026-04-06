@@ -43,7 +43,6 @@ def pack_rgba16f_16bit(
     samples_per_row: int,
     dest_ptr: int,
     dest_stride: int,
-    multiplier: float = 1.0,
 ) -> None: ...
 def pack_rgba32f_32bit(
     r_data: ctypes.Array[ctypes.c_uint32],
@@ -55,5 +54,4 @@ def pack_rgba32f_32bit(
     samples_per_row: int,
     dest_ptr: int,
     dest_stride: int,
-    multiplier: float = 1.0,
 ) -> None: ...

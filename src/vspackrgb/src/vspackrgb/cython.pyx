@@ -148,7 +148,6 @@ cpdef void pack_rgba16f_16bit(
     int samples_per_row,
     uintptr_t dest_ptr,
     int dest_stride,
-    float multiplier = 1.0,
 ) noexcept nogil:
     """Pack planar 16-bit RGB to interleaved float16 RGBA."""
 

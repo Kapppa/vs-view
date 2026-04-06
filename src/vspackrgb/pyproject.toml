@@ -70,7 +70,6 @@ dependencies = ["hatch-cython"]
 
 [tool.hatch.build.targets.wheel.hooks.cython.options]
 compile_py = false
-files.exclude = ["**/half.pxd"]
 
 # Cython directives
 directives = { boundscheck = false, wraparound = false, nonecheck = false, language_level = 3, cdivision = true }
