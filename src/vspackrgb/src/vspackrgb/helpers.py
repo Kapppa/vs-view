@@ -55,61 +55,48 @@ def packrgb(
     width, height = clip.width, clip.height
 
     match clip.format.id:
-        case vs.RGB24 | vs.RGB30:
+        case vs.RGB24:
             out_format = vs.GRAY32
+            pack_fn = _make_pack_frame_8bit(module.pack_bgra_8bit)
+        case vs.RGB30:
+            out_format = vs.GRAY32
+            pack_fn = _make_pack_frame_10bit(module.pack_rgb30_10bit)
         case vs.RGB48:
             width *= 4
             out_format = vs.GRAY16
+            pack_fn = _make_pack_frame_16bit(module.pack_rgba64_16bit)
         case vs.RGBH:
             width *= 4
             out_format = vs.GRAYH
+            pack_fn = _make_pack_frame_16f(module.pack_rgba16f_16bit)
         case vs.RGBS:
             width *= 4
             out_format = vs.GRAYS
+            pack_fn = _make_pack_frame_32f(module.pack_rgba32f_32bit)
         case _:
             raise ValueError(f"Unsupported input format: {clip.format.name}")
 
     blank = clip.std.BlankClip(width=width, height=height, format=out_format, keep=True)
 
-    match clip.format.id, alpha.format.id if isinstance(alpha, vs.VideoNode) else alpha:
-        case vs.RGB24, vs.GRAY8 | True | None:
-            pack_fn = _make_pack_frame_8bit(module.pack_bgra_8bit, use_alpha_prop=alpha is True)
-        case vs.RGB30, vs.GRAY10 | True | None:
-            pack_fn = _make_pack_frame_10bit(module.pack_rgb30_10bit, use_alpha_prop=alpha is True)
-        case vs.RGB48, vs.GRAY16 | True | None:
-            pack_fn = _make_pack_frame_16bit(module.pack_rgba64_16bit, use_alpha_prop=alpha is True)
-        case vs.RGBH, vs.GRAYH | vs.GRAY16 | True | None:
-            pack_fn = _make_pack_frame_16f(module.pack_rgba16f_16bit, use_alpha_prop=alpha is True)
-        case vs.RGBS, vs.GRAYS | True | None:
-            pack_fn = _make_pack_frame_32f(module.pack_rgba32f_32bit, use_alpha_prop=alpha is True)
-        case _:
-            raise ValueError(f"Unsupported input format: {clip.format.name}")
+    if alpha is True:
+        alpha = clip.std.PropToClip("_Alpha")
+        clip = clip.std.RemoveFrameProps("_Alpha")
 
-    clips = [clip, blank]
+    if alpha and alpha.format != (afmt := clip.format.replace(color_family=vs.GRAY)):
+        raise ValueError(f"Alpha bit depth must be {afmt!r}")
 
-    if isinstance(alpha, vs.VideoNode):
-        clips.append(alpha)
-
-    return blank.std.ModifyFrame(clips, pack_fn)
+    return blank.std.ModifyFrame(clip if not alpha else [clip, alpha], pack_fn)
 
 
 class _ModifyFrameFunction(Protocol):
-    def __call__(self, *, n: int, f: list[vs.VideoFrame]) -> vs.VideoFrame: ...
+    def __call__(self, *, n: int, f: vs.VideoFrame | list[vs.VideoFrame]) -> vs.VideoFrame: ...
 
 
-def _make_pack_frame_8bit(pack_bgra_8bit: Callable[..., None], use_alpha_prop: bool) -> _ModifyFrameFunction:
-    def _pack_frame(n: int, f: list[vs.VideoFrame]) -> vs.VideoFrame:
-        frame_src, frame_dst = f[0], f[1].copy()
+def _make_pack_frame_8bit(pack_bgra_8bit: Callable[..., None]) -> _ModifyFrameFunction:
+    def _pack_frame(n: int, f: vs.VideoFrame | list[vs.VideoFrame]) -> vs.VideoFrame:
+        frame_src, frame_alpha = (f, None) if isinstance(f, vs.VideoFrame) else f
 
-        if use_alpha_prop:
-            frame_alpha = frame_src.props["_Alpha"]
-
-            if isinstance(frame_alpha, vs.VideoFrame) and frame_alpha.format.bits_per_sample != 8:
-                raise ValueError("Alpha bit depth must be 8")
-        elif len(f) > 2:
-            frame_alpha = f[2]
-        else:
-            frame_alpha = None
+        frame_dst = vs.core.create_video_frame(vs.GRAY32, frame_src.width, frame_src.height)
 
         width, height = frame_src.width, frame_src.height
         src_stride = frame_src.get_stride(0)
@@ -131,19 +118,11 @@ def _make_pack_frame_8bit(pack_bgra_8bit: Callable[..., None], use_alpha_prop: b
     return _pack_frame
 
 
-def _make_pack_frame_10bit(pack_rgb30_10bit: Callable[..., None], use_alpha_prop: bool) -> _ModifyFrameFunction:
-    def _pack_frame(n: int, f: list[vs.VideoFrame]) -> vs.VideoFrame:
-        frame_src, frame_dst = f[0], f[1].copy()
+def _make_pack_frame_10bit(pack_rgb30_10bit: Callable[..., None]) -> _ModifyFrameFunction:
+    def _pack_frame(n: int, f: vs.VideoFrame | list[vs.VideoFrame]) -> vs.VideoFrame:
+        frame_src, frame_alpha = (f, None) if isinstance(f, vs.VideoFrame) else f
 
-        if use_alpha_prop:
-            frame_alpha = frame_src.props["_Alpha"]
-
-            if isinstance(frame_alpha, vs.VideoFrame) and frame_alpha.format.bits_per_sample != 10:
-                raise ValueError("Alpha bit depth must be 10")
-        elif len(f) > 2:
-            frame_alpha = f[2]
-        else:
-            frame_alpha = None
+        frame_dst = vs.core.create_video_frame(vs.GRAY32, frame_src.width, frame_src.height)
 
         width, height = frame_src.width, frame_src.height
         src_stride = frame_src.get_stride(0)
@@ -166,19 +145,11 @@ def _make_pack_frame_10bit(pack_rgb30_10bit: Callable[..., None], use_alpha_prop
     return _pack_frame
 
 
-def _make_pack_frame_16bit(pack_rgba64_16bit: Callable[..., None], use_alpha_prop: bool) -> _ModifyFrameFunction:
-    def _pack_frame(n: int, f: list[vs.VideoFrame]) -> vs.VideoFrame:
-        frame_src, frame_dst = f[0], f[1].copy()
+def _make_pack_frame_16bit(pack_rgba64_16bit: Callable[..., None]) -> _ModifyFrameFunction:
+    def _pack_frame(n: int, f: vs.VideoFrame | list[vs.VideoFrame]) -> vs.VideoFrame:
+        frame_src, frame_alpha = (f, None) if isinstance(f, vs.VideoFrame) else f
 
-        if use_alpha_prop:
-            frame_alpha = frame_src.props["_Alpha"]
-
-            if isinstance(frame_alpha, vs.VideoFrame) and frame_alpha.format.bits_per_sample != 16:
-                raise ValueError("Alpha bit depth must be 16")
-        elif len(f) > 2:
-            frame_alpha = f[2]
-        else:
-            frame_alpha = None
+        frame_dst = vs.core.create_video_frame(vs.GRAY16, frame_src.width * 4, frame_src.height)
 
         width, height = frame_src.width, frame_src.height
         src_stride = frame_src.get_stride(0)
@@ -202,19 +173,11 @@ def _make_pack_frame_16bit(pack_rgba64_16bit: Callable[..., None], use_alpha_pro
     return _pack_frame
 
 
-def _make_pack_frame_16f(pack_rgba16f_16bit: Callable[..., None], use_alpha_prop: bool) -> _ModifyFrameFunction:
-    def _pack_frame(n: int, f: list[vs.VideoFrame]) -> vs.VideoFrame:
-        frame_src, frame_dst = f[0], f[1].copy()
+def _make_pack_frame_16f(pack_rgba16f_16bit: Callable[..., None]) -> _ModifyFrameFunction:
+    def _pack_frame(n: int, f: vs.VideoFrame | list[vs.VideoFrame]) -> vs.VideoFrame:
+        frame_src, frame_alpha = (f, None) if isinstance(f, vs.VideoFrame) else f
 
-        if use_alpha_prop:
-            frame_alpha = frame_src.props["_Alpha"]
-
-            if isinstance(frame_alpha, vs.VideoFrame) and frame_alpha.format.bits_per_sample != 16:
-                raise ValueError("Alpha bit depth must be 16")
-        elif len(f) > 2:
-            frame_alpha = f[2]
-        else:
-            frame_alpha = None
+        frame_dst = vs.core.create_video_frame(vs.GRAYH, frame_src.width * 4, frame_src.height)
 
         width, height = frame_src.width, frame_src.height
         src_stride = frame_src.get_stride(0)
@@ -238,19 +201,11 @@ def _make_pack_frame_16f(pack_rgba16f_16bit: Callable[..., None], use_alpha_prop
     return _pack_frame
 
 
-def _make_pack_frame_32f(pack_rgba32f_32bit: Callable[..., None], use_alpha_prop: bool) -> _ModifyFrameFunction:
-    def _pack_frame(n: int, f: list[vs.VideoFrame]) -> vs.VideoFrame:
-        frame_src, frame_dst = f[0], f[1].copy()
+def _make_pack_frame_32f(pack_rgba32f_32bit: Callable[..., None]) -> _ModifyFrameFunction:
+    def _pack_frame(n: int, f: vs.VideoFrame | list[vs.VideoFrame]) -> vs.VideoFrame:
+        frame_src, frame_alpha = (f, None) if isinstance(f, vs.VideoFrame) else f
 
-        if use_alpha_prop:
-            frame_alpha = frame_src.props["_Alpha"]
-
-            if isinstance(frame_alpha, vs.VideoFrame) and frame_alpha.format.bits_per_sample != 32:
-                raise ValueError("Alpha bit depth must be 32")
-        elif len(f) > 2:
-            frame_alpha = f[2]
-        else:
-            frame_alpha = None
+        frame_dst = vs.core.create_video_frame(vs.GRAYS, frame_src.width * 4, frame_src.height)
 
         width, height = frame_src.width, frame_src.height
         src_stride = frame_src.get_stride(0)
