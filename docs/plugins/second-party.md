@@ -128,6 +128,11 @@ It features automated frame selection, filtering by picture type, and integratio
     - Upload extracted frames directly to [Slow.pics](https://slow.pics/).
     - Configure login in the plugin settings to upload directly.
 
+### Script Integration
+
+By default, all outputs registered in the script via `set_output` are available in the Comparison plugin.
+You can explicitly exclude specific outputs by passing the `allow_comp` keyword argument.
+
 ### VapourSynth Requirements
 - [**fpng**](https://github.com/Mikewando/vsfpng) (Optional): For slightly faster frame extraction.
 

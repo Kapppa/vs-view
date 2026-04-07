@@ -45,7 +45,7 @@ class ExtractFramesWorker:
         self.api = api
         self.progress_bar = parent.progress_bar
         self.data = parent.frames_list.get_data()
-        self.included_outputs = parent.outputs_dropdown.included_outputs
+        self.voutputs = parent.selected_voutputs
         self.packer = get_packer("cython", 8)
 
         if not (storage := self.api.get_local_storage(parent)):
@@ -55,7 +55,7 @@ class ExtractFramesWorker:
     @run_in_background(name="ExtractFrames")
     def run(self) -> list[tuple[int, Path]]:
         self.progress_bar.update_progress(
-            range=(0, len(self.data) * len(self.included_outputs)),
+            range=(0, len(self.data) * len(self.voutputs)),
             fmt="Extracting frames %v / %m",
             value=0,
         )
@@ -72,10 +72,7 @@ class ExtractFramesWorker:
         with self.api.vs_context():
             is_fpng_available = hasattr(core, "fpng")
 
-            for output in self.api.voutputs:
-                if output.vs_index not in self.included_outputs:
-                    continue
-
+            for output in self.voutputs:
                 images_path = path / f"({output.vs_index}) ({output.vs_name})"
                 images_path = sanitize_filepath(images_path, replacement_text="_")
                 images_path.mkdir(parents=True, exist_ok=True)
@@ -148,6 +145,7 @@ class SelectFrameWorker:
         self.dark = parent.dark_frame_count.value()
         self.light = parent.light_frame_count.value()
         self.normal = parent.random_frame_count.value() - self.dark - self.light
+        self.voutputs = parent.selected_voutputs
 
         # Existing frames to avoid duplicates
         v = self.api.current_voutput
@@ -188,8 +186,8 @@ class SelectFrameWorker:
         self.progress_bar.update_progress(range=(0, self.normal), fmt="Selecting frames %v / %m", value=0)
 
         random_frames = list[Time]()
-        base_clip = core.std.BlankClip(width=1, height=1, format=GRAY8, length=len(self.api.voutputs), keep=True)
-        other_clips = [_SourceInfo(source.vs_output.clip, source.time_to_frame) for source in self.api.voutputs]
+        base_clip = core.std.BlankClip(width=1, height=1, format=GRAY8, length=len(self.voutputs), keep=True)
+        other_clips = [_SourceInfo(output.vs_output.clip, output.time_to_frame) for output in self.voutputs]
 
         min_clip_length = min(clip.num_frames for clip, _ in other_clips)
         end_frame = min(end_frame, min_clip_length - 1)

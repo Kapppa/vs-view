@@ -276,6 +276,7 @@ class FrameThumbnailList(QListWidget):
     def __init__(self, api: PluginAPI, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.api = api
+        self.included_outputs = list[VideoOutputProxy]()
 
         self.setViewMode(QListWidget.ViewMode.IconMode)
         self.setFlow(QListWidget.Flow.LeftToRight)
@@ -298,6 +299,7 @@ class FrameThumbnailList(QListWidget):
         self.customContextMenuRequested.connect(self.show_context_menu)
 
         self.api.register_on_destroy(lambda: cachedproperty.clear_cache(self))
+        self.api.register_on_destroy(lambda: setattr(self, "included_outputs", []))
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Delete:
@@ -310,7 +312,7 @@ class FrameThumbnailList(QListWidget):
     def thumbnail_clips(self) -> dict[int, VideoNode]:
         out = dict[int, VideoNode]()
 
-        for voutput in self.api.voutputs:
+        for voutput in self.included_outputs:
             ar = voutput.vs_output.clip.width / voutput.vs_output.clip.height
 
             target_h = self.ICON_SIZE.height()

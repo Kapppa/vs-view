@@ -189,6 +189,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.outputs_dropdown = OutputDropdown(self.clip_section)
         self.outputs_dropdown.setToolTip("Select and rename outputs.")
         self.outputs_dropdown.inclusionChanged.connect(self._update_buttons_state)
+        self.outputs_dropdown.inclusionChanged.connect(self.update_included_outputs_frames_list)
         form.addRow(self.outputs_dropdown)
 
         # Current frames + add remove buttons
@@ -466,6 +467,15 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.pict_type_p_cb.setEnabled(value)
         self.pict_type_b_cb.setEnabled(value)
 
+    @property
+    def comp_voutputs(self) -> list[VideoOutputProxy]:
+        return [v for v in self.api.voutputs if v.kwargs.get("allow_comp", True)]
+
+    @property
+    def selected_voutputs(self) -> list[VideoOutputProxy]:
+        included = self.outputs_dropdown.included_outputs
+        return [v for v in self.comp_voutputs if v.vs_index in included]
+
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         # Intercept tooltips for this plugin tree when disabled
         if (
@@ -481,7 +491,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
     @cache
     @run_in_loop(return_future=False)
     def init_load(self) -> None:
-        voutputs = self.api.voutputs
+        voutputs = self.comp_voutputs
 
         max_total_frames = min(voutputs, key=lambda v: v.info.total_frames).info.total_frames
         shortest = min(voutputs, key=lambda v: v.info.total_duration)
@@ -711,9 +721,8 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         # Automatically set the collection name if it's currently empty
         if not self.collection_name.text().strip():
-            included = self.outputs_dropdown.included_outputs
-            voutputs = self.api.voutputs
-            vs_names = " VS ".join(v.vs_name for v in voutputs if v.vs_index in included)
+            voutputs = self.selected_voutputs
+            vs_names = " VS ".join(v.vs_name for v in voutputs)
             self.collection_name.setText(title.format_name(self.settings.global_.tmdb_format, vs_names=vs_names))
 
     def on_tags_editing_started(self) -> None:
@@ -802,7 +811,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         # Build sources from the extracted images on disk
         sources = list[ComparisonSource]()
-        vouputs = {v.vs_index: v for v in self.api.voutputs}
+        vouputs = {v.vs_index: v for v in self.selected_voutputs}
 
         for index, source_dir in self._extract_paths:
             images = list[ComparisonImage]()
@@ -903,3 +912,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.upload_btn.setEnabled(frames_ready and not needs_extraction)
 
         self._current_outputs = current_outputs
+
+    def update_included_outputs_frames_list(self) -> None:
+        self.frames_list.included_outputs = self.selected_voutputs
