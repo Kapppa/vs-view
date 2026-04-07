@@ -17,13 +17,13 @@ Third-party plugins are maintained by independent developers.
 
     Descale analysis suite for VSView, featuring `Get Native`, `Get Scaler`, and `Get Frequencies`.
 
-    [:lucide-move-right: Details](#native-resolution) · [:lucide-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/native-res)
+    [:lucide-move-right: Details](#native-resolution) · [:fontawesome-brands-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/native-res)
 
 </div>
 
 ---
 
-## Native Resolution [ :lucide-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/native-res){ title="Source Code" }
+## Native Resolution [ :fontawesome-brands-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/native-res){ title="Source Code" }
 
 === "pip"
     ```bash

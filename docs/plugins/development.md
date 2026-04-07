@@ -10,7 +10,7 @@ This guide covers how to create plugins for VSView, from setting up the basic st
 !!! tip "Plugin Template"
     A template repository is available with a standard project structure and starter code:
 
-    [:lucide-github: Ichunjo/vs-view-plugin-template](https://github.com/Ichunjo/vs-view-plugin-template)
+    [:fontawesome-brands-github: Ichunjo/vs-view-plugin-template](https://github.com/Ichunjo/vs-view-plugin-template)
 
 ## Plugin Architecture
 

@@ -17,7 +17,7 @@ Second-party plugins are officially maintained but distributed as separate packa
 
     An [AudioNode](https://www.vapoursynth.com/doc/pythonreference.html#vapoursynth.AudioNode) processor for converting audio sample types and resampling audio clips for playback.
 
-    [:lucide-move-right: Details](#audio-convert) · [:lucide-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/audio-convert)
+    [:lucide-move-right: Details](#audio-convert) · [:fontawesome-brands-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/audio-convert)
 
 - :lucide-split-square-horizontal: **Comparison**
 
@@ -25,7 +25,7 @@ Second-party plugins are officially maintained but distributed as separate packa
 
     Select, extract, and upload comparison frames to Slow.pics with TMDB metadata integration.
 
-    [:lucide-move-right: Details](#comparison) · [:lucide-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/comp)
+    [:lucide-move-right: Details](#comparison) · [:fontawesome-brands-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/comp)
 
 - :lucide-activity: **FFT Spectrum**
 
@@ -33,7 +33,7 @@ Second-party plugins are officially maintained but distributed as separate packa
 
     Displays the Fast Fourier Transform (FFT) spectrum of all the planes of a video clip.
 
-    [:lucide-move-right: Details](#fft-spectrum) · [:lucide-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/fftspectrum)
+    [:lucide-move-right: Details](#fft-spectrum) · [:fontawesome-brands-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/fftspectrum)
 
 - :lucide-list-plus: **FrameProps Extended**
 
@@ -41,7 +41,7 @@ Second-party plugins are officially maintained but distributed as separate packa
 
     Extends the built-in [Frame Properties](first-party.md#frame-properties) tool with specialized categories and formatters.
 
-    [:lucide-move-right: Details](#frameprops-extended) · [:lucide-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/frameprops-extended)
+    [:lucide-move-right: Details](#frameprops-extended) · [:fontawesome-brands-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/frameprops-extended)
 
 - :lucide-layers-2: **Split Planes**
 
@@ -49,7 +49,7 @@ Second-party plugins are officially maintained but distributed as separate packa
 
     Visualize individual planes (e.g., Y, U, V) of a video clip to inspect channel-specific artifacts.
 
-    [:lucide-move-right: Details](#split-planes) · [:lucide-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/split-planes)
+    [:lucide-move-right: Details](#split-planes) · [:fontawesome-brands-github: Source](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/split-planes)
 
 </div>
 
@@ -77,7 +77,7 @@ Detailed installation for individual packages can be found in their respective s
 
 ---
 
-## Audio Convert [ :lucide-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/audio-convert){ title="Source Code" }
+## Audio Convert [ :fontawesome-brands-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/audio-convert){ title="Source Code" }
 
 === "pip"
     ```bash title="Install Audio Convert"
@@ -101,7 +101,7 @@ The Audio Convert plugin integrates a specialized [AudioNode](https://www.vapour
 
 ---
 
-## Comparison [ :lucide-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/comp){ title="Source Code" }
+## Comparison [ :fontawesome-brands-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/comp){ title="Source Code" }
 
 === "pip"
     ```bash title="Install Comparison"
@@ -133,7 +133,7 @@ It features automated frame selection, filtering by picture type, and integratio
 
 ---
 
-## FFT Spectrum [ :lucide-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/fftspectrum){ title="Source Code" }
+## FFT Spectrum [ :fontawesome-brands-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/fftspectrum){ title="Source Code" }
 
 === "pip"
     ```bash title="Install FFT Spectrum"
@@ -151,7 +151,7 @@ The FFT Spectrum tool provides a visualization of the Fast Fourier Transform (FF
 
 ---
 
-## FrameProps Extended [ :lucide-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/frameprops-extended){ title="Source Code" }
+## FrameProps Extended [ :fontawesome-brands-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/frameprops-extended){ title="Source Code" }
 
 === "pip"
     ```bash title="Install FrameProps Extended"
@@ -166,7 +166,7 @@ This plugin adds more categories and formatters to the built-in [Frame Propertie
 
 ---
 
-## Split Planes [ :lucide-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/split-planes){ title="Source Code" }
+## Split Planes [ :fontawesome-brands-github: ](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/plugins/split-planes){ title="Source Code" }
 
 === "pip"
     ```bash title="Install Split Planes"
