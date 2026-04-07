@@ -45,7 +45,6 @@ source = "versioningit"
 
 [tool.versioningit.vcs]
 match = ["audio-convert/v*"]
-exclude = ["*.post*"]
 default-tag = "audio-convert/v0.0.0"
 
 [tool.versioningit.tag2version]
