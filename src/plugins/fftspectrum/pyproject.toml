@@ -50,3 +50,8 @@ default-tag = "fftspectrum/v0.0.0"
 
 [tool.versioningit.tag2version]
 rmprefix = "fftspectrum/v"
+
+[tool.versioningit.format]
+distance = "{next_version}.dev{distance}+{vcs}{rev}"
+dirty = "{next_version}+dirty"
+distance-dirty = "{next_version}.dev{distance}+{vcs}{rev}.dirty"
