@@ -1,0 +1,76 @@
+name: Build vspackrgb
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        required: true
+        type: string
+
+jobs:
+  lint:
+    uses: ./.github/workflows/ci-lint.yml
+    with:
+      package: vspackrgb
+    secrets: inherit
+
+  wheels:
+    name: Build wheels (${{ matrix.os }})
+    needs: [lint]
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Generate SBOM
+        run: uv export --package vspackrgb --no-dev --format cyclonedx1.5 -o src/vspackrgb/sboms.json
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.4
+        with:
+          package-dir: src/vspackrgb
+          output-dir: wheelhouse
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v7
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  sdist:
+    name: Build sdist
+    needs: [lint]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ inputs.python-version }}
+          enable-cache: true
+
+      - name: Build sdist
+        run: uv build --package vspackrgb --sdist --out-dir dist --clear
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v7
+        with:
+          name: sdist
+          path: dist/*.tar.gz

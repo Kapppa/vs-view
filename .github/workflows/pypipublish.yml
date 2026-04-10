@@ -27,6 +27,7 @@ jobs:
     outputs:
       matrix: ${{ steps.check.outputs.matrix }}
       is-vspackrgb: ${{ steps.check.outputs.is-vspackrgb }}
+      python-version: ${{ env.VSVIEW_PYTHON_VERSION }}
     steps:
       - uses: actions/checkout@v6
       - id: check
@@ -34,11 +35,26 @@ jobs:
         env:
           INPUT_PACKAGE: ${{ inputs.package }}
 
-  # Pure Python packages
-  python-package:
-    name: ${{ matrix.package }}
+  # Build Jobs
+  python-build:
     needs: [prepare]
     if: needs.prepare.outputs.matrix != '[]'
+    uses: ./.github/workflows/cd-build-python.yml
+    with:
+      matrix: ${{ needs.prepare.outputs.matrix }}
+      python-version: ${{ needs.prepare.outputs.python-version }}
+
+  vspackrgb-build:
+    needs: [prepare]
+    if: needs.prepare.outputs.is-vspackrgb == 'true'
+    uses: ./.github/workflows/cd-build-vspackrgb.yml
+    with:
+      python-version: ${{ needs.prepare.outputs.python-version }}
+
+  # Publish Jobs
+  python-publish:
+    name: Publish ${{ matrix.package }} to PyPI
+    needs: [prepare, python-build]
     runs-on: ubuntu-latest
 
     permissions:
@@ -54,25 +70,11 @@ jobs:
       url: https://pypi.org/p/${{ matrix.package }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - name: Download artifact
+        uses: actions/download-artifact@v8
         with:
-          fetch-depth: 0
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          python-version: ${{ env.VSVIEW_PYTHON_VERSION }}
-          enable-cache: true
-
-      - name: Generate SBOM
-        run: uv export --package "${{ matrix.package }}" --no-dev --format cyclonedx1.5 -o "${{ matrix.path }}/sboms.json"
-
-      - name: Build
-        run: uv build --package "${{ matrix.package }}" ${{ matrix.build_args }} --clear
-
-      - name: Check the output
-        run: uvx twine check --strict dist/*
+          name: dist-${{ matrix.package }}
+          path: dist
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -83,85 +85,19 @@ jobs:
         with:
           webhook-url: ${{ secrets.WEBHOOK_URL }}
 
-  # vspackrgb - Cython package, needs cross-platform wheel builds
-  vspackrgb_build:
-    name: Build vspackrgb wheels (${{ matrix.os }})
-    needs: [prepare]
-    # Simplified condition using prepare output
-    if: needs.prepare.outputs.is-vspackrgb == 'true'
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Generate SBOM
-        run: uv export --package vspackrgb --no-dev --format cyclonedx1.5 -o src/vspackrgb/sboms.json
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v3.4
-        with:
-          package-dir: src/vspackrgb
-          output-dir: wheelhouse
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v7
-        with:
-          name: wheels-${{ matrix.os }}
-          path: wheelhouse/*.whl
-
-  vspackrgb_sdist:
-    name: Build vspackrgb sdist
-    needs: [prepare]
-    if: needs.prepare.outputs.is-vspackrgb == 'true'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          python-version: ${{ env.VSVIEW_PYTHON_VERSION }}
-          enable-cache: true
-
-      - name: Build sdist
-        run: uv build --package vspackrgb --sdist --out-dir dist --clear
-
-      - name: Upload sdist
-        uses: actions/upload-artifact@v7
-        with:
-          name: sdist
-          path: dist/*.tar.gz
-
-  # Publish vspackrgb after all builds complete
-  vspackrgb_publish:
+  vspackrgb-publish:
     name: Publish vspackrgb to PyPI
+    needs: [prepare, vspackrgb-build]
+    if: needs.prepare.outputs.is-vspackrgb == 'true'
     runs-on: ubuntu-latest
-    needs: [vspackrgb_build, vspackrgb_sdist]
-
-    environment:
-      name: pypi-vspackrgb
-      url: https://pypi.org/p/vspackrgb
 
     permissions:
       contents: read
       id-token: write
+
+    environment:
+      name: pypi-vspackrgb
+      url: https://pypi.org/p/vspackrgb
 
     steps:
       - name: Download all artifacts

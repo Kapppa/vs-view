@@ -16,6 +16,13 @@ on:
       - "**/pyproject.toml"
       - ".github/workflows/test.yml"
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      package:
+        description: "Package to test"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -68,10 +75,19 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --group test --group plugins --no-dev
 
+      - name: Set package argument
+        id: setup-pkg
+        run: |
+          if [ -n "${{ inputs.package }}" ]; then
+            echo "package_arg=--package ${{ inputs.package }}" >> $GITHUB_OUTPUT
+          else
+            echo "package_arg=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run tests
         env:
           QT_DEBUG_PLUGINS: 1
-        run: uv run --no-sync pytest
+        run: uv run ${{ steps.setup-pkg.outputs.package_arg }} --no-sync pytest
 
       - name: Post webhook for failure
         if: failure()

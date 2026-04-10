@@ -1,0 +1,56 @@
+name: Build Python
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        required: true
+        type: string
+      python-version:
+        required: true
+        type: string
+
+jobs:
+  lint:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(inputs.matrix) }}
+    uses: ./.github/workflows/ci-lint.yml
+    with:
+      package: ${{ matrix.package }}
+    secrets: inherit
+
+  build:
+    name: Build ${{ matrix.package }}
+    needs: [lint]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJson(inputs.matrix) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ inputs.python-version }}
+          enable-cache: true
+
+      - name: Generate SBOM
+        run: uv export --package "${{ matrix.package }}" --no-dev --format cyclonedx1.5 -o "${{ matrix.path }}/sboms.json"
+
+      - name: Build
+        run: uv build --package "${{ matrix.package }}" ${{ matrix.build_args }} --out-dir dist --clear
+
+      - name: Check the output
+        run: uvx twine check --strict dist/*
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-${{ matrix.package }}
+          path: dist/
