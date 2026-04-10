@@ -112,7 +112,7 @@ class FramePropsViewMixin:
             menu.addSeparator()
 
         copy_key_action = QAction("Copy Key", self)
-        copy_key_action.triggered.connect(lambda: self._copy_to_clipboard(data.raw_key, "key"))
+        copy_key_action.triggered.connect(lambda: self._copy_to_clipboard(str(data.raw_key), "key"))
         menu.addAction(copy_key_action)
 
         copy_row_action = QAction("Copy as Key=Value", self)
@@ -120,7 +120,7 @@ class FramePropsViewMixin:
         menu.addAction(copy_row_action)
 
         copy_value_action = QAction("Copy Value", self)
-        copy_value_action.triggered.connect(lambda: self._copy_to_clipboard(data.raw_value, "value"))
+        copy_value_action.triggered.connect(lambda: self._copy_to_clipboard(str(data.raw_value), "value"))
         menu.addAction(copy_value_action)
 
         menu.exec(self.viewport().mapToGlobal(pos))
