@@ -5,11 +5,16 @@ from enum import Enum
 from vapoursynth import (
     ChromaLocation,
     ColorPrimaries,
-    ColorRange,
     FieldBased,
     MatrixCoefficients,
     TransferCharacteristics,
+    __version__,
 )
+
+if __version__ >= (74, 0):
+    from vapoursynth import Range
+else:
+    from vapoursynth import ColorRange as Range
 
 from ..categories import CategoryMatcher
 from ..formatters import FormatterProperty
@@ -21,7 +26,7 @@ VIDEO_CATEGORY = CategoryMatcher(
     exact_matches={
         # Colorimetry
         "_ChromaLocation",
-        "_ColorRange",
+        f"_{Range.__name__}",
         "_Matrix",
         "_Transfer",
         "_Primaries",
@@ -49,8 +54,8 @@ VIDEO_FORMATTERS: list[FormatterProperty] = [
         value_formatter=lambda v: _format_enum(v, ChromaLocation).title(),
     ),
     FormatterProperty(
-        prop_key="_ColorRange",
-        value_formatter=lambda v: _format_enum(v, ColorRange).title(),
+        prop_key=f"_{Range.__name__}",
+        value_formatter=lambda v: _format_enum(v, Range).title(),
     ),
     FormatterProperty(
         prop_key="_Matrix",
