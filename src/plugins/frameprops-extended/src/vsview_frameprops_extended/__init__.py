@@ -1,7 +1,7 @@
 import math
 from typing import Any
 
-from vstools import ChromaLocation, ColorRange, Field, FieldBased, Matrix, Primaries, Transfer
+from vstools import ChromaLocation, Field, FieldBased, Matrix, Primaries, Range, Transfer
 
 from vsview.app.tools.frameprops.api import CategoryMatcher, FormatterProperty, hookimpl
 
@@ -42,7 +42,7 @@ VIDEO_CATEGORY = CategoryMatcher(
     order=10,
     exact_matches={
         "_ChromaLocation",
-        "_ColorRange",
+        Range.prop_key,
         "_Matrix",
         "_Transfer",
         "_Primaries",
@@ -57,7 +57,7 @@ VIDEO_FORMATTERS: list[FormatterProperty] = [
     ),
     FormatterProperty(
         prop_key="_ColorRange",
-        value_formatter=lambda v: ColorRange.from_param(v).pretty_string,
+        value_formatter=lambda v: Range.from_param(v).pretty_string,
     ),
     FormatterProperty(
         prop_key="_Matrix",

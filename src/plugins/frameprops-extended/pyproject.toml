@@ -23,7 +23,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
-dependencies = ["vsview", "vsjetpack>=1.0.0"]
+dependencies = ["vsview", "vsjetpack>=1.4.0"]
 
 [project.entry-points."vsview.frameprops"]
 vsview_frameprops_extended = "vsview_frameprops_extended"
@@ -36,6 +36,7 @@ vsview_frameprops_extended = "vsview_frameprops_extended"
 
 [tool.uv.sources]
 vsview = { workspace = true }
+vsjetpack = { git = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-jetpack.git" } # TODO: remove this when vsjetpack 1.4.0 is released
 
 [tool.hatch.build.targets.wheel.hooks.custom]
 path = "../../../scripts/build/hatch_hooks.py"
