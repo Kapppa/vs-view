@@ -1,4 +1,4 @@
-name: Check Plugin Releases
+name: Propose Plugin Releases
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Release Plugin
+name: Publish Plugin Release
 
 on:
   pull_request:
