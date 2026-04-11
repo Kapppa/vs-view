@@ -20,12 +20,9 @@ def get_slowpics_headers() -> dict[str, str]:
         "Accept": "*/*",
         "Accept-Encoding": "gzip, deflate",
         "Accept-Language": "en-US,en;q=0.9",
-        "Access-Control-Allow-Origin": "*",
-        "Origin": "https://slow.pics/",
+        "Origin": "https://slow.pics",
         "Referer": "https://slow.pics/comparison",
-        "User-Agent": (
-            f"vs-view (https://github.com/Jaded-Encoding-Thaumaturgy/vs-view {version})"  # SlowBro asked for this
-        ),
+        "User-Agent": f"vs-view (https://github.com/Jaded-Encoding-Thaumaturgy/vs-view {version})",
     }
 
 

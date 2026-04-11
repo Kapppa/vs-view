@@ -485,38 +485,39 @@ class SlowPicsWorker:
         ):
             await self._setup_client(client, cookies)
 
-            # Build comparison/collection payload
-            comp_upload = dict[str, str]()
-
-            for i, (source_name, images) in enumerate(sources):
-                for j, image in enumerate(images):
-                    time_str = f"{image.timestamp} / {image.frame_no}"
-
-                    if is_comparison:
-                        comp_upload[f"comparisons[{j}].name"] = time_str
-                        comp_upload[f"comparisons[{j}].imageNames[{i}]"] = (
-                            f"{source_name}{f' ({image.pict_type})' if image.pict_type != '?' else ''}"
-                        )
-                    else:
-                        comp_upload[f"imageNames[{j}]"] = f"{time_str} - {source_name}"
-
-            tag_data = {f"tags[{i}]": tag for i, tag in enumerate(tags)} if public else {}
-
-            comp_info = {
-                "collectionName": collection_name,
-                "hentai": str(nsfw).lower(),
-                "optimizeImages": "true",
+            payload = {
+                "collectionName": collection_name or "",
                 "browserId": self.browser_id,
+                "optimizeImages": "true",
+                "desiredFileType": "image/png",
+                "hentai": str(nsfw).lower(),
                 "public": str(public).lower(),
+                "visibility": "PUBLIC" if public else "LINK_ONLY",
+                "removeAfter": str(remove_after) if remove_after >= 1 else "",
             }
 
+            for j in range(len(sources[0].images)):
+                if is_comparison:
+                    image_ref = sources[0][1][j]
+                    payload[f"comparisons[{j}].name"] = f"({image_ref.timestamp} / {image_ref.frame_no})"
+                    payload[f"comparisons[{j}].hentai"] = str(nsfw).lower()
+
+                    for i, (source_name, _) in enumerate(sources):
+                        payload[f"comparisons[{j}].images[{i}].name"] = source_name
+                else:
+                    # Single source collection
+                    source_name, images = sources[0]
+                    image = images[j]
+                    payload[f"imageNames[{j}]"] = f"{image.timestamp} / {image.frame_no} - {source_name}"
+
+            if tag_data := ({f"tags[{i}]": tag for i, tag in enumerate(tags)} if public else {}):
+                payload |= tag_data
+
             if tmdb_id:
-                comp_info["tmdbId"] = tmdb_id
-            if remove_after >= 1:
-                comp_info["removeAfter"] = str(remove_after)
+                payload["tmdbId"] = tmdb_id
 
             endpoint = f"/upload/{'comparison' if is_comparison else 'collection'}"
-            start_resp = await client.post(endpoint, data=comp_upload | tag_data | comp_info)
+            start_resp = await client.post(endpoint, files={k: (None, str(v)) for k, v in payload.items()})  # type: ignore[misc]
             await client.gather(start_resp)
             comp_data = start_resp.raise_for_status().json()
 
@@ -552,6 +553,12 @@ class SlowPicsWorker:
         homepage = await client.get("/comparison")
         await client.gather(homepage)
         homepage.raise_for_status()
+
+        if not (browser_id := self._get_cookie(client.cookies, "BROWSER-ID")):
+            cookiejar_from_dict({"BROWSER-ID": self.browser_id}, cookiejar=client.cookies)
+        else:
+            self.browser_id = browser_id
+
         client.headers.update({"X-XSRF-TOKEN": self._get_cookie(client.cookies, "XSRF-TOKEN")})
 
         if cookies:
@@ -559,7 +566,7 @@ class SlowPicsWorker:
                 logger.debug("Cookies not stale, logged in.")
                 self.secrets.set_json(COOKIE_KEY, COOKIE_KEY, self._cookies_jar(client.cookies))
             else:
-                logger.warning("Cookies have expired, uploading as anonymous")
+                logger.warning("Cookies have expired (or Logout button not found), uploading as anonymous")
 
     async def _upload_image(
         self,
