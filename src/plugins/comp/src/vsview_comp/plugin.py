@@ -416,7 +416,9 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         flags_row.setSpacing(16)
 
         self.public_check = QCheckBox("Public", flags_widget)
+        self.public_check.setChecked(self.settings.global_.public_comp_default)
         self.public_check.setToolTip("Make the comparison publicly visible")
+        self.public_check.toggled.connect(lambda state: setattr(self.settings.global_, "public_comp_default", state))
         self.nsfw_check = QCheckBox("NSFW", flags_widget)
         self.nsfw_check.setToolTip("Mark the comparison as Not Safe For Work")
 
