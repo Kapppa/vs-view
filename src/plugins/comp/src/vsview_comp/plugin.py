@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
     QStackedWidget,
     QToolBar,
@@ -222,6 +223,14 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.remove_frame_act.setEnabled(False)
 
         toolbar.addAction(self.remove_frame_act)
+
+        spacer = QWidget(toolbar)
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        toolbar.addWidget(spacer)
+
+        self.frames_count_label = QLabel("0 frames", frame_widget)
+        self.frames_count_label.setStyleSheet("padding-right: 6px; color: palette(placeholder-text); font-weight: 500;")
+        toolbar.addWidget(self.frames_count_label)
 
         self.frames_list = FrameThumbnailList(self.api, frame_widget)
         self.frames_list.setToolTip("Double-click to seek to frame. Use 'Delete' to remove.")
@@ -502,6 +511,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.outputs_dropdown.shortest_dur_text = f" - {max_total_duration.to_ts()} ({max_total_frames})"
         self.outputs_dropdown.populate(voutputs)
         self.frames_list.clear()
+        self._update_frames_count()
 
         max_frame = max_total_frames - 1
         max_time = shortest.frame_to_time(shortest.info.total_frames - 1)
@@ -560,6 +570,20 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
     def on_list_size_changed(self, delta: int) -> None:
         self._extraction_finished = False
         self._update_buttons_state()
+        self._update_frames_count()
+
+    def _update_frames_count(self) -> None:
+        count = self.frames_list.count()
+        self.frames_count_label.setText(f"{count} {'frame' if count == 1 else 'frames'}")
+
+        if count > 50:
+            color = "red"
+            self.frames_count_label.setToolTip("Too many frames selected! Uploading may not be supported.")
+        else:
+            color = "palette(placeholder-text)"
+            self.frames_count_label.setToolTip("")
+
+        self.frames_count_label.setStyleSheet(f"padding-right: 6px; color: {color}; font-weight: 500;")
 
     def on_random_frame_count_changed(self, new: Frame, old: Frame) -> None:
         self._update_buttons_state()
