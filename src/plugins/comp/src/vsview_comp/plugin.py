@@ -147,7 +147,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             textInteractionFlags=Qt.TextInteractionFlag.TextBrowserInteraction,
         )
         self.url_copy_btn = self.make_tool_button(IconName.CLIPBOARD, "Copy Slow.pics URL", self.reported_url_container)
-        self.url_copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(self._reported_url))
+        self.url_copy_btn.clicked.connect(self.on_url_copy_btn_clicked)
         reported_url_layout.addStretch()
         reported_url_layout.addWidget(self.url_label)
         reported_url_layout.addWidget(self.url_copy_btn)
@@ -917,3 +917,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
     def update_included_outputs_frames_list(self) -> None:
         self.frames_list.included_outputs = self.selected_voutputs
+
+    def on_url_copy_btn_clicked(self) -> None:
+        QApplication.clipboard().setText(self._reported_url)
+        QToolTip.showText(QCursor.pos(), "Copied!", self.url_copy_btn)
