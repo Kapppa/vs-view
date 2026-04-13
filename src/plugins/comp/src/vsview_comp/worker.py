@@ -517,7 +517,7 @@ class SlowPicsWorker:
                 payload["tmdbId"] = tmdb_id
 
             endpoint = f"/upload/{'comparison' if is_comparison else 'collection'}"
-            start_resp = await client.post(endpoint, files={k: (None, str(v)) for k, v in payload.items()})  # type: ignore[misc]
+            start_resp = await client.post(endpoint, data=payload)
             await client.gather(start_resp)
             comp_data = start_resp.raise_for_status().json()
 
