@@ -876,7 +876,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                 sources=sources,
                 public=self.public_check.isChecked(),
                 nsfw=self.nsfw_check.isChecked(),
-                tmdb_id=self.tmdb_title.id if self.tmdb_title else None,
+                tmdb_id=f"{self.tmdb_title.media_tag}_{self.tmdb_title.id}" if self.tmdb_title else None,
                 remove_after=self.remove_after.value(),
                 tags=self.tags.selected_tags(),
                 cookies=future.result(),
