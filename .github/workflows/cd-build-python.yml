@@ -13,15 +13,18 @@ on:
       matrix:
         required: true
         type: string
-        default: 'matrix=[{"tag": "vsview", "package": "vsview", "path": ".", "build_args": "--sdist --wheel"}]'
+        default: '[{"tag": "vsview", "package": "vsview", "path": ".", "build_args": "--sdist --wheel"}]'
         description: |
           JSON output from resolve_package.py
+
           Examples:
-          - matrix=[{"tag": "vsview", "package": "vsview", "path": ".", "build_args": "--sdist --wheel"}]
-          - matrix=[{"tag": "comp", "package": "vsview-comp", "path": "src/plugins/comp", "build_args": "--wheel"}]
+  
+          - [{"tag": "vsview", "package": "vsview", "path": ".", "build_args": "--sdist --wheel"}]
+          - [{"tag": "comp", "package": "vsview-comp", "path": "src/plugins/comp", "build_args": "--wheel"}]
       python-version:
-        required: true
+        required: false
         type: string
+        default: "3.14"
 
 jobs:
   lint:
