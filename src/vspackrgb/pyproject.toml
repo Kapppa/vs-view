@@ -31,6 +31,8 @@ maintainers = [
     { name = "Jaded Encoding Thaumaturgy", email = "jaded.encoding.thaumaturgy@gmail.com" },
 ]
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -80,6 +82,10 @@ compile_args = [ # nofmt
     { platforms = ["win32", "windows"], arg = "/O2" },
 ]
 
+# Limited API / Stable ABI
+py_limited_api = true
+define_macros = [["CYTHON_LIMITED_API", "1"], ["Py_LIMITED_API", "0x030C0000"]]
+
 [tool.hatch.version]
 source = "versioningit"
 
@@ -97,8 +103,8 @@ distance-dirty = "{next_version}.dev{distance}+{vcs}{rev}.dirty"
 
 [tool.cibuildwheel]
 build-frontend = { name = "build[uv]", args = ["--verbose"] }
-build = "cp312-* cp313-* cp314-*"
-skip = "*-win32 *-manylinux_i686 *-musllinux_*"
+build = "cp312-*"
+skip = "*-win32 *-manylinux_i686"
 # Test would require vapoursynth
 test-skip = "*"
 before-build = "git clean -fdx -e sboms.json src/vspackrgb"
@@ -108,6 +114,12 @@ archs = ["AMD64"]
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
+# Matches minimum supported by VapourSynth
+environment = { MACOSX_DEPLOYMENT_TARGET = "13.0" }
 
 [tool.cibuildwheel.linux]
 archs = ["native"]
+# Matches minimum supported by VapourSynth
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
+musllinux-x86_64-image = "musllinux_1_2"
