@@ -13,7 +13,7 @@ from types import ModuleType
 from typing import Any, ClassVar, Literal, assert_never
 
 from jetpytools import clamp, fallback
-from PySide6.QtCore import QSignalBlocker, Qt, Signal
+from PySide6.QtCore import QSignalBlocker, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -597,20 +597,26 @@ class LoaderWorkspace[T](BaseWorkspace):
         previous_voutput = self.outputs_manager.voutputs[self.tab_manager.tabs.previous_tab_index]
         current_voutput = self.outputs_manager.current_voutput
 
+        timer_disable = None
         if (
             not (previous_voutput.last_frame == current_voutput.last_frame == target_frame)
             or not current_voutput.loaded_once
         ):
+            current_voutput.loaded_once = True
             if not seamless:
                 if (prev_pixmap := self.tab_manager.previous_view.pixmap_item.pixmap()).isNull():
                     self.set_loading_page()
                 else:
-                    self.loaded_page.setDisabled(True)
+                    # Disable the loaded page if the frame takes too much time (50 ms) to render
+                    timer_disable = QTimer(self, singleShot=True, timerType=Qt.TimerType.PreciseTimer)
+                    timer_disable.timeout.connect(lambda: self.loaded_page.setDisabled(True))
+                    timer_disable.start(50)
                     self.tab_manager.update_current_view(prev_pixmap)
-            current_voutput.loaded_once = True
 
             def on_complete(f: Future[None]) -> None:
                 if not f.exception():
+                    if timer_disable:
+                        timer_disable.stop()
                     self.loaded_page.setEnabled(True)
                     self.set_loaded_page()
 
