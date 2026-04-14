@@ -8,6 +8,20 @@ on:
       python-version:
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      matrix:
+        required: true
+        type: string
+        default: 'matrix=[{"tag": "vsview", "package": "vsview", "path": ".", "build_args": "--sdist --wheel"}]'
+        description: |
+          JSON output from resolve_package.py
+          Examples:
+          - matrix=[{"tag": "vsview", "package": "vsview", "path": ".", "build_args": "--sdist --wheel"}]
+          - matrix=[{"tag": "comp", "package": "vsview-comp", "path": "src/plugins/comp", "build_args": "--wheel"}]
+      python-version:
+        required: true
+        type: string
 
 jobs:
   lint:

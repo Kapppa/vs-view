@@ -5,6 +5,12 @@ on:
       python-version:
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      python-version:
+        required: false
+        type: string
+        default: "3.12"
 
 jobs:
   lint:
