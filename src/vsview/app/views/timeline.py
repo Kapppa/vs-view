@@ -17,7 +17,9 @@ from PySide6.QtGui import (
     QColor,
     QContextMenuEvent,
     QCursor,
+    QFocusEvent,
     QFontMetrics,
+    QHideEvent,
     QIcon,
     QMouseEvent,
     QMoveEvent,
@@ -649,6 +651,14 @@ class Timeline(QWidget):
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         self.context_menu.exec(event.globalPos())
 
+    def focusOutEvent(self, event: QFocusEvent) -> None:
+        super().focusOutEvent(event)
+        self.reset_interaction()
+
+    def hideEvent(self, event: QHideEvent) -> None:
+        super().hideEvent(event)
+        self.reset_interaction()
+
     def paintEvent(self, event: QPaintEvent) -> None:
         self.rect_f = QRectF(self.rect())
 
@@ -1037,10 +1047,17 @@ class Timeline(QWidget):
             )
         )
 
+    def reset_interaction(self) -> None:
+        self.mousepressed = False
+        self.hover_x = None
+        self.hover_popup.hide()
+        self.update()
+
     @contextmanager
     def block_events(self) -> Iterator[None]:
+        self.reset_interaction()
         self.is_events_blocked = True
-        self.mousepressed = False
+
         try:
             yield
         finally:

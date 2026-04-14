@@ -497,6 +497,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         fps = voutput.vs_output.clip.fps
         total_frames = voutput.vs_output.clip.num_frames
 
+        self.tbar.timeline.reset_interaction()
         self.tbar.set_data(total_frames, voutput.cum_durations)
 
         # Use configured FPS history size, or auto-calculate from FPS when set to 0
