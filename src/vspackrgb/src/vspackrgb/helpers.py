@@ -85,7 +85,7 @@ def packrgb(
     if alpha and alpha.format != (afmt := clip.format.replace(color_family=vs.GRAY)):
         raise ValueError(f"Alpha bit depth must be {afmt!r}")
 
-    return blank.std.ModifyFrame(clip if not alpha else [clip, alpha], pack_fn).std.CopyFrameProps(clip)
+    return blank.std.ModifyFrame(clip if not alpha else [clip, alpha], pack_fn)
 
 
 class _ModifyFrameFunction(Protocol):
@@ -112,6 +112,8 @@ def _make_pack_frame_8bit(pack_bgra_8bit: Callable[..., None]) -> _ModifyFrameFu
         a_plane = get_plane_buffer(frame_alpha, 0) if frame_alpha is not None else None
 
         pack_bgra_8bit(b_plane, g_plane, r_plane, a_plane, width, height, src_stride, dst_ptr, dst_stride)
+
+        frame_dst.props.update(frame_src.props)
 
         return frame_dst
 
@@ -140,6 +142,8 @@ def _make_pack_frame_10bit(pack_rgb30_10bit: Callable[..., None]) -> _ModifyFram
 
         pack_rgb30_10bit(r_plane, g_plane, b_plane, a_plane, width, height, samples_per_row, dst_ptr, dst_stride)
 
+        frame_dst.props.update(frame_src.props)
+
         return frame_dst
 
     return _pack_frame
@@ -167,6 +171,7 @@ def _make_pack_frame_16bit(pack_rgba64_16bit: Callable[..., None]) -> _ModifyFra
 
         pack_rgba64_16bit(r_plane, g_plane, b_plane, a_plane, width, height, samples_per_row, dst_ptr, dst_stride)
 
+        frame_dst.props.update(frame_src.props)
         frame_dst.props["VSViewPacked16"] = 1
         return frame_dst
 
@@ -195,6 +200,7 @@ def _make_pack_frame_16f(pack_rgba16f_16bit: Callable[..., None]) -> _ModifyFram
 
         pack_rgba16f_16bit(r_plane, g_plane, b_plane, a_plane, width, height, samples_per_row, dst_ptr, dst_stride)
 
+        frame_dst.props.update(frame_src.props)
         frame_dst.props["VSViewPacked16F"] = 1
         return frame_dst
 
@@ -223,6 +229,7 @@ def _make_pack_frame_32f(pack_rgba32f_32bit: Callable[..., None]) -> _ModifyFram
 
         pack_rgba32f_32bit(r_plane, g_plane, b_plane, a_plane, width, height, samples_per_row, dst_ptr, dst_stride)
 
+        frame_dst.props.update(frame_src.props)
         frame_dst.props["VSViewPacked32F"] = 1
         return frame_dst
 
