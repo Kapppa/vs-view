@@ -85,7 +85,7 @@ def packrgb(
     if alpha and alpha.format != (afmt := clip.format.replace(color_family=vs.GRAY)):
         raise ValueError(f"Alpha bit depth must be {afmt!r}")
 
-    return blank.std.ModifyFrame(clip if not alpha else [clip, alpha], pack_fn)
+    return blank.std.ModifyFrame(clip if not alpha else [clip, alpha], pack_fn).std.CopyFrameProps(clip)
 
 
 class _ModifyFrameFunction(Protocol):
