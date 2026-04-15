@@ -53,9 +53,10 @@ archs = ["AMD64"]
 archs = ["x86_64", "arm64"]
 # Matches minimum supported by PySide6 6.11
 environment = { MACOSX_DEPLOYMENT_TARGET = "13.0" }
+before-all = "rustup target add x86_64-apple-darwin aarch64-apple-darwin"
 
 [tool.cibuildwheel.linux]
 archs = ["native"]
 # Matches minimum supported by PySide6 6.11
-manylinux-x86_64-image = "manylinux_2_39"
-manylinux-aarch64-image = "manylinux_2_34"
+manylinux-x86_64-image = "manylinux_2_34"
+manylinux-aarch64-image = "manylinux_2_39"
