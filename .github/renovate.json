@@ -1,17 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    ":automergeMinor",
+    ":automergePr",
+    ":automergeRequireAllStatusChecks",
+    ":disableRateLimiting",
+    ":semanticCommits"
   ],
   "dependencyDashboard": true,
-  "semanticCommits": "enabled",
   "schedule": [
     "* 14 * * 1,4"
   ],
   "packageRules": [
     {
       "matchManagers": [
-        "pep621"
+        "pep621",
+        "pep723"
       ],
       "groupName": "Python dependencies"
     },
@@ -19,15 +24,23 @@
       "matchManagers": [
         "github-actions"
       ],
-      "groupName": "GitHub Actions"
+      "groupName": "GitHub Actions",
+      "pinDigests": true
     },
     {
-      "matchUpdateTypes": [
-        "patch"
+      "matchPackageNames": [
+        "astral-sh/setup-uv"
       ],
-      "automerge": true,
-      "automergeType": "pr",
-      "platformAutomerge": true
+      "matchManagers": [
+        "github-actions"
+      ],
+      "versioning": "semver-coerced"
+    },
+    {
+      "matchManagers": [
+        "cargo"
+      ],
+      "groupName": "Rust dependencies"
     }
   ]
 }
