@@ -499,11 +499,13 @@ class SlowPicsWorker:
             for j in range(len(sources[0].images)):
                 if is_comparison:
                     image_ref = sources[0][1][j]
-                    payload[f"comparisons[{j}].name"] = f"({image_ref.timestamp} / {image_ref.frame_no})"
+                    payload[f"comparisons[{j}].name"] = f"{image_ref.timestamp} / {image_ref.frame_no}"
                     payload[f"comparisons[{j}].hentai"] = str(nsfw).lower()
 
-                    for i, (source_name, _) in enumerate(sources):
-                        payload[f"comparisons[{j}].images[{i}].name"] = source_name
+                    for i, (source_name, images) in enumerate(sources):
+                        payload[f"comparisons[{j}].imageNames[{i}]"] = (
+                            f"{source_name}{f' ({images[j].pict_type})' if images[j].pict_type != '?' else ''}"
+                        )
                 else:
                     # Single source collection
                     source_name, images = sources[0]
