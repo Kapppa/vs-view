@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.check.outputs.matrix }}
-      is-vspackrgb: ${{ steps.check.outputs.is-vspackrgb }}
+      build-workflow: ${{ steps.check.outputs.build-workflow }}
       python-version: ${{ env.VSVIEW_PYTHON_VERSION }}
     steps:
       - uses: actions/checkout@v6
@@ -46,7 +46,7 @@ jobs:
 
   vspackrgb-build:
     needs: [prepare]
-    if: needs.prepare.outputs.is-vspackrgb == 'true'
+    if: needs.prepare.outputs.build-workflow == 'vspackrgb'
     uses: ./.github/workflows/cd-build-vspackrgb.yml
     with:
       python-version: ${{ needs.prepare.outputs.python-version }}
@@ -86,40 +86,9 @@ jobs:
           webhook-url: ${{ secrets.WEBHOOK_URL }}
 
   vspackrgb-publish:
-    name: Publish vspackrgb to PyPI
     needs: [prepare, vspackrgb-build]
-    if: needs.prepare.outputs.is-vspackrgb == 'true'
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      id-token: write
-
-    environment:
-      name: pypi-vspackrgb
-      url: https://pypi.org/p/vspackrgb
-
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v8
-        with:
-          path: dist
-          merge-multiple: true
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          python-version: ${{ env.VSVIEW_PYTHON_VERSION }}
-          enable-cache: false
-
-      - name: Check the output
-        run: uvx twine check --strict dist/*
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-
-      - name: Post webhook for failure
-        if: failure()
-        uses: Jaded-Encoding-Thaumaturgy/discord-failure-notifier@v1
-        with:
-          webhook-url: ${{ secrets.WEBHOOK_URL }}
+    if: needs.prepare.outputs.build-workflow == 'vspackrgb'
+    uses: ./.github/workflows/cd-publish-native.yml
+    with:
+      package-name: vspackrgb
+      python-version: ${{ needs.prepare.outputs.python-version }}

@@ -11,6 +11,13 @@ class PackageMetadata(TypedDict):
     build_args: str
 
 
+# Packages that delegate to their own build workflow instead of cd-build-python.yml.
+SPECIAL_PACKAGES = {
+    "vspackrgb": "vspackrgb",
+    "vsview-cli": "vsview-cli",
+}
+
+
 def main() -> None:
     event = os.getenv("GITHUB_EVENT_NAME")
     ref = os.getenv("GITHUB_REF", "")
@@ -28,39 +35,35 @@ def main() -> None:
         if match:
             target = match.group(1)
 
+    build_workflow = SPECIAL_PACKAGES.get(target, "python")
+
     # If a package needs special path or name handling, it would go there,
-    # Otherwise, we fallback to L37 and assumes we're publishing a plugin
+    # Otherwise, we fallback to L48 and assumes we're publishing a plugin
     all_pkgs = [
         PackageMetadata(tag="vsview", package="vsview", path=".", build_args="--sdist --wheel"),
     ]
 
     filtered = [p for p in all_pkgs if p["tag"] == target]
 
-    if target == "vspackrgb":
-        is_vspackrgb = "is-vspackrgb=true"
-    else:
-        # Current package is not vspackrgb nor vsview.
-        # It is a plugin
-        is_vspackrgb = "is-vspackrgb=false"
-
-        if not filtered:
-            p = PackageMetadata(
-                tag=target,
-                package=f"vsview-{target}",
-                path=f"src/plugins/{target}",
-                build_args="--wheel",
-            )
-            filtered.append(p)
+    if build_workflow == "python" and not filtered:
+        # Not a known special package and not in all_pkgs -> treat as a plugin
+        p = PackageMetadata(
+            tag=target,
+            package=f"vsview-{target}",
+            path=f"src/plugins/{target}",
+            build_args="--wheel",
+        )
+        filtered.append(p)
 
     output_file = os.getenv("GITHUB_OUTPUT")
     if not output_file:
         print("GITHUB_OUTPUT not set, printing results:")
-        print(is_vspackrgb)
+        print(f"build-workflow={build_workflow}")
         print(f"matrix={json.dumps(filtered)}")
         return
 
     with open(output_file, "a") as f:
-        f.write(f"{is_vspackrgb}\n")
+        f.write(f"build-workflow={build_workflow}\n")
         f.write(f"matrix={json.dumps(filtered)}\n")
 
 
