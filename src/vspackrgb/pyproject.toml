@@ -54,7 +54,7 @@ numpy = ["numpy>=2.0.0"]
 "Contact" = "https://discord.gg/XTpc6Fa9eB"
 
 [dependency-groups]
-dev = ["cython>=3.0.0"]
+dev = ["cython>=3.0.0", "pytest>=9.0.0, <10.0.0"]
 
 # https://github.com/joshua-auchincloss/hatch-cython#readme
 # https://setuptools.pypa.io/en/latest/deprecated/distutils/apiref.html#distutils.core.Extension
