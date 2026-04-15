@@ -58,5 +58,5 @@ before-all = "rustup target add x86_64-apple-darwin aarch64-apple-darwin"
 [tool.cibuildwheel.linux]
 archs = ["native"]
 # Matches minimum supported by PySide6 6.11
-manylinux-x86_64-image = "manylinux_2_34"
-manylinux-aarch64-image = "manylinux_2_39"
+manylinux-x86_64-image = "quay.io/pypa/manylinux_2_34_x86_64"
+manylinux-aarch64-image = "quay.io/pypa/manylinux_2_39_aarch64"
