@@ -265,6 +265,7 @@ class FramePropsModel(QStandardItemModel):
 class FramePropsTreeView(QTreeView, FramePropsViewMixin):
     copyMessage = Signal(str)
     previewRequested = Signal(object, str)  # (VideoFrame, title)
+    treeColumnWidthChanged = Signal(int, int)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -298,9 +299,12 @@ class FramePropsTreeView(QTreeView, FramePropsViewMixin):
         self.customContextMenuRequested.connect(self._show_context_menu)
 
     @run_in_loop(return_future=False)
-    def update_props(self, props: Mapping[str, Any]) -> None:
+    def update_props(self, props: Mapping[str, Any], *, auto_resize_0: bool = False) -> None:
         self.current_model.load_props(props)
         self.expandAll()
+
+        if auto_resize_0:
+            self.resizeColumnToContents(0)
 
     def set_show_formatted(self, show: bool) -> None:
         if show:
@@ -313,6 +317,14 @@ class FramePropsTreeView(QTreeView, FramePropsViewMixin):
     def _on_section_resized(self, logical_index: int, old_size: int, new_size: int) -> None:
         if logical_index == 1 and old_size != new_size:
             self.doItemsLayout()
+
+        self.treeColumnWidthChanged.emit(logical_index, new_size)
+
+    def set_column_widths(self, widths: Mapping[int, int]) -> None:
+        header = self.header()
+        with QSignalBlocker(header):
+            for col, width in widths.items():
+                header.resizeSection(col, width)
 
 
 class FramePropsTableModel(QStandardItemModel):
@@ -448,6 +460,7 @@ class GlobalSettings(BaseModel):
 class LocalSettings(LocalSettingsModel):
     categorize: bool | None = None
     format: bool | None = None
+    tree_column_widths: dict[int, int] | None = None
 
 
 class FramePropsPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconReloadMixin):
@@ -583,6 +596,12 @@ class FramePropsPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconRelo
 
         self.api.register_on_destroy(close_btn.click)
 
+        # Restore column widths
+        if widths := self.settings.local_.tree_column_widths:
+            self.categorize_tree.set_column_widths(widths)
+
+        self.categorize_tree.treeColumnWidthChanged.connect(self._on_tree_column_resized)
+
     def on_current_voutput_changed(self, voutput: VideoOutputProxy, tab_index: int) -> None:
         self._hide_preview()
         return super().on_current_voutput_changed(voutput, tab_index)
@@ -628,7 +647,10 @@ class FramePropsPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconRelo
         self.refresh_preview(current_frame)
 
     def update_views(self, props: Mapping[str, Any]) -> None:
-        self.categorize_tree.update_props(props)
+        widths = self.settings.local_.tree_column_widths
+        auto_resize = not (widths and 0 in widths)
+
+        self.categorize_tree.update_props(props, auto_resize_0=auto_resize)
         self.raw_table.update_props(props)
 
     def update_nav_buttons(self) -> None:
@@ -708,3 +730,8 @@ class FramePropsPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconRelo
 
         with suppress(AttributeError):
             del self.current_preview_key
+
+    def _on_tree_column_resized(self, index: int, size: int) -> None:
+        widths = (self.settings.local_.tree_column_widths or {}).copy()
+        widths[index] = size
+        self.update_local_settings(tree_column_widths=widths)
