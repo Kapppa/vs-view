@@ -13,15 +13,8 @@ on:
         default: "3.12"
 
 jobs:
-  lint:
-    uses: ./.github/workflows/ci-lint.yml
-    with:
-      package: vsview-cli
-    secrets: inherit
-
   wheels:
     name: Build wheels (${{ matrix.os }})
-    needs: [lint]
     runs-on: ${{ matrix.os }}
 
     strategy:

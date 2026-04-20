@@ -18,7 +18,7 @@ on:
           JSON output from resolve_package.py
 
           Examples:
-  
+
           - [{"tag": "vsview", "package": "vsview", "path": ".", "build_args": "--sdist --wheel"}]
           - [{"tag": "comp", "package": "vsview-comp", "path": "src/plugins/comp", "build_args": "--wheel"}]
       python-version:
@@ -27,19 +27,8 @@ on:
         default: "3.14"
 
 jobs:
-  lint:
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJson(inputs.matrix) }}
-    uses: ./.github/workflows/ci-lint.yml
-    with:
-      package: ${{ matrix.package }}
-    secrets: inherit
-
   build:
     name: Build ${{ matrix.package }}
-    needs: [lint]
     runs-on: ubuntu-latest
     strategy:
       matrix:
