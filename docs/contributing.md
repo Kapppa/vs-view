@@ -6,17 +6,19 @@
 
 - **[uv](https://github.com/astral-sh/uv)** is the default tool used for development in this repository.
 - For building [`vspackrgb`](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/vspackrgb) you will need a working C compiler/toolchain for your platform:
-  - Windows: Visual Studio Build Tools (Desktop development with C++)
-  - Linux: GCC/Clang and Python headers
-  - macOS: Xcode Command Line Tools
+    - Windows: Visual Studio Build Tools (Desktop development with C++)
+    - Linux: GCC/Clang and Python headers
+    - macOS: Xcode Command Line Tools
 - For building [`vsview-cli`](https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/vsview-cli), you will need [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html).
+
+---
 
 Clone the repository and sync all packages:
 
 ```bash
 git clone --recurse-submodules https://github.com/Jaded-Encoding-Thaumaturgy/vs-view.git
 cd vs-view
-uv sync --all-packages --all-groups
+uv sync --all-packages --all-groups --all-extras
 ```
 
 Run the development version:
@@ -33,6 +35,8 @@ uv run vsview
     - Comment out `vspackrgb = { workspace = true }` and `vsview-cli = { workspace = true }` in `tool.uv.sources`
 
     You can now run `uv sync` to use the precompiled version from PyPI.
+
+---
 
 ## Recommended Editor Settings
 
