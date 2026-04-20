@@ -1,3 +1,7 @@
+---
+icon: lucide/book-open
+---
+
 # Usage Overview
 
 This page provides an overview of the **VSView** interface and its core components.

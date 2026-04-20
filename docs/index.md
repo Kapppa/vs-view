@@ -1,3 +1,7 @@
+---
+icon: lucide/home
+---
+
 # VSView
 
 <div align="center" markdown>
