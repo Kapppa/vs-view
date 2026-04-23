@@ -15,10 +15,10 @@ VSView can be configured through **command-line arguments** and **environment va
 
 ---
 
-## Arguments
+## Usage
 
-```
-vsview [OPTIONS] [FILES]...
+```bash
+vsview [OPTIONS] [FILES]... [COMMAND]
 ```
 
 `[FILES]...`
@@ -73,7 +73,49 @@ vsview [OPTIONS] [FILES]...
     vsview -q -platform -q offscreen -q -geometry -q 1920x1080
     ```
 
-#### `--settings-path`
+#### `--verbose` / `-v`
+:   Enable verbose output. Repeat to increase verbosity (`-vv`, `-vvv`).
+
+#### `--version` / `-V`
+:   Show the installed vsview version and exit.
+
+---
+
+## Settings Options
+
+These options control how VSView handles its configuration files.
+
+#### `--no-settings`
+:   Run without loading or saving any settings for this session.
+
+    **Env:** `VSVIEW_NO_SETTINGS`
+
+#### `--settings-roaming`
+:   **Windows only.** Store global settings in `%APPDATA%\vsview\` instead of `%LOCALAPPDATA%\vsview\`.
+
+    **Env:** `VSVIEW_GLOBAL_SETTINGS_ROAMING`
+
+#### `--settings-env`
+:   Scope settings to the active Python environment.
+
+    Each environment gets its own subdirectory, preventing conflicts across virtual environments.
+
+    **Env:** `VSVIEW_GLOBAL_SETTINGS_ENVIRONMENT`
+
+#### `--settings-env-copy`
+:   If `--settings-env` is set and the scoped file doesn't exist yet, seed it from the base `global_settings.json`.
+
+    **Env:** `VSVIEW_GLOBAL_SETTINGS_ENVIRONMENT_COPY`
+
+---
+
+## Commands
+
+### `vsview settings`
+
+Manage application settings via the CLI.
+
+#### `vsview settings path`
 :   Print to stdout the resolved `global_settings.json` path and exit.
 
     The resolved path respects environment scoping if `--settings-env` is active.
@@ -84,38 +126,13 @@ vsview [OPTIONS] [FILES]...
     - `~/.config/vsview/` on Linux
     - `~/Library/Application Support/vsview/` on macOS
 
-#### `--settings-wipe`
-:   Delete the `global_settings.json` file (as shown by `--settings-path`) and exit.
+#### `vsview settings wipe`
+:   Delete the `global_settings.json` file (as shown by `vsview settings path`) and exit.
 
-#### `--settings-wipe-all`
-:   Delete the entire settings directory (including all environment-scoped subdirectories) and exit.
+    **Options:**
 
-#### `--no-settings`
-:   Run without loading or saving any settings for this session.
+    - `--all`: Delete the entire settings directory (including all environment-scoped subdirectories) and exit.
 
-#### `--settings-roaming`
-:   **Windows only.** Store global settings in `%APPDATA%\vsview\` instead of `%LOCALAPPDATA%\vsview\`.
+### `vsview version`
 
-#### `--settings-env`
-:   Scope settings to the active Python environment.
-
-    Each environment gets its own subdirectory, preventing conflicts across virtual environments.
-
-#### `--settings-env-copy`
-:   If `--settings-env` is set and the scoped file doesn't exist yet, seed it from the base `global_settings.json`.
-
-#### `--version`
-:   Show the installed vsview version and exit.
-
-#### `--verbose` / `-v`
-:   Enable verbose output. Repeat to increase verbosity (`-vv`, `-vvv`).
-
----
-
-## Environment Variables
-
-| Variable                                    | Equivalent flag        |
-| :------------------------------------------ | :--------------------- |
-| `VSVIEW_GLOBAL_SETTINGS_ROAMING`            | `--settings-roaming`   |
-| `VSVIEW_GLOBAL_SETTINGS_ENVIRONMENT`        | `--settings-env`       |
-| `VSVIEW_GLOBAL_SETTINGS_ENVIRONMENT_COPY`   | `--settings-env-copy`  |
+An alternative to the `--version` flag.
