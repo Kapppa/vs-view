@@ -398,7 +398,6 @@ class SlowPicsWorker:
         self.progress_bar = progress_bar
         self.browser_id = str(uuid4())
         self.headers = get_slowpics_headers()
-        self.sema = asyncio.Semaphore(self.MAX_CONCURRENT_REQUESTS)
 
     @run_in_background(name="SlowPicsTags")
     def get_tags(self) -> list[Tag]:
@@ -468,8 +467,11 @@ class SlowPicsWorker:
         tags: list[str],
         cookies: dict[str, str],
     ) -> str:
+        self._sema = asyncio.Semaphore(self.MAX_CONCURRENT_REQUESTS)
+
         is_comparison = len(sources) > 1
         total_images = sum(len(images) for _, images in sources)
+
         async with (
             niquests.AsyncSession(
                 base_url=self.BASE_URL,
@@ -583,7 +585,7 @@ class SlowPicsWorker:
         # Handle 429 "Too many requests"
         for retry in range(5):
             try:
-                async with self.sema:
+                async with self._sema:
                     response = await client.post(
                         url,
                         data=data,
