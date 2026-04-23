@@ -4,14 +4,14 @@ from bisect import bisect_left, bisect_right
 from concurrent.futures import Future
 from enum import StrEnum
 from functools import cache
-from itertools import count
+from itertools import count, cycle, islice
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Annotated, Self
 
 import pluggy
-from jetpytools import cachedproperty, flatten, to_arr
-from pydantic import BaseModel, Field
+from jetpytools import cachedproperty, classproperty, fallback, flatten, to_arr
+from pydantic import BaseModel, ConfigDict, Field
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
@@ -29,9 +29,11 @@ from PySide6.QtWidgets import (
 
 from vsview.api import (
     ActionDefinition,
+    Dropdown,
     Frame,
     IconName,
     IconReloadMixin,
+    LocalSettingsModel,
     PluginAPI,
     Time,
     VideoOutputProxy,
@@ -70,6 +72,8 @@ def load_plugins() -> None:
 class ShortcutDefinition(StrEnum):
     definition: ActionDefinition
 
+    CYCLE_TOOLBAR_STYLE = "cycle_toolbar_style", "Cycle toolbar style", ""
+
     REMOVE_SCENE = "remove_scene", "Remove selected scene", "Delete"
 
     TOGGLE_RANGE_START = "toggle_range_start", "Toggle Range Start", "Q"
@@ -90,11 +94,35 @@ class ShortcutDefinition(StrEnum):
         return obj
 
 
-class LocalSettings(BaseModel):
+class GlobalSettings(BaseModel):
+    model_config = ConfigDict(ignored_types=(classproperty,))
+
+    toolbar_style: Annotated[
+        Qt.ToolButtonStyle,
+        Dropdown(
+            label="Toolbar Style",
+            items=[
+                ("Icon Only", Qt.ToolButtonStyle.ToolButtonIconOnly),
+                ("Text Only", Qt.ToolButtonStyle.ToolButtonTextOnly),
+                ("Text Beside Icon", Qt.ToolButtonStyle.ToolButtonTextBesideIcon),
+                ("Text Under Icon", Qt.ToolButtonStyle.ToolButtonTextUnderIcon),
+            ],
+            tooltip="Select the style for the toolbars.",
+        ),
+    ] = Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+
+    @classproperty
+    @classmethod
+    def toolbar_styles(cls) -> cycle[Qt.ToolButtonStyle]:
+        return cycle(list(Qt.ToolButtonStyle)[:-1])
+
+
+class LocalSettings(LocalSettingsModel):
     scenes: list[SceneRow] = Field(default_factory=list)
+    toolbar_style: Qt.ToolButtonStyle | None = None
 
 
-class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
+class SceningPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconReloadMixin):
     identifier = PLUGIN_IDENTIFIER
     display_name = PLUGIN_DISPLAY_NAME
 
@@ -115,6 +143,9 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         self.register_icon_callback(self.on_reload_icon)
         self.api.register_on_destroy(self.init_load.cache_clear)
 
+        self.api.globalSettingsChanged.connect(self._update_toolbar_style)
+
+        self._update_toolbar_style()
         self._update_action_labels()
 
     def setup_ui(self) -> None:
@@ -130,35 +161,32 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         scenes_layout.setSpacing(0)
 
         # Top toolbar
-        toolbar = QToolBar(self.scenes_container, movable=False)
-        scenes_layout.addWidget(toolbar)
+        self.scenes_toolbar = QToolBar(self.scenes_container, movable=False)
+        scenes_layout.addWidget(self.scenes_toolbar)
 
-        self.new_scene_btn = self.make_tool_button(IconName.PLUS, "Create a new scene", self.scenes_container)
-        self.new_scene_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        self.new_scene_btn.setText("Create new scene")
-        self.new_scene_btn.clicked.connect(self.on_new_scene)
-        toolbar.addWidget(self.new_scene_btn)
+        self.new_scene_action = self.make_action(IconName.PLUS, "Create a new scene", self.scenes_container)
+        self.new_scene_action.setText("Create new scene")
+        self.new_scene_action.triggered.connect(self.on_new_scene)
+        self.scenes_toolbar.addAction(self.new_scene_action)
 
-        self.import_scene_btn = self.make_tool_button(
+        self.import_scene_action = self.make_action(
             IconName.FILE_IMPORT,
             "Import a file suitable for scening",
             self.scenes_container,
         )
-        self.import_scene_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        self.import_scene_btn.setText("Import scene...")
-        self.import_scene_btn.clicked.connect(self.on_import_scene)
-        toolbar.addWidget(self.import_scene_btn)
+        self.import_scene_action.setText("Import scene...")
+        self.import_scene_action.triggered.connect(self.on_import_scene)
+        self.scenes_toolbar.addAction(self.import_scene_action)
 
-        self.export_scene_btn = self.make_tool_button(
+        self.export_scene_action = self.make_action(
             IconName.FILE_EXPORT,
             "Export a scene to a supported format",
             self.scenes_container,
         )
-        self.export_scene_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        self.export_scene_btn.setText("Export scene...")
-        self.export_scene_btn.setDisabled(True)
-        self.export_scene_btn.clicked.connect(self.on_export_scene)
-        toolbar.addWidget(self.export_scene_btn)
+        self.export_scene_action.setText("Export scene...")
+        self.export_scene_action.setDisabled(True)
+        self.export_scene_action.triggered.connect(self.on_export_scene)
+        self.scenes_toolbar.addAction(self.export_scene_action)
 
         # Scenes model + delegate
         self.scenes_model = SceneTableModel(self.output_map, self.scenes_container)
@@ -198,12 +226,8 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         range_layout.setSpacing(0)
 
         # Range toolbar
-        range_toolbar = QToolBar(
-            self.range_container,
-            movable=False,
-            toolButtonStyle=Qt.ToolButtonStyle.ToolButtonTextBesideIcon,
-        )
-        range_layout.addWidget(range_toolbar)
+        self.range_toolbar = QToolBar(self.range_container, movable=False)
+        range_layout.addWidget(self.range_toolbar)
 
         self.range_start_action = self.make_action(
             IconName.MARK_IN,
@@ -244,7 +268,7 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         self.add_frame_action.setIconText("Add frame")
         self.add_frame_action.triggered.connect(self.on_add_frame_triggered)
 
-        range_toolbar.addActions(
+        self.range_toolbar.addActions(
             [
                 self.range_start_action,
                 self.range_end_action,
@@ -363,6 +387,13 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
             self.on_seek_next_range,
             self.ranges_view,
             context=Qt.ShortcutContext.WindowShortcut,
+        )
+
+        self.api.register_shortcut(
+            ShortcutDefinition.CYCLE_TOOLBAR_STYLE.definition,
+            self.on_cycle_toolbar_style,
+            self,
+            context=Qt.ShortcutContext.WidgetWithChildrenShortcut,
         )
 
     def load_settings(self) -> None:
@@ -500,9 +531,9 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         if selected_indexes := self.scenes_view.selectionModel().selectedRows():
             self.range_container.setEnabled(True)
             if len(selected_indexes) == 1:
-                self.export_scene_btn.setEnabled(True)
+                self.export_scene_action.setEnabled(True)
             else:
-                self.export_scene_btn.setEnabled(False)
+                self.export_scene_action.setEnabled(False)
 
             all_scenes = list[SceneRow]()
 
@@ -522,10 +553,18 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
             )
         else:
             self.range_container.setDisabled(True)
-            self.export_scene_btn.setDisabled(True)
+            self.export_scene_action.setDisabled(True)
             self.range_start_action.setChecked(False)
 
             self.api.timeline.clear_notches(scene.notch_id for scene in self.settings.local_.scenes)
+
+    def on_cycle_toolbar_style(self) -> None:
+        if (current_style := self.scenes_toolbar.toolButtonStyle()) != self.range_toolbar.toolButtonStyle():
+            logger.warning("Toolbar styles mismatch. Forcing update.")
+
+        styles = islice(GlobalSettings.toolbar_styles, current_style.value + 1, None)
+        self.settings.local_.toolbar_style = next(styles)
+        self._update_toolbar_style()
 
     def on_range_selection_changed(self) -> None:
         selected = self.ranges_view.selectionModel().selectedRows()
@@ -766,3 +805,8 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         set_text(self.range_end_action, ShortcutDefinition.TOGGLE_RANGE_END.definition, "Mark out")
         set_text(self.add_range_action, ShortcutDefinition.VALIDATE_RANGE.definition, "Add range")
         set_text(self.add_frame_action, ShortcutDefinition.ADD_SINGLE_FRAME.definition, "Add frame")
+
+    def _update_toolbar_style(self) -> None:
+        style = fallback(self.settings.local_.toolbar_style, self.settings.global_.toolbar_style)
+        self.scenes_toolbar.setToolButtonStyle(style)
+        self.range_toolbar.setToolButtonStyle(style)
