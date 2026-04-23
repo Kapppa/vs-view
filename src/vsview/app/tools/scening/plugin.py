@@ -282,7 +282,11 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
             shortcutContext=Qt.ShortcutContext.WidgetShortcut,
         )
         self.copy_frames_action.triggered.connect(self._copy_ranges_frames)
-        self.ranges_view.addAction(self.copy_frames_action)
+
+        self.remove_range_action = QAction("Remove selected range", self.ranges_view)
+        self.remove_range_action.triggered.connect(self.on_remove_range_triggered)
+
+        self.ranges_view.addActions([self.copy_frames_action, self.remove_range_action])
 
         r_header = self.ranges_view.horizontalHeader()
         r_header.setSectionResizeMode(RangeCol.START_FRAME, QHeaderView.ResizeMode.Interactive)
@@ -330,10 +334,9 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
             self.add_frame_action,
             context=Qt.ShortcutContext.WindowShortcut,
         )
-        self.api.register_shortcut(
+        self.api.register_action(
             ShortcutDefinition.REMOVE_RANGE.definition,
-            self.on_remove_range_triggered,
-            self.ranges_view,
+            self.remove_range_action,
             context=Qt.ShortcutContext.WidgetShortcut,
         )
 
@@ -712,6 +715,9 @@ class SceningPlugin(WidgetPluginBase[None, LocalSettings], IconReloadMixin):
         menu.addSeparator()
 
         menu.addAction("Copy labels", self._copy_ranges_labels)
+        menu.addSeparator()
+
+        menu.addAction(self.remove_range_action)
 
         menu.exec(self.ranges_view.viewport().mapToGlobal(pos))
         menu.deleteLater()
