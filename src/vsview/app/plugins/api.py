@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, Self, TypeVar
 import vapoursynth as vs
 from jetpytools import copy_signature, to_arr
 from pydantic import BaseModel
-from PySide6.QtCore import QRect, Qt, Signal
+from PySide6.QtCore import QPoint, QPointF, QRect, Qt, Signal
 from PySide6.QtGui import (
     QAction,
     QColor,
@@ -144,6 +144,13 @@ class GraphicsViewProxy(_GraphicsViewProxy):
         return self.__view.pixmap_item.pixmap().toImage()
 
     @property
+    def cursor_pos(self) -> QPointF:
+        """
+        Return the current cursor position in scene coordinates.
+        """
+        return self.map_to_scene(self.viewport.cursor_pos)
+
+    @property
     def rect_selection_enabled(self) -> bool:
         """Return whether rectangular selection editing is enabled."""
         return self.__view.rect_selection_enabled
@@ -168,6 +175,13 @@ class GraphicsViewProxy(_GraphicsViewProxy):
 
     class ViewportProxy(_ViewportProxy):
         """Proxy for a viewport."""
+
+        @property
+        def cursor_pos(self) -> QPoint:
+            """
+            Return the current cursor position in viewport coordinates.
+            """
+            return self.map_from_global(QCursor.pos())
 
         @copy_signature(QWidget().mapFromGlobal if TYPE_CHECKING else lambda *args, **kwargs: cast(Any, None))
         def map_from_global(self, *args: Any, **kwargs: Any) -> Any:
@@ -214,6 +228,12 @@ class GraphicsViewProxy(_GraphicsViewProxy):
         Map coordinates from view's scene.
         """
         return self.__view.mapFromScene(*args, **kwargs)
+
+    def map_to_image(self, point: QPoint | QPointF) -> QPointF:
+        """
+        Map coordinates from viewport to the source image's pixel coordinate space.
+        """
+        return self.__view.map_to_image(point)
 
 
 class TimelineProxy(_TimelineProxy):
