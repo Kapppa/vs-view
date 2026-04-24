@@ -13,7 +13,7 @@ from typing import Any, Literal, SupportsFloat, assert_never, overload
 import vapoursynth as vs
 from jetpytools import CustomValueError, flatten, to_arr
 
-from ._helpers import AudioMetadata, VideoMetadata
+from ..app.outputs import AudioMetadata, VideoMetadata
 from ._helpers import output_metadata as _output_metadata
 
 _logger = getLogger(__name__)

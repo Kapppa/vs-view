@@ -6,7 +6,7 @@ from enum import Enum, auto
 from fractions import Fraction
 from logging import getLogger
 from math import ceil
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import vapoursynth as vs
 from jetpytools import clamp, cround
@@ -20,10 +20,15 @@ from ..settings import SettingsManager
 from ..utils import LRUCache
 
 if TYPE_CHECKING:
-    from ...api._helpers import AudioMetadata
     from ..plugins import PluginAPI
 
 logger = getLogger(__name__)
+
+
+class AudioMetadata(NamedTuple):
+    name: str
+    downmix: bool | None
+    kwargs: dict[str, Any]
 
 
 class PrettyChannelsLayout(Enum):

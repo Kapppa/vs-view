@@ -1,22 +1,9 @@
 from collections import UserDict, defaultdict
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from os import PathLike
-from typing import Any, Literal, NamedTuple
+from typing import Any
 
 from jetpytools import copy_signature
-
-
-class VideoMetadata(NamedTuple):
-    name: str
-    framedurs: Sequence[float] | None
-    alpha_prop: Literal[True] | None
-    kwargs: dict[str, Any]
-
-
-class AudioMetadata(NamedTuple):
-    name: str
-    downmix: bool | None
-    kwargs: dict[str, Any]
 
 
 class DefaultUserDict[K, V](UserDict[K, V]):

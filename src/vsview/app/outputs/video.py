@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from bisect import bisect_right
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from datetime import timedelta
 from fractions import Fraction
 from itertools import accumulate
 from logging import getLogger
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 import vapoursynth as vs
 from jetpytools import cround
@@ -18,12 +18,18 @@ from ..utils import LRUCache, cache_clip
 from .packing import AlphaNotImplementedError, CythonPacker, Packer
 
 if TYPE_CHECKING:
-    from ...api._helpers import VideoMetadata
     from ..plugins import PluginAPI
     from ..views.status import OutputInfo
 
 
 logger = getLogger(__name__)
+
+
+class VideoMetadata(NamedTuple):
+    name: str
+    framedurs: Sequence[float] | None
+    alpha_prop: Literal[True] | None
+    kwargs: dict[str, Any]
 
 
 class VideoOutput:
