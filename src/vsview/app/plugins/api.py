@@ -5,15 +5,13 @@ Plugin API for VSView.
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass, field
 from datetime import timedelta
-from fractions import Fraction
 from logging import getLogger
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, Self, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, TypeVar, cast
 
 import vapoursynth as vs
 from jetpytools import copy_signature, to_arr
@@ -35,10 +33,9 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QGraphicsView, QWidget
 from shiboken6 import Shiboken
 
-from vsview.app.outputs import Packer, VideoOutput
+from vsview.app.outputs import Packer
 from vsview.app.settings import SettingsManager, ShortcutManager
 from vsview.app.settings.models import ActionDefinition
-from vsview.app.views import OutputInfo
 from vsview.app.views.video import BaseGraphicsView
 from vsview.types import Frame, Time
 from vsview.vsenv.loop import run_in_loop
@@ -52,82 +49,9 @@ from ._interface import (
     _TimelineProxy,
     _ViewportProxy,
 )
+from .contracts import AudioOutputProxy, VideoOutputProxy
 
 logger = getLogger(__name__)
-
-
-@dataclass(frozen=True, slots=True)
-class VideoOutputProxy:
-    """Read-only proxy for a video output."""
-
-    vs_index: int
-    """Index of the video output in the VapourSynth environment."""
-
-    vs_name: str = field(hash=False, compare=False)
-    """Name of the video output."""
-
-    vs_output: vs.VideoOutputTuple = field(hash=False, compare=False)
-    """The object created by `vapoursynth.get_outputs()`."""
-
-    props: Mapping[int, Mapping[str, Any]] = field(hash=False, compare=False)
-    """
-    Frame properties of the clip.
-    """
-
-    framedurs: Sequence[float] | None = field(hash=False, compare=False)
-    """
-    Frame durations of the clip.
-    """
-
-    cum_durations: Sequence[float] | None = field(hash=False, compare=False)
-    """
-    Cumulative durations of the clip.
-    """
-
-    kwargs: Mapping[str, Any] = field(hash=False, compare=False)
-    """Additional metadata provided by the user via `set_output()`."""
-
-    info: OutputInfo = field(hash=False, compare=False)
-    """
-    Output information.
-    """
-
-    def time_to_frame(self, time: timedelta, fps: VideoOutputProxy | Fraction | None = None) -> Frame:
-        """
-        Convert a time to a frame number for this output.
-
-        Args:
-            time: The time to convert.
-            fps: Optional override for FPS/duration context.
-        """
-        return VideoOutput.time_to_frame(self, time, fps)  # type: ignore[arg-type]
-
-    def frame_to_time(self, frame: int, fps: VideoOutputProxy | Fraction | None = None) -> Time:
-        """
-        Convert a frame number to time for this output.
-
-        Args:
-            frame: The frame number to convert.
-            fps: Optional override for FPS/duration context.
-        """
-        return VideoOutput.frame_to_time(self, frame, fps)  # type: ignore[arg-type]
-
-
-@dataclass(frozen=True, slots=True)
-class AudioOutputProxy:
-    """Read-only proxy for an audio output."""
-
-    vs_index: int
-    """Index of the audio output in the VapourSynth environment."""
-
-    vs_name: str = field(hash=False, compare=False)
-    """Name of the audio output"""
-
-    vs_output: vs.AudioNode = field(hash=False, compare=False)
-    """The object created by `vapoursynth.get_outputs()`."""
-
-    kwargs: Mapping[str, Any] = field(hash=False, compare=False)
-    """Additional metadata provided by the user via `set_output()`."""
 
 
 class GraphicsViewProxy(_GraphicsViewProxy):
@@ -684,30 +608,6 @@ class PluginAPI(_PluginAPI):
         """
         key = ShortcutManager.get_key(action_id)
         return QKeySequence(key).toString(QKeySequence.SequenceFormat.NativeText) if key else ""
-
-
-class LocalSettingsModel(BaseModel):
-    """
-    Base class for settings with optional local overrides.
-
-    Fields set to `None` fall back to the corresponding global value.
-    """
-
-    def resolve(self, global_settings: BaseModel) -> Self:
-        """
-        Resolve global settings with local overrides applied.
-
-        Args:
-            global_settings: Source of default values.
-
-        Returns:
-            A new instance with all fields resolved.
-        """
-        base_values = global_settings.model_dump(include=set(self.__class__.model_fields))
-
-        overrides = self.model_dump(exclude_none=True)
-
-        return self.__class__(**base_values | overrides)
 
 
 if sys.version_info >= (3, 13):

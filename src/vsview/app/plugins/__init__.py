@@ -1,15 +1,13 @@
 from .api import (
-    AudioOutputProxy,
     GraphicsViewProxy,
-    LocalSettingsModel,
     NodeProcessor,
     PluginAPI,
     PluginGraphicsView,
     PluginSecrets,
     PluginSettings,
-    VideoOutputProxy,
     WidgetPluginBase,
 )
+from .contracts import AudioOutputProxy, LocalSettingsModel, VideoOutputProxy
 from .specs import hookimpl
 
 __all__ = [

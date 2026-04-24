@@ -21,11 +21,13 @@ from vsview.app.views.timeline import Timeline
 from vsview.app.views.video import GraphicsView
 from vsview.vsenv.loop import run_in_loop
 
+from .contracts import LocalSettingsModel, VideoOutputProxy
+
 if TYPE_CHECKING:
-    from vsview.app.workspace.loader import LoaderWorkspace
+    from vsview.app.workspace import BaseWorkspace, LoaderWorkspace
     from vsview.app.workspace.playback import PlaybackManager
 
-    from .api import PluginGraphicsView, VideoOutputProxy, WidgetPluginBase, _PluginBase
+    from .api import PluginGraphicsView, WidgetPluginBase, _PluginBase
 
 logger = getLogger(__name__)
 
@@ -66,7 +68,7 @@ class _SettingsProxy[T: BaseModel]:
 
 
 class _PluginSettingsStore:
-    def __init__(self, workspace: LoaderWorkspace[Any]) -> None:
+    def __init__(self, workspace: BaseWorkspace) -> None:
         self._workspace = workspace
         self._caches: dict[str, WeakKeyDictionary[_PluginBase[Any, Any], BaseModel]] = {
             "global": WeakKeyDictionary(),
@@ -93,11 +95,12 @@ class _PluginSettingsStore:
         settings = model_cls.model_validate(self._get_raw_settings(plugin.identifier, scope))
 
         # Resolve local settings with global fallbacks
-        if scope == "local":
-            from .api import LocalSettingsModel
-
-            if isinstance(settings, LocalSettingsModel) and (global_settings := self.get(plugin, "global")):
-                settings = settings.resolve(global_settings)
+        if (
+            scope == "local"
+            and isinstance(settings, LocalSettingsModel)
+            and (global_settings := self.get(plugin, "global"))
+        ):
+            settings = settings.resolve(global_settings)
 
         cache[plugin] = settings
         return settings
@@ -141,8 +144,6 @@ class _PluginSettingsStore:
 
 
 def _make_voutput_proxy(voutput: VideoOutput) -> VideoOutputProxy:
-    from .api import VideoOutputProxy
-
     return VideoOutputProxy(
         voutput.vs_index,
         voutput.vs_name,
@@ -155,17 +156,44 @@ def _make_voutput_proxy(voutput: VideoOutput) -> VideoOutputProxy:
     )
 
 
-class _PluginAPI(QObject):
-    statusMessage = Signal(str)
+class _PluginLimitedApi(QObject):
     globalSettingsChanged = Signal()
     localSettingsChanged = Signal(str)
     aboutToSaveGlobal = Signal()
     aboutToSaveLocal = Signal(str)
 
-    def __init__(self, workspace: LoaderWorkspace[Any]) -> None:
+    def __init__(self, workspace: BaseWorkspace) -> None:
         super().__init__()
         self.__workspace = workspace
         self.__settings_store: _PluginSettingsStore | None = None
+
+        SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
+        SettingsManager.signals.localChanged.connect(self._on_local_settings_changed)
+        SettingsManager.signals.aboutToSaveGlobal.connect(self.aboutToSaveGlobal.emit)
+        SettingsManager.signals.aboutToSaveLocal.connect(self.aboutToSaveLocal.emit)
+
+    @property
+    def _settings_store(self) -> _PluginSettingsStore:
+        if self.__settings_store is None:
+            self.__settings_store = _PluginSettingsStore(self.__workspace)
+        return self.__settings_store
+
+    def _on_global_settings_changed(self) -> None:
+        self._settings_store.invalidate("global")
+        self._settings_store.invalidate("local")
+        self.globalSettingsChanged.emit()
+
+    def _on_local_settings_changed(self, path: str) -> None:
+        self._settings_store.invalidate("local")
+        self.localSettingsChanged.emit(path)
+
+
+class _PluginAPI(_PluginLimitedApi):
+    statusMessage = Signal(str)
+
+    def __init__(self, workspace: LoaderWorkspace[Any]) -> None:
+        super().__init__(workspace)
+        self.__workspace: LoaderWorkspace[Any] = workspace
         self.__busy_callers = QObjectCounter[QObject]()
 
         SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
@@ -188,12 +216,6 @@ class _PluginAPI(QObject):
         raise NotImplementedError
 
     # PRIVATE API
-    @property
-    def _settings_store(self) -> _PluginSettingsStore:
-        if self.__settings_store is None:
-            self.__settings_store = _PluginSettingsStore(self.__workspace)
-        return self.__settings_store
-
     @run_in_loop(return_future=False)
     def _is_truly_visible(self, plugin: WidgetPluginBase[Any, Any]) -> bool:
         # Check if this plugin is truly visible to the user.
@@ -417,15 +439,6 @@ class _PluginAPI(QObject):
         for plugin in self.__workspace.plugins:
             if self._is_truly_visible(plugin):
                 plugin.on_view_key_release(event)
-
-    def _on_global_settings_changed(self) -> None:
-        self._settings_store.invalidate("global")
-        self._settings_store.invalidate("local")
-        self.globalSettingsChanged.emit()
-
-    def _on_local_settings_changed(self, path: str) -> None:
-        self._settings_store.invalidate("local")
-        self.localSettingsChanged.emit(path)
 
 
 class _PluginBaseMeta(ObjectType):
