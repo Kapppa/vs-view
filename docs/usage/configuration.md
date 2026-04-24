@@ -136,3 +136,12 @@ Manage application settings via the CLI.
 ### `vsview version`
 
 An alternative to the `--version` flag.
+
+---
+## Environment Files (.env)
+
+VSView automatically searches for and loads `.env` files on startup.
+
+The search starts from your **current working directory** and moves up through parent directories until a `.env` file is found.
+
+Setting `VSVIEW_NO_DOTENV` will disable .env file loading.

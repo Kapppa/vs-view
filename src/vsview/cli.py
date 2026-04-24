@@ -18,7 +18,10 @@ from .app.main import Application, MainWindow
 from .app.plugins.manager import PluginManager
 from .app.settings.models import GlobalSettings
 from .assets import load_fonts
-from .logging import console, setup_logging
+from .env import getenv_bool, load_dotenv
+from .logging import console, setup_basic_logging, setup_logging
+
+setup_basic_logging()
 
 logger = getLogger(__name__)
 
@@ -48,6 +51,9 @@ class SettingsWipeCommand(BaseModel):
 
 
 def main(argv: Sequence[str] | None = None) -> None:
+    if not getenv_bool("VSVIEW_NO_DOTENV", False):
+        load_dotenv()
+
     if argv is None:
         argv = sys.argv[1:]
 

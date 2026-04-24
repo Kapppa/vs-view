@@ -1,5 +1,17 @@
 from collections.abc import Callable
-from logging import CRITICAL, DEBUG, ERROR, INFO, WARNING, Filter, Formatter, LogRecord, captureWarnings, getLogger
+from logging import (
+    CRITICAL,
+    DEBUG,
+    ERROR,
+    INFO,
+    WARNING,
+    Filter,
+    Formatter,
+    LogRecord,
+    basicConfig,
+    captureWarnings,
+    getLogger,
+)
 from threading import main_thread
 from typing import TypeGuard
 
@@ -65,6 +77,20 @@ class ThreadAwareFormatter(Formatter):
         return super().format(record)
 
 
+# One handler to rule them all
+custom_handler = CustomHandler(
+    console=console,
+    rich_tracebacks=True,
+    log_time_format=lambda dt: Text("[{}.{:03d}]".format(dt.strftime("%H:%M:%S"), dt.microsecond // 1000)),
+)
+custom_handler.setFormatter(ThreadAwareFormatter(style="{"))
+custom_handler.addFilter(EffectiveLevelFilter())
+
+
+def setup_basic_logging() -> None:
+    basicConfig(handlers=[custom_handler], level=INFO, force=True)
+
+
 def setup_logging(
     level: int | None = None,
     vs_level: int | None = None,
@@ -77,18 +103,14 @@ def setup_logging(
 
     level = fallback(level, INFO)
 
-    # One handler to rule them all
-    handler = CustomHandler(
-        console=console,
-        rich_tracebacks=True,
-        log_time_format=lambda dt: Text("[{}.{:03d}]".format(dt.strftime("%H:%M:%S"), dt.microsecond // 1000)),
-    )
-    handler.setFormatter(ThreadAwareFormatter(style="{"))
-    handler.addFilter(EffectiveLevelFilter())
-
     root_logger = getLogger()
+
+    for h in root_logger.handlers[:]:
+        root_logger.removeHandler(h)
+        h.close()
+
     root_logger.setLevel(level)
-    root_logger.addHandler(handler)
+    root_logger.addHandler(custom_handler)
 
     # Set levels for specialized loggers—they will all propagate to the root handler
     getLogger("vapoursynth").setLevel(fallback(vs_level, level))
