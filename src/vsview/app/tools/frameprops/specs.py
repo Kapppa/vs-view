@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from .formatters import FormatterProperty, IterFormatter
 
 hookspec = pluggy.HookspecMarker("vsview.frameprops")
-hookimpl = pluggy.HookimplMarker("vsview.frameprops")
 
 
 @hookspec
