@@ -44,10 +44,10 @@ from vsview.api import (
     IconReloadMixin,
     LocalSettingsModel,
     PluginAPI,
+    VideoOutputProxy,
     WidgetPluginBase,
     run_in_loop,
 )
-from vsview.app.plugins.api import VideoOutputProxy
 
 from . import specs
 from .builtins.field import FIELD_CATEGORY, FIELD_FORMATTERS
