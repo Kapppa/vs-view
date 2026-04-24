@@ -18,10 +18,10 @@ from vapoursynth import VideoNode
 
 from ...api._helpers import output_metadata
 from ...assets import IconName
+from ...types import Time
 from ...vsenv import run_in_loop
 from ..settings import SettingsManager
 from ..settings.models import LocalSettings
-from ..views.timeline import Time
 from .loader import LoaderWorkspace, VSEngineWorkspace
 
 logger = getLogger(__name__)

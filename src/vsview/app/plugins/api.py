@@ -39,8 +39,8 @@ from vsview.app.outputs import Packer, VideoOutput
 from vsview.app.settings import SettingsManager, ShortcutManager
 from vsview.app.settings.models import ActionDefinition
 from vsview.app.views import OutputInfo
-from vsview.app.views.timeline import Frame, Time
 from vsview.app.views.video import BaseGraphicsView
+from vsview.types import Frame, Time
 from vsview.vsenv.loop import run_in_loop
 
 from ._interface import (

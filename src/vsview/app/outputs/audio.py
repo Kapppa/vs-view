@@ -14,6 +14,7 @@ from PySide6.QtCore import QIODevice
 from PySide6.QtMultimedia import QAudio, QAudioFormat, QAudioSink
 from PySide6.QtWidgets import QApplication
 
+from ...types import Frame, Time
 from ...vsenv import run_in_loop
 from ..settings import SettingsManager
 from ..utils import LRUCache
@@ -21,7 +22,6 @@ from ..utils import LRUCache
 if TYPE_CHECKING:
     from ...api._helpers import AudioMetadata
     from ..plugins import PluginAPI
-    from ..views.timeline import Frame, Time
 
 logger = getLogger(__name__)
 
@@ -282,29 +282,21 @@ class AudioOutput:
         return audio.std.AudioMix(matrix=final_matrix, channels_out=[vs.FRONT_LEFT, vs.FRONT_RIGHT])
 
     def time_to_frame(self, seconds: float, *, eps: float = 1e-6) -> Frame:
-        from ..views.timeline import Frame
-
         return Frame(cround(seconds * self.fps, eps=eps))
 
     def frame_to_time(self, frame_num: int) -> Time:
-        from ..views.timeline import Time
-
         return Time(seconds=float(frame_num / self.fps))
 
     def frame_to_sample(self, frame_num: int) -> int:
         return frame_num * self.SAMPLES_PER_FRAME
 
     def sample_to_frame(self, sample_num: int, *, eps: float = 1e-6) -> Frame:
-        from ..views.timeline import Frame
-
         return Frame(cround(sample_num / self.SAMPLES_PER_FRAME, eps=eps))
 
     def time_to_sample(self, seconds: float, *, eps: float = 1e-6) -> int:
         return cround(seconds * self.prepared_audio.sample_rate, eps=eps)
 
     def sample_to_time(self, sample_num: int) -> Time:
-        from ..views.timeline import Time
-
         return Time(seconds=sample_num / self.prepared_audio.sample_rate)
 
     def __del__(self) -> None:

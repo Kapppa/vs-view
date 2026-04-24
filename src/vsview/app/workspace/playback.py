@@ -13,10 +13,11 @@ from PySide6.QtGui import QColor, QFontMetrics, QImage, QPainter, QPolygon
 from PySide6.QtWidgets import QMessageBox
 
 from ...assets import get_monospace_font
+from ...types import Frame, Time
 from ...vsenv import run_in_background, run_in_loop
 from ..outputs import AudioBuffer, FrameBuffer
 from ..settings import SettingsManager
-from ..views.timeline import Frame, Time, TimelineControlBar
+from ..views.timeline import TimelineControlBar
 
 if TYPE_CHECKING:
     from vsengine.policy import ManagedEnvironment

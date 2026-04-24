@@ -33,9 +33,10 @@ from ..app.settings.models import (
 )
 from ..app.views import OutputInfo
 from ..app.views.components import AbstractTableModel, Accordion, AnimatedToggle, NonClosingMenu, SegmentedControl
-from ..app.views.timeline import Frame, FrameEdit, Time, TimeEdit
+from ..app.views.timeline import FrameEdit, TimeEdit
 from ..app.views.video import BaseGraphicsView
 from ..assets import IconName, IconReloadMixin
+from ..types import Frame, Time
 from ..vsenv import run_in_background, run_in_loop
 from .info import is_preview
 from .output import catch_output, set_output

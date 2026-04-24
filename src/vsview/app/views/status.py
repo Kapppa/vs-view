@@ -10,9 +10,9 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QWidget
 
 from ...assets import IconName, IconReloadMixin, load_icon
 from ..settings import SettingsManager
-from .timeline import Time
 
 if TYPE_CHECKING:
+    from ...types import Time
     from ..workspace import LoaderWorkspace
 
 

@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 from vsengine.policy import ManagedEnvironment
 from vsengine.vpy import ExecutionError, Script, load_code, load_script
 
+from ...types import Frame
 from ...vsenv import gc_collect, run_in_background, run_in_loop, unset_environment
 from ..outputs import AudioOutput, OutputsManager, VideoOutput
 from ..plugins.api import PluginAPI, WidgetPluginBase
@@ -35,7 +36,7 @@ from ..settings import ActionID, ShortcutManager
 from ..views import PluginDock, PluginSplitter
 from ..views.components import CustomLoadingPage, DockButton
 from ..views.tab import TabViewWidget
-from ..views.timeline import Frame, TimelineControlBar
+from ..views.timeline import TimelineControlBar
 from ..views.video import ViewState
 from .base import BaseWorkspace
 from .playback import PlaybackManager

@@ -5,13 +5,12 @@ from collections.abc import Hashable, Iterator
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import timedelta
 from functools import cache
 from logging import getLogger
 from math import floor
-from typing import Any, Literal, NamedTuple, Self
+from typing import Any, Literal, NamedTuple
 
-from jetpytools import clamp, complex_hash, cround
+from jetpytools import clamp, complex_hash
 from PySide6.QtCore import QEvent, QLineF, QPoint, QPointF, QRectF, QSignalBlocker, QSize, Qt, QTime, Signal
 from PySide6.QtGui import (
     QColor,
@@ -51,89 +50,13 @@ from PySide6.QtWidgets import (
 from vsengine.loops import get_loop
 
 from ...assets import IconName, IconReloadMixin
+from ...types import Frame, Time
 from ...vsenv import run_in_loop
 from ..outputs import AudioOutput
 from ..settings import SettingsManager
 from .components import SegmentedControl
 
 logger = getLogger(__name__)
-
-
-class Frame(int):
-    """Frame number type."""
-
-
-class Time(timedelta):
-    """Time type."""
-
-    def to_qtime(self) -> QTime:
-        """Convert a Time object to a QTime object."""
-        # QTime expects milliseconds since the start of the day
-        total_ms = cround(self.total_seconds() * 1000)
-
-        # Caps at 23:59:59.999. If delta > 24h, it wraps around.
-        return QTime.fromMSecsSinceStartOfDay(total_ms)
-
-    def to_ts(self, fmt: str = "{H:02d}:{M:02d}:{S:02d}.{ms:03d}") -> str:
-        """
-        Formats a timedelta object using standard Python formatting syntax.
-
-        Available keys:
-        {D}  : Days
-        {H}  : Hours (0-23)
-        {M}  : Minutes (0-59)
-        {S}  : Seconds (0-59)
-        {ms} : Milliseconds (0-999)
-        {us} : Microseconds (0-999999)
-
-        Total duration keys:
-        {th} : Total Hours (e.g., 100 hours)
-        {tm} : Total Minutes
-        {ts} : Total Seconds
-
-        Example:
-            ```python
-            # 1. Standard Clock format (Padding with :02d)
-            # Output: "26:05:03"
-            print(time.to_ts(td, "{th:02d}:{M:02d}:{S:02d}"))
-
-            # 2. Detailed format
-            # Output: "1 days, 02 hours, 05 minutes"
-            print(time.to_ts(td, "{D} days, {H:02d} hours, {M:02d} minutes"))
-
-            # 3. With Milliseconds
-            # Output: "02:05:03.500"
-            print(time.to_ts(td, "{H:02d}:{M:02d}:{S:02d}.{ms:03d}"))
-            ```
-
-        """
-        total_seconds = int(self.total_seconds())
-
-        days = self.days
-        hours, remainder = divmod(self.seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-
-        milliseconds = cround(self.microseconds / 1000)
-
-        format_data = {
-            "D": days,
-            "H": hours,
-            "M": minutes,
-            "S": seconds,
-            "ms": milliseconds,
-            "us": self.microseconds,
-            # Total durations (useful for "26 hours ago")
-            "th": total_seconds // 3600,
-            "tm": total_seconds // 60,
-            "ts": total_seconds,
-        }
-
-        return fmt.format(**format_data)
-
-    @classmethod
-    def from_qtime(cls, qtime: QTime) -> Self:
-        """Convert a QTime object to a Time object."""
-        return cls(milliseconds=qtime.msecsSinceStartOfDay())
 
 
 @cache
