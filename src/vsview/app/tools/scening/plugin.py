@@ -43,6 +43,7 @@ from vsview.api import (
 )
 
 from . import specs
+from .constants import PLUGIN_DISPLAY_NAME, PLUGIN_IDENTIFIER
 from .models import RangeFrame, RangeTime, SceneRow, UnifiedRange
 from .parsers import internal_parsers
 from .serializer import internal_serializers
@@ -53,10 +54,6 @@ if TYPE_CHECKING:
     from .api import Parser, Serializer
 
 logger = getLogger(__name__)
-
-
-PLUGIN_IDENTIFIER = "jet_vsview_scening"
-PLUGIN_DISPLAY_NAME = "Scening"
 
 
 manager = pluggy.PluginManager("vsview.scening")

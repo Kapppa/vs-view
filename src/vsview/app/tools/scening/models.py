@@ -12,6 +12,8 @@ from PySide6.QtGui import QColor
 
 from vsview.api import Time, VideoOutputProxy
 
+from .constants import PLUGIN_IDENTIFIER
+
 
 class UUIDModel(BaseModel):
     id: UUID = Field(default_factory=uuid4, repr=False, init=False)
@@ -220,8 +222,6 @@ class SceneRow(UUIDModel):
 
     @property
     def notch_id(self) -> str:
-        from .plugin import PLUGIN_IDENTIFIER
-
         return ".".join([PLUGIN_IDENTIFIER, str(self.id)])
 
     @field_serializer("color")
