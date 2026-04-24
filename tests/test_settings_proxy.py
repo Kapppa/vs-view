@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from pytest_mock import MockerFixture
 
 from vsview.app.plugins._interface import _PluginSettingsStore, _SettingsProxy
-from vsview.app.plugins.api import LocalSettingsModel
+from vsview.app.plugins.contracts import LocalSettingsModel
 
 
 # Mock models for testing
