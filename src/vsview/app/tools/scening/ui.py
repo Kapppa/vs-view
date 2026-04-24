@@ -38,8 +38,8 @@ from vsview.api import (
     Time,
     TimeEdit,
     VideoOutputProxy,
+    load_icon,
 )
-from vsview.assets.utils import load_icon
 
 from .models import AbstractRange, RangeFrame, RangeTime, SceneRow
 

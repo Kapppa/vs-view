@@ -5,7 +5,8 @@ from collections.abc import Sequence
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QDockWidget, QHBoxLayout, QLabel, QSplitter, QTabBar, QTabWidget, QWidget
 
-from ...assets import IconName, IconReloadMixin
+from ...assets import IconName
+from ..icon import IconReloadMixin
 
 __all__ = ["PluginSplitter"]
 

@@ -49,8 +49,9 @@ from PySide6.QtWidgets import (
 from shiboken6 import Shiboken
 from vsengine.loops import set_loop
 
-from ..assets import IconReloadMixin, app_icon
+from ..assets import app_icon
 from ..vsenv import QtEventLoop, gc_collect, get_policy, unregister_policy
+from .icon import IconReloadMixin
 from .settings import ActionID, SecretsManager, SettingsManager, ShortcutManager
 from .settings.dialog import SettingsDialog, ShortcutEditor
 from .settings.models import WindowGeometry

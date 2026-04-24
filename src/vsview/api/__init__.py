@@ -1,5 +1,6 @@
 """API for vsview"""
 
+from ..app.icon import IconName, IconReloadMixin, load_icon
 from ..app.outputs import Packer, get_packer
 from ..app.plugins import (
     AudioOutputProxy,
@@ -35,7 +36,6 @@ from ..app.views import OutputInfo
 from ..app.views.components import AbstractTableModel, Accordion, AnimatedToggle, NonClosingMenu, SegmentedControl
 from ..app.views.timeline import FrameEdit, TimeEdit
 from ..app.views.video import BaseGraphicsView
-from ..assets import IconName, IconReloadMixin
 from ..types import Frame, Time
 from ..vsenv import run_in_background, run_in_loop
 from .info import is_preview
@@ -85,6 +85,7 @@ __all__ = [
     "get_packer",
     "hookimpl",
     "is_preview",
+    "load_icon",
     "run_in_background",
     "run_in_loop",
     "set_output",

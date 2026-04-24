@@ -65,8 +65,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ...assets import ICON_PROVIDERS, IconName, IconReloadMixin, get_monospace_font
+from ...assets import ICON_PROVIDERS, IconName, get_monospace_font
 from ...env import getenv_bool
+from ..icon import IconReloadMixin
 from .enums import Resizer
 from .secrets import SecretsManager
 

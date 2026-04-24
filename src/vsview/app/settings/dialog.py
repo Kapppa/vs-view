@@ -21,7 +21,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ...assets import ICON_PROVIDERS, IconName, IconReloadMixin
+from ...assets import ICON_PROVIDERS, IconName
+from ..icon import IconReloadMixin
 from ..views.components import Accordion
 from .manager import SettingsManager
 from .models import GlobalSettings, LocalSettings, SettingEntry, ShortcutConfig, extract_settings

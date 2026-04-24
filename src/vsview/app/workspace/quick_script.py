@@ -29,8 +29,9 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QDockWidget, QFileDialog, QHBoxLayout, QPlainTextEdit, QTextEdit, QVBoxLayout, QWidget
 
 from ...api._helpers import output_metadata
-from ...assets import IconName, IconReloadMixin
+from ...assets import IconName
 from ...vsenv import run_in_background, run_in_loop
+from ..icon import IconReloadMixin
 from ..settings import ActionID, SettingsManager, ShortcutManager
 from .loader import VSEngineWorkspace
 

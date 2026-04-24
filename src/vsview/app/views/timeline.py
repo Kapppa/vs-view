@@ -49,9 +49,10 @@ from PySide6.QtWidgets import (
 )
 from vsengine.loops import get_loop
 
-from ...assets import IconName, IconReloadMixin
+from ...assets import IconName
 from ...types import Frame, Time
 from ...vsenv import run_in_loop
+from ..icon import IconReloadMixin
 from ..outputs import AudioOutput
 from ..settings import SettingsManager
 from .components import SegmentedControl

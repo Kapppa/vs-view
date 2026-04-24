@@ -8,7 +8,8 @@ from PySide6.QtCore import QSize, Qt, QTimer, Slot
 from PySide6.QtGui import QPalette, QPixmap, QTransform
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QWidget
 
-from ...assets import IconName, IconReloadMixin, load_icon
+from ...assets import IconName
+from ..icon import IconReloadMixin, load_icon
 from ..settings import SettingsManager
 
 if TYPE_CHECKING:

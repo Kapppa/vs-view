@@ -98,4 +98,5 @@ Most of these symbols are re-exported through the top-level `vsview.api` module 
            - run_in_loop
            - IconName
            - IconReloadMixin
+           - load_icon
            - hookimpl

@@ -14,8 +14,9 @@ from PySide6.QtGui import QIcon, QImage, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QToolButton, QVBoxLayout, QWidget
 from vapoursynth import VideoFrame
 
-from ...assets import IconName, IconReloadMixin
+from ...assets import IconName
 from ...vsenv import run_in_loop
+from ..icon import IconReloadMixin
 from ..outputs import VideoOutput
 from ..plugins.api import PluginAPI
 from ..settings import ActionID, SettingsManager, ShortcutManager
