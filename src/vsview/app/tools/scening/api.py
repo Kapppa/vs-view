@@ -7,8 +7,9 @@ from fractions import Fraction
 from io import TextIOWrapper
 from typing import TYPE_CHECKING, BinaryIO, ClassVar, NamedTuple
 
+import pluggy
+
 from .models import RangeFrame, RangeTime, SceneRow, UnifiedRange
-from .specs import hookimpl
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QColor
@@ -24,6 +25,8 @@ __all__ = [
     "borrowed_text_wrapper",
     "hookimpl",
 ]
+
+hookimpl = pluggy.HookimplMarker("vsview.scening")
 
 
 class FileFilter(NamedTuple):

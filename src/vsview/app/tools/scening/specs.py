@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from .api import Parser, Serializer
 
 hookspec = pluggy.HookspecMarker("vsview.scening")
-hookimpl = pluggy.HookimplMarker("vsview.scening")
 
 
 @hookspec
