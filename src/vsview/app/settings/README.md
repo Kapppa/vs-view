@@ -95,11 +95,13 @@ flowchart TD
     action --> models
     metadata --> models
     widgets --> metadata
+    secrets --> metadata
     models --> shortcuts
+    manager --> shortcuts
     models --> manager
     models --> dialog
-    manager --> shortcuts
-    secrets --> metadata
+    shortcuts --> dialog
+    manager --> dialog
 ```
 
 ### File Responsibilities
@@ -112,6 +114,6 @@ flowchart TD
 | `action.py`    | Defines `ActionID` enum and `ActionDefinition` for shortcuts.                                    |
 | `metadata.py`  | UI metadata classes (`WidgetMetadata`, `Checkbox`, etc.) that link models to widgets.            |
 | `models.py`    | Pydantic settings models for the application and plugins.                                        |
-| `dialog.py`    | `SettingsDialog` - Builds the UI dynamically by introspecting models.                            |
 | `manager.py`   | `SettingsManager` singleton - Handles persistent JSON storage (Global and Local).                |
 | `shortcuts.py` | `ShortcutManager` singleton - Manages shortcut lifecycle, hot-reloading, and conflict detection. |
+| `dialog.py`    | `SettingsDialog` - Builds the UI dynamically by introspecting models.                            |

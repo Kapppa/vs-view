@@ -26,6 +26,7 @@ from ..icon import IconReloadMixin
 from ..views.components import Accordion
 from .manager import SettingsManager
 from .models import GlobalSettings, LocalSettings, SettingEntry, ShortcutConfig, extract_settings
+from .shortcuts import ShortcutManager
 
 # Style for shortcut editors with conflicts
 # Must target internal QLineEdit since QKeySequenceEdit is a compound widget
@@ -238,8 +239,6 @@ class SettingsDialog(QDialog, IconReloadMixin):
             weight_combo.setCurrentIndex(weight_combo.findData(provider.default_weight))
 
     def _create_shortcuts_tab(self) -> SettingsTab:
-        from .shortcuts import ShortcutManager
-
         self._shortcut_widgets = ShortcutWidgets()
 
         grouped_actions = dict[str, list[str]]()
@@ -429,8 +428,6 @@ class SettingsDialog(QDialog, IconReloadMixin):
         return True
 
     def _on_shortcut_changed(self) -> None:
-        from .shortcuts import ShortcutManager
-
         key_to_actions = dict[str, list[str]]()
 
         for aid, editor in self._shortcut_widgets.editors.items():
@@ -470,8 +467,6 @@ class SettingsDialog(QDialog, IconReloadMixin):
 
     @cachedproperty
     def _default_shortcuts(self) -> dict[str, str]:
-        from .shortcuts import ShortcutManager
-
         return {aid: d.default_key for aid, d in ShortcutManager.definitions.items()}
 
     @cachedproperty
