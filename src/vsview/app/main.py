@@ -52,6 +52,7 @@ from vsengine.loops import set_loop
 from ..assets import app_icon
 from ..vsenv import QtEventLoop, gc_collect, get_policy, unregister_policy
 from .icon import IconReloadMixin
+from .plugins.manager import PluginManager
 from .settings import ActionID, SecretsManager, SettingsManager, ShortcutManager
 from .settings.dialog import SettingsDialog, ShortcutEditor
 from .settings.models import WindowGeometry
@@ -132,8 +133,6 @@ class Application(QApplication):
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
-        from .plugins.manager import PluginManager
-
         super().__init__()
         self.setWindowTitle("VS View")
         self.setWindowIcon(app_icon())
