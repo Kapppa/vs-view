@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from functools import partial
 from logging import getLogger
 from pathlib import Path
 from typing import Any, cast
@@ -200,17 +201,22 @@ class MainWindow(QMainWindow):
         self.workspace_submenu = QMenu("Workspace", self.new_menu)
         self.new_menu.addMenu(self.workspace_submenu)
 
-        self.script_subaction = QAction("Script", self.workspace_submenu)
+        self.script_subaction = QAction(PythonScriptWorkspace.title, self.workspace_submenu)
         self.script_subaction.triggered.connect(lambda: self.add_workspace(PythonScriptWorkspace))
         self.workspace_submenu.addAction(self.script_subaction)
 
-        self.file_subaction = QAction("File", self.workspace_submenu)
+        self.file_subaction = QAction(VideoFileWorkspace.title, self.workspace_submenu)
         self.file_subaction.triggered.connect(lambda: self.add_workspace(VideoFileWorkspace))
         self.workspace_submenu.addAction(self.file_subaction)
 
-        self.quick_script_subaction = QAction("Quick Script", self.workspace_submenu)
+        self.quick_script_subaction = QAction(QuickScriptWorkspace.title, self.workspace_submenu)
         self.quick_script_subaction.triggered.connect(lambda: self.add_workspace(QuickScriptWorkspace))
         self.workspace_submenu.addAction(self.quick_script_subaction)
+
+        self.workspace_submenu.aboutToShow.connect(
+            self._populate_workspace_menu,
+            Qt.ConnectionType.SingleShotConnection,
+        )
 
         self.view_menu = self.menu_bar.addMenu("View")
 
@@ -467,6 +473,17 @@ class MainWindow(QMainWindow):
         else:
             self.status_widget.clear()
             self.status_widget.set_ready()
+
+    def _populate_workspace_menu(self) -> None:
+        def populate_wk_menu() -> None:
+            self.workspace_submenu.addSeparator()
+
+            for wk_t in self.plugin_manager.workspaces:
+                subaction = QAction(wk_t.title, self.workspace_submenu)
+                subaction.triggered.connect(partial(self.add_workspace, wk_t))
+                self.workspace_submenu.addAction(subaction)
+
+        self.plugin_manager.call_when_loaded(populate_wk_menu)
 
     def _init_view_tools_settings(self) -> None:
         view_tools = self.settings_manager.global_settings.view_tools

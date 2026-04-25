@@ -13,6 +13,7 @@ import pluggy
 if TYPE_CHECKING:
     from vapoursynth import AudioNode, VideoNode
 
+    from ..workspace import BaseWorkspace
     from .api import NodeProcessor, WidgetPluginBase
 
 
@@ -72,5 +73,16 @@ def vsview_get_audio_processor() -> type[NodeProcessor[AudioNode]]:
     Returns:
         A NodeProcessor[AudioNode] subclass.
         The first registered plugin to return an object takes precedence.
+    """
+    raise NotImplementedError
+
+
+@hookspec
+def vsview_register_workspace() -> type[BaseWorkspace]:
+    """
+    Register a new workspace.
+
+    Returns:
+        A BaseWorkspace subclass.
     """
     raise NotImplementedError

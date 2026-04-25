@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pkgutil
 import weakref
-from collections.abc import Callable
+from collections.abc import Callable, Set  # noqa: PYI025
 from concurrent.futures import Future
 from functools import wraps
 from importlib import import_module
@@ -10,7 +10,7 @@ from inspect import ismethod
 from logging import getLogger
 from pathlib import Path
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Concatenate, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Concatenate, Literal
 
 import pluggy
 from jetpytools import Singleton, inject_self
@@ -23,6 +23,7 @@ from .. import tools
 from . import specs
 
 if TYPE_CHECKING:
+    from ..workspace import BaseWorkspace
     from .api import NodeProcessor, WidgetPluginBase
 
 logger = getLogger(__name__)
@@ -79,6 +80,8 @@ def ensure_loaded[T: PluginManager, **P, R](
 
 
 class PluginManager(Singleton):
+    ALLOWED_WORKSPACES: ClassVar[Set[str]] = {"vsview_editor", "vsview_testwk"}
+
     def __init__(self) -> None:
         self.manager = pluggy.PluginManager("vsview")
         self._notifier = Notifier()
@@ -118,6 +121,16 @@ class PluginManager(Singleton):
             all_plugins.add(ap)
 
         return sorted(all_plugins, key=lambda p: p.identifier)
+
+    @inject_self.cached.property
+    @ensure_loaded("entrypoints")
+    def workspaces(self) -> list[type[BaseWorkspace]]:
+        restricted_caller = self.manager.subset_hook_caller(
+            "vsview_register_workspace",
+            remove_plugins=(p for n, p in self.manager.list_name_plugin() if n not in self.ALLOWED_WORKSPACES),
+        )
+
+        return restricted_caller()
 
     @inject_self.property
     def loaded(self) -> bool:
