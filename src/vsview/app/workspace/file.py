@@ -193,7 +193,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         if frame is None:
             self.playback.state.current_frame = self.local_settings.last_frame
         if time is None:
-            self.playback.state.current_time = Time(self.local_settings.last_time.total_seconds())
+            self.playback.state.current_time = Time(seconds=self.local_settings.last_time.total_seconds())
 
         if tab_index is None:
             self.outputs_manager.current_video_index = self.local_settings.last_output_tab_index
