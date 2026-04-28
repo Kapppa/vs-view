@@ -113,6 +113,7 @@ only-include = [
     "src/vsview",
     "stubs",
     "tests",
+    "uv.lock",
     ".gitmodules",
 ]
 

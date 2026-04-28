@@ -39,6 +39,8 @@ source = "uv"
 
 [tool.hatch.build.targets.wheel.hooks.sbom.uv]
 no-dev = true
+frozen = false
+no-sources = true
 
 [tool.hatch.version]
 source = "versioningit"
