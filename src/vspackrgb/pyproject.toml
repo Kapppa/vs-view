@@ -2,7 +2,7 @@
 requires = [
     "hatchling",
     "hatch-cython @ git+https://github.com/Varde-s-Forks/hatch-cython.git",
-    "hatch-sbom>=0.2.0",
+    "hatch-sbom[uv]>=0.3.0",
     "cython>=3.0.0",
     "setuptools",
     "versioningit",
