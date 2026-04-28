@@ -221,5 +221,3 @@ __marimo__/
 # VapourSynth inventory files
 vs_objects.inv
 vs_fixed.inv
-# SBOMs
-sboms.json

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.27.0", "versioningit"]
+requires = ["hatchling>=1.27.0", "versioningit", "hatch-sbom>=0.2.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -120,8 +120,11 @@ only-include = [
 packages = ["src/vsview"]
 exclude = ["README.md", "__main__.py"]
 
-[tool.hatch.build.targets.wheel.hooks.custom]
-path = "scripts/build/hatch_hooks.py"
+[tool.hatch.build.targets.wheel.hooks.sbom]
+source = "uv"
+
+[tool.hatch.build.targets.wheel.hooks.sbom.uv]
+no-dev = true
 
 [tool.hatch.version]
 source = "versioningit"

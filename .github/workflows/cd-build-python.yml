@@ -46,9 +46,6 @@ jobs:
           python-version: ${{ inputs.python-version }}
           enable-cache: true
 
-      - name: Generate SBOM
-        run: uv export --package "${{ matrix.package }}" --no-dev --format cyclonedx1.5 -o "${{ matrix.path }}/sboms.json"
-
       - name: Build
         run: uv build --package "${{ matrix.package }}" ${{ matrix.build_args }} --out-dir dist --clear
 

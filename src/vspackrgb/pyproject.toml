@@ -2,6 +2,7 @@
 requires = [
     "hatchling",
     "hatch-cython @ git+https://github.com/Varde-s-Forks/hatch-cython.git",
+    "hatch-sbom>=0.2.0",
     "cython>=3.0.0",
     "setuptools",
     "versioningit",
@@ -64,8 +65,11 @@ packages = ["src/vspackrgb"]
 # Exclude .pyx source files from wheel
 exclude = ["**/*.pyx"]
 
-[tool.hatch.build.targets.wheel.hooks.custom]
-path = "../../scripts/build/hatch_hooks.py"
+[tool.hatch.build.targets.wheel.hooks.sbom]
+source = "uv"
+
+[tool.hatch.build.targets.wheel.hooks.sbom.uv]
+no-dev = true
 
 [tool.hatch.build.targets.wheel.hooks.cython]
 dependencies = ["hatch-cython"]
@@ -107,7 +111,7 @@ build = "cp312-*"
 skip = "*-win32 *-manylinux_i686"
 # Test would require vapoursynth
 test-skip = "*"
-before-build = "git clean -fdx -e sboms.json src/vspackrgb"
+before-build = "git clean -fdx src/vspackrgb"
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64"]
