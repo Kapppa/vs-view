@@ -109,6 +109,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             else:
                 main_window.load_new_file(file)
     else:
+        app.processEvents()
         # Now create default workspaces
         main_window.script_subaction.trigger()
         main_window.file_subaction.trigger()
