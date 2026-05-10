@@ -40,19 +40,14 @@ def main() -> None:
     # If a package needs special path or name handling, it would go there,
     # Otherwise, we fallback to L48 and assumes we're publishing a plugin
     all_pkgs = [
-        PackageMetadata(tag="vsview", package="vsview", path=".", build_args="--sdist --wheel"),
+        PackageMetadata(tag="vsview", package="vsview", path=".", build_args=""),
     ]
 
     filtered = [p for p in all_pkgs if p["tag"] == target]
 
     if build_workflow == "python" and not filtered:
         # Not a known special package and not in all_pkgs -> treat as a plugin
-        p = PackageMetadata(
-            tag=target,
-            package=f"vsview-{target}",
-            path=f"src/plugins/{target}",
-            build_args="--wheel",
-        )
+        p = PackageMetadata(tag=target, package=f"vsview-{target}", path=f"src/plugins/{target}", build_args="")
         filtered.append(p)
 
     output_file = os.getenv("GITHUB_OUTPUT")
