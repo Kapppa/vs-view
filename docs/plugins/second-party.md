@@ -186,6 +186,3 @@ Split Planes splits a video clip into its individual planes for inspection.
 
 ### Features
 - Extends the Graphics View's default context menu to provide a way to offset chroma plane values.
-
-### VapourSynth Requirements
-- [**akarin**](https://github.com/AkarinVS/L-SMASH-Works-Akarin)
