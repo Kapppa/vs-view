@@ -29,7 +29,7 @@ def _get_installed_top_levels() -> set[str]:
         if (name := dist.metadata.get("Name")) is None:
             logger.warning("Malformed distribution %s", dist)
             continue
-        installed.add(name)
+        installed.add(name.replace("-", "_"))
 
     return installed
 
