@@ -85,7 +85,7 @@ class OutputsManager:
         voutputs = list[VideoOutput]()
         self._packer = Packer(8)
 
-        logger.debug("Configured video packer: %s (%s-bit)", self.packer.name, self.packer.bit_depth)
+        logger.debug("Configured video packer (%s-bit)", self.packer.bit_depth)
 
         if not vs_vouputs:
             logger.error("No video outputs found")

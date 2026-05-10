@@ -7,7 +7,7 @@ from abc import ABC
 from collections.abc import Mapping
 from enum import IntEnum
 from logging import Filter, LogRecord, getLogger
-from typing import Any, ClassVar, Literal
+from typing import Any, Literal
 
 import vapoursynth as vs
 from PySide6.QtGui import QImage
@@ -68,8 +68,6 @@ class Packer(ABC):
         8: (vs.RGB24, vs.GRAY8, QImage.Format.Format_RGB32, QImage.Format.Format_ARGB32),
         10: (vs.RGB30, vs.GRAY10, QImage.Format.Format_RGB30, QImage.Format.Format_A2RGB30_Premultiplied),
     }
-
-    name: ClassVar[str]
 
     def __init__(self, bit_depth: int | None = None) -> None:
         self.bit_depth = bit_depth or SettingsManager.global_settings.view.bit_depth

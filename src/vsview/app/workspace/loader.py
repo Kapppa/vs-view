@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterator
 from concurrent.futures import Future, wait
 from contextlib import contextmanager
 from functools import partial
-from logging import DEBUG, getLogger
+from logging import getLogger
 from pathlib import Path
 from threading import Lock
 from types import ModuleType
@@ -579,7 +579,7 @@ class LoaderWorkspace[T](BaseWorkspace):
 
                 return voutputs, aoutputs
         except Exception:
-            logger.log(DEBUG - 1, "Full traceback:", exc_info=True)
+            logger.debug("Full traceback:", exc_info=True)
             return None
 
     def _on_tab_changed(
