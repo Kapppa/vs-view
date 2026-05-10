@@ -22,11 +22,16 @@ EXCLUDED_PREFIXES = frozenset(
 )
 
 
-def _get_installed_top_levels() -> frozenset[str]:
-    return frozenset(
-        importlib.metadata.packages_distributions().keys()
-        | {dist.metadata["Name"].replace("-", "_") for dist in importlib.metadata.distributions()}
-    )
+def _get_installed_top_levels() -> set[str]:
+    installed = set(importlib.metadata.packages_distributions().keys())
+
+    for dist in importlib.metadata.distributions():
+        if (name := dist.metadata.get("Name")) is None:
+            logger.warning("Malformed distribution %s", dist)
+            continue
+        installed.add(name)
+
+    return installed
 
 
 def find_local_packages() -> set[str]:
