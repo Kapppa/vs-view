@@ -25,7 +25,7 @@ from PySide6.QtGui import QImage
 from vapoursynth import GRAY8, VideoNode
 from vstools import DitherType, clip_data_gather, core, depth, get_prop, remap_frames
 
-from vsview.api import PluginAPI, PluginSecrets, Time, get_packer, run_in_background
+from vsview.api import Packer, PluginAPI, PluginSecrets, Time, run_in_background
 
 from ._metadata import COOKIE_KEY, LOGIN_CONTEXT
 from .models import ComparisonSource, TMDBPayload, TMDBTitle, TMDBTitleData
@@ -46,7 +46,7 @@ class ExtractFramesWorker:
         self.progress_bar = parent.progress_bar
         self.data = parent.frames_list.get_data()
         self.voutputs = parent.selected_voutputs
-        self.packer = get_packer("cython", 8)
+        self.packer = Packer(8)
 
         if not (storage := self.api.get_local_storage(parent)):
             raise NotImplementedError
