@@ -54,19 +54,19 @@ jobs:
 
           python .github/scripts/push_release_tags.py "$tag" --notes-file ".github/releases/${plugin}.release.md"
 
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "${{ steps.tag.outputs.full_tag }}" \
-            --title "${{ steps.tag.outputs.full_tag }}" \
-            --notes-file ".github/releases/${{ steps.tag.outputs.plugin }}.release.md" \
-            --latest=false
-
       - name: Trigger publish workflow
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run pypipublish.yml -f package=${{ steps.tag.outputs.plugin }} --ref ${{ steps.tag.outputs.full_tag }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${{ steps.tag.outputs.full_tag }}"
+          --title "${{ steps.tag.outputs.full_tag }}"
+          --notes-file ".github/releases/${{ steps.tag.outputs.plugin }}.release.md"
+          --latest=false
 
       - name: Post webhook for failure
         if: failure()
