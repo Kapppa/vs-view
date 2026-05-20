@@ -1,4 +1,4 @@
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from typing import Any
 
@@ -470,7 +470,7 @@ class Accordion(QFrame):
 
 class AbstractTableModel(QAbstractTableModel):
     @contextmanager
-    def insert_rows(self, first: int, last: int | None = None) -> Iterator[None]:
+    def insert_rows(self, first: int, last: int | None = None) -> Generator[None]:
         self.beginInsertRows(QModelIndex(), first, last or first)
         try:
             yield
@@ -478,7 +478,7 @@ class AbstractTableModel(QAbstractTableModel):
             self.endInsertRows()
 
     @contextmanager
-    def remove_rows(self, first: int, last: int | None = None) -> Iterator[None]:
+    def remove_rows(self, first: int, last: int | None = None) -> Generator[None]:
         self.beginRemoveRows(QModelIndex(), first, last or first)
         try:
             yield
@@ -486,7 +486,7 @@ class AbstractTableModel(QAbstractTableModel):
             self.endRemoveRows()
 
     @contextmanager
-    def reset_model(self) -> Iterator[None]:
+    def reset_model(self) -> Generator[None]:
         self.beginResetModel()
         try:
             yield

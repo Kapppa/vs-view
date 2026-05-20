@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, ABCMeta, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Sequence
+from collections.abc import Callable, Generator, Iterable, Sequence
 from contextlib import contextmanager, suppress
 from dataclasses import KW_ONLY, dataclass, field
 from functools import wraps
@@ -101,7 +101,7 @@ class WidgetMetadata[W: QWidget](ABC, metaclass=WidgetMetadataMeta):
         """Get the current value from the widget."""
 
     @contextmanager
-    def apply_transform(self, value: Any, transform: Callable[[Any], Any] | None) -> Iterator[Any]:
+    def apply_transform(self, value: Any, transform: Callable[[Any], Any] | None) -> Generator[Any]:
         if transform:
             try:
                 yield transform(value)

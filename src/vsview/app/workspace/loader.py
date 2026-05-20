@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections import deque
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from concurrent.futures import Future, wait
 from contextlib import contextmanager
 from functools import partial
@@ -264,7 +264,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         return super().clear_environment()
 
     @contextmanager
-    def status_loading(self, loading_message: str, completed_message: str) -> Iterator[None]:
+    def status_loading(self, loading_message: str, completed_message: str) -> Generator[None]:
         self.statusLoadingStarted.emit(loading_message)
         yield
         self.statusLoadingFinished.emit(completed_message)
@@ -454,7 +454,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         return resolved_index
 
     @contextmanager
-    def freeze_viewport(self) -> Iterator[None]:
+    def freeze_viewport(self) -> Generator[None]:
         @run_in_loop(return_future=False)
         def show_screenshot() -> QLabel:
             viewport = self.tab_manager.current_view.viewport()

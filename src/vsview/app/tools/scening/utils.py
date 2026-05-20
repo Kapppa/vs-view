@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import threading
-from collections.abc import Generator, Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from random import random
 from types import MethodType
@@ -33,7 +33,7 @@ class ColorGenerator(Generator[QColor, QColor | None]):
 
 
 @contextmanager
-def monkey_patch_parser(parser: Parser, color_gen: Generator[QColor, QColor | None]) -> Iterator[None]:
+def monkey_patch_parser(parser: Parser, color_gen: Generator[QColor, QColor | None]) -> Generator[None]:
     setattr(parser, "get_color", MethodType(lambda _: next(color_gen), parser))
 
     try:

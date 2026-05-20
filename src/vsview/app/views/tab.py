@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from contextlib import contextmanager
 from logging import getLogger
 from typing import Any
@@ -125,7 +125,7 @@ class TabViewWidget(QTabWidget):
         raise ValueError("Tab label not found")
 
     @contextmanager
-    def disabled(self) -> Iterator[None]:
+    def disabled(self) -> Generator[None]:
         self.setDisabled(True)
         yield
         self.setDisabled(False)

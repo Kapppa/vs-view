@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from base64 import b64decode, b64encode
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from concurrent.futures import Future
 from contextlib import contextmanager
 from functools import wraps
@@ -231,7 +231,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
             self._restore_layout()
 
     @contextmanager
-    def _restart_autosave(self) -> Iterator[None]:
+    def _restart_autosave(self) -> Generator[None]:
         @run_in_loop(return_future=False)
         def stop_timer() -> int:
             remaining_time = self._autosave_timer.remainingTime()

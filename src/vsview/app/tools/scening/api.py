@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Iterator, Sequence
 from contextlib import contextmanager
 from fractions import Fraction
 from io import TextIOWrapper
@@ -48,7 +48,7 @@ def borrowed_text_wrapper(
     stream: BinaryIO,
     encoding: str = "utf-8",
     errors: str = "strict",
-) -> Iterator[TextIOWrapper]:
+) -> Generator[TextIOWrapper]:
     """A context manager that wraps a binary stream into a text stream without closing it."""
 
     wrapper = TextIOWrapper(stream, encoding=encoding, errors=errors)

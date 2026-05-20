@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from bisect import bisect_right
-from collections.abc import Hashable, Iterator
+from collections.abc import Generator, Hashable
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
@@ -978,7 +978,7 @@ class Timeline(QWidget):
         self.update()
 
     @contextmanager
-    def block_events(self) -> Iterator[None]:
+    def block_events(self) -> Generator[None]:
         self.reset_interaction()
         self.is_events_blocked = True
 
@@ -1687,7 +1687,7 @@ class TimelineControlBar(QWidget):
         self.playback_container.frame_edit.setEnabled(enabled)
 
     @contextmanager
-    def disabled(self) -> Iterator[None]:
+    def disabled(self) -> Generator[None]:
         """
         Context manager to disable the control bar and block timeline events.
 

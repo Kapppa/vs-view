@@ -5,7 +5,7 @@ Plugin API for VSView.
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable, Hashable, Iterable, Iterator, Sequence
+from collections.abc import Callable, Generator, Hashable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from datetime import timedelta
 from logging import getLogger
@@ -539,7 +539,7 @@ class PluginAPI(_PluginAPI):
         self.__workspace.cbs_on_destroy.append(cb)
 
     @contextmanager
-    def vs_context(self) -> Iterator[None]:
+    def vs_context(self) -> Generator[None]:
         """
         Context manager for using the VapourSynth environment of the workspace.
         """
@@ -547,7 +547,7 @@ class PluginAPI(_PluginAPI):
             yield
 
     @contextmanager
-    def block_workspace(self, caller: WidgetPluginBase[Any, Any]) -> Iterator[None]:
+    def block_workspace(self, caller: WidgetPluginBase[Any, Any]) -> Generator[None]:
         """
         Mark the workspace as busy for the duration of the context.
 

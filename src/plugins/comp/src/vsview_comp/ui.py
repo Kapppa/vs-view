@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import threading
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Sequence
 from concurrent.futures import Future
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -705,7 +705,7 @@ class TMDBListPopup(AnchoredListPopup):
 
 
 @contextmanager
-def open_qbuffer(mode: QIODevice.OpenModeFlag = QIODevice.OpenModeFlag.WriteOnly) -> Iterator[QBuffer]:
+def open_qbuffer(mode: QIODevice.OpenModeFlag = QIODevice.OpenModeFlag.WriteOnly) -> Generator[QBuffer]:
     buffer = QBuffer()
     buffer.open(mode)
     try:
