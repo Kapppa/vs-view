@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from base64 import b64decode, b64encode
-from collections.abc import Callable, Generator, Sequence
+from collections.abc import Callable, Sequence
 from concurrent.futures import Future
-from contextlib import contextmanager
 from functools import wraps
 from importlib.util import find_spec
 from logging import getLogger
@@ -212,12 +211,16 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         time: float | None = None,
         tab_index: int | None = None,
     ) -> Future[None]:
-        with self._restart_autosave():
-            return super().load_content(content, frame, time, tab_index)
+        remaining_time = self._stop_autosave()
+        future = super().load_content(content, frame, time, tab_index)
+        future.add_done_callback(lambda _: self._start_autosave(remaining_time))
+        return future
 
     def reload_content(self) -> Future[None]:
-        with self._restart_autosave():
-            return super().reload_content()
+        remaining_time = self._stop_autosave()
+        future = super().reload_content()
+        future.add_done_callback(lambda _: self._start_autosave(remaining_time))
+        return future
 
     @run_in_loop(return_future=False)
     def clear_failed_load(self) -> None:
@@ -230,27 +233,21 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
             super().load_plugins()
             self._restore_layout()
 
-    @contextmanager
-    def _restart_autosave(self) -> Generator[None]:
-        @run_in_loop(return_future=False)
-        def stop_timer() -> int:
-            remaining_time = self._autosave_timer.remainingTime()
-            self._autosave_timer.stop()
-            return remaining_time
+    @run_in_loop(return_future=False)
+    def _start_autosave(self, remaining_time: int) -> None:
+        autosave = self.global_settings.autosave
+        full_interval = (autosave.minute * 60 + autosave.second) * 1000
 
-        remaining_time = stop_timer()
+        if full_interval <= 0:
+            return
 
-        yield
+        self._autosave_timer.start(remaining_time if remaining_time > 0 else full_interval)
 
-        @run_in_loop(return_future=False)
-        def restart_timer() -> None:
-            self._autosave_timer.start(
-                remaining_time
-                if remaining_time > 0
-                else (self.global_settings.autosave.minute * 60 + self.global_settings.autosave.second) * 1000
-            )
-
-        restart_timer()
+    @run_in_loop(return_future=False)
+    def _stop_autosave(self) -> int:
+        remaining_time = self._autosave_timer.remainingTime()
+        self._autosave_timer.stop()
+        return remaining_time
 
     def _restore_layout(self) -> None:
         layout = self.local_settings.layout
@@ -306,6 +303,15 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
     @requires_content
     def _on_autosave_timer_timeout(self) -> None:
         SettingsManager.save_local(self.content, self.local_settings)
+
+        # Reset the timer to the full interval if it was running with a temporary remaining_time
+        autosave = self.global_settings.autosave
+        full_interval = (autosave.minute * 60 + autosave.second) * 1000
+        if full_interval > 0:
+            if self._autosave_timer.interval() != full_interval:
+                self._autosave_timer.start(full_interval)
+        else:
+            self._autosave_timer.stop()
 
 
 class VideoFileWorkspace(GenericFileWorkspace):
