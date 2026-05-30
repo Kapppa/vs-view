@@ -361,8 +361,8 @@ class PlaybackManager(QObject):
                 stall_cb=lambda: self.statusLoadingStarted.emit("Clearing buffer..."),
             )
 
-            self.state.is_playing = True
             self.state.reset()
+            self.state.is_playing = True
 
             if not play_range:
                 play_range = range(self.state.current_frame, voutput.vs_output.clip.num_frames)
@@ -370,14 +370,14 @@ class PlaybackManager(QObject):
             self._prepare_video(play_range=play_range, loop=loop)
             self._prepare_audio(play_range=play_range, loop=loop)
 
-            if self.state.audio_buffer:
-                self.state.audio_buffer.wait_for_first_frame(
+            if audio_buffer := self.state.audio_buffer:
+                audio_buffer.wait_for_first_frame(
                     timeout=0.25,
                     stall_cb=lambda: self.statusLoadingStarted.emit("Buffering audio..."),
                 )
 
-            if self.state.buffer:
-                self.state.buffer.wait_for_first_frame(
+            if buffer := self.state.buffer:
+                buffer.wait_for_first_frame(
                     timeout=0.25,
                     stall_cb=lambda: self.statusLoadingStarted.emit("Buffering..."),
                 )
@@ -429,7 +429,6 @@ class PlaybackManager(QObject):
 
     def _restart_playback(self) -> None:
         self._stop_playback()
-        self.state.is_playing = True
         self._start_playback()
 
     @run_in_background(name="PlaybackNextFrame")
@@ -439,12 +438,12 @@ class PlaybackManager(QObject):
 
         if not (voutput := self._outputs_manager.current_voutput):
             logger.error("No current video output during playback")
-            self.toggle_playback()
+            self.stop()
             return
 
-        if self.state.buffer:
+        if buffer := self.state.buffer:
             try:
-                result = self.state.buffer.get_next_frame()
+                result = buffer.get_next_frame()
             except Exception as e:
                 logger.error(
                     "An error occurred during rendering of frame %d:\n(%s) %s",
@@ -477,7 +476,8 @@ class PlaybackManager(QObject):
 
                 self._schedule_or_continue()
             else:
-                self.toggle_playback()
+                if self.state.buffer is buffer and not buffer._invalidated:
+                    self.stop()
 
     def _track_fps(self) -> None:
         now = perf_counter_ns()
@@ -558,16 +558,22 @@ class PlaybackManager(QObject):
                     )
 
         # Create and allocate video buffer
-        self.state.buffer = FrameBuffer(video_output=voutput, env=self._env)
-        self._api._register_plugin_nodes_to_buffer()
+        buffer = FrameBuffer(video_output=voutput, env=self._env)
+        self._api._register_plugin_nodes_to_buffer(buffer)
 
-        self.state.buffer.allocate(play_range=play_range, loop=loop)
+        buffer.allocate(play_range=play_range, loop=loop)
+
+        if not self.state.is_playing:
+            buffer.invalidate()
+            return
+
+        self.state.buffer = buffer
 
         logger.debug(
             "Target frame interval: %d ns (fps=%s), buffer_size=%d",
             self.state.frame_interval_ns,
             voutput.vs_output.clip.fps,
-            self.state.buffer._size,
+            buffer._size,
         )
 
     def _prepare_audio(self, play_range: range, loop: bool = False) -> None:
@@ -604,8 +610,14 @@ class PlaybackManager(QObject):
                 voutput.frame_to_time(play_range.stop).total_seconds(),
             )
 
-        self.state.audio_buffer = AudioBuffer(aoutput, self._env)
-        self.state.audio_buffer.allocate(play_range=range(aoutput.playback_audio.num_frames), loop=loop)
+        audio_buffer = AudioBuffer(aoutput, self._env)
+        audio_buffer.allocate(play_range=range(aoutput.playback_audio.num_frames), loop=loop)
+
+        if not self.state.is_playing:
+            audio_buffer.invalidate()
+            return
+
+        self.state.audio_buffer = audio_buffer
 
         # Calculate interval so that (num_frames x interval) = actual audio duration
         # This ensures timer and audio content stay in sync, especially for partial last frames

@@ -24,6 +24,7 @@ from vsview.vsenv.loop import run_in_loop
 from .contracts import LocalSettingsModel, VideoOutputProxy
 
 if TYPE_CHECKING:
+    from vsview.app.outputs import FrameBuffer
     from vsview.app.workspace import BaseWorkspace, LoaderWorkspace
     from vsview.app.workspace.playback import PlaybackManager
 
@@ -253,7 +254,7 @@ class _PluginAPI(_PluginLimitedApi):
 
         return True
 
-    def _register_plugin_nodes_to_buffer(self) -> None:
+    def _register_plugin_nodes_to_buffer(self, buffer: FrameBuffer) -> None:
         # Register visible plugin nodes with the buffer for pre-fetching during playback.
         from .api import PluginGraphicsView
 
@@ -262,10 +263,8 @@ class _PluginAPI(_PluginLimitedApi):
                 continue
 
             for view in self.__workspace.loop.from_thread(plugin.findChildren, PluginGraphicsView).result():
-                if view.current_tab in view.outputs and self.__workspace.playback.state.buffer:
-                    self.__workspace.playback.state.buffer.register_plugin_node(
-                        plugin.identifier, view.outputs[view.current_tab]
-                    )
+                if view.current_tab in view.outputs:
+                    buffer.register_plugin_node(plugin.identifier, view.outputs[view.current_tab])
 
     def _on_current_voutput_changed(self, refresh: bool = False) -> None:
         # Notify all visible plugin views of output change.
