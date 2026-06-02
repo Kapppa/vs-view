@@ -409,50 +409,30 @@ class SlowPicsWorker:
             return [Tag(tag["value"], tag["label"].strip()) for tag in tags]
 
     @run_in_background(name="SlowPicsLogin")
-    def get_cookies(self) -> dict[str, str]:
+    async def get_cookies(self) -> dict[str, str]:
         if cookies := self.secrets.get_json(COOKIE_KEY, COOKIE_KEY):
             return cookies
 
-        if not (credentials := self.secrets.get_credential(LOGIN_CONTEXT)):
+        if not self.secrets.get_credential(LOGIN_CONTEXT):
             return {}
 
-        try:
-            with niquests.Session(base_url=self.BASE_URL, headers=self.headers, timeout=20) as client:
-                # Grab initial XSRF token
-                client.get("/comparison").raise_for_status()
+        async with (
+            niquests.AsyncSession(
+                base_url=self.BASE_URL,
+                headers=self.headers,
+                timeout=20,
+                disable_http3=True,
+                multiplexed=True,
+                revocation_configuration=REV_CONF,
+            ) as client,
+            LogNiquestsErrors("Slowpics Login"),
+        ):
+            # Grab initial XSRF token
+            resp = await client.get("/comparison")
+            await client.gather(resp)
+            resp.raise_for_status()
 
-                client.headers.update({"X-XSRF-TOKEN": self._get_cookie(client.cookies, "XSRF-TOKEN")})
-
-                # Extract CSRF token
-                login_page = client.get("/login").raise_for_status()
-
-                csrf_match = re.search(
-                    r'<input type="hidden" name="_csrf" value="([a-zA-Z0-9-_]+)"\/>',
-                    login_page.text or "",
-                )
-                if not csrf_match:
-                    logger.error("No CSRF found; Failed to login.")
-                    return {}
-
-                # Submit login payload
-                data = {
-                    "username": credentials.username,
-                    "password": credentials.password,
-                    "_csrf": csrf_match.group(1),
-                    "remember-me": "on",
-                }
-                client.post("/login", data=data, allow_redirects=True).raise_for_status()
-
-                # Save and return cookies
-                cookies = self._cookies_jar(client.cookies)
-                self.secrets.set_json(COOKIE_KEY, COOKIE_KEY, cookies)
-
-                return cookies
-
-        except niquests.HTTPError as e:
-            logger.error("Login sequence failed: %s", e)
-            logger.debug("Full traceback", exc_info=True)
-            return {}
+            return self._cookies_jar(client.cookies) if await self._login_async(client) else {}
 
     @run_in_background(name="SlowPicsUpload")
     async def upload(
@@ -570,7 +550,50 @@ class SlowPicsWorker:
                 logger.debug("Cookies not stale, logged in.")
                 self.secrets.set_json(COOKIE_KEY, COOKIE_KEY, self._cookies_jar(client.cookies))
             else:
-                logger.warning("Cookies have expired (or Logout button not found), uploading as anonymous")
+                logger.info("Cookies have expired (or Logout button not found), attempting re-login...")
+                self.secrets.delete_json(COOKIE_KEY, COOKIE_KEY)
+
+                if await self._login_async(client):
+                    logger.info("Re-login successful.")
+                    client.headers.update({"X-XSRF-TOKEN": self._get_cookie(client.cookies, "XSRF-TOKEN")})
+                else:
+                    logger.warning("Re-login failed, uploading as anonymous")
+
+    async def _login_async(self, client: niquests.AsyncSession) -> bool:
+        if not (credentials := self.secrets.get_credential(LOGIN_CONTEXT)):
+            return False
+
+        try:
+            client.headers.update({"X-XSRF-TOKEN": self._get_cookie(client.cookies, "XSRF-TOKEN")})
+
+            login_page = await client.get("/login")
+            await client.gather(login_page)
+            login_page.raise_for_status()
+
+            csrf_match = re.search(
+                r'<input type="hidden" name="_csrf" value="([a-zA-Z0-9-_]+)"\/>',
+                login_page.text or "",
+            )
+            if not csrf_match:
+                logger.error("No CSRF found; Failed to login.")
+                return False
+
+            data = {
+                "username": credentials.username,
+                "password": credentials.password,
+                "_csrf": csrf_match.group(1),
+                "remember-me": "on",
+            }
+            login_resp = await client.post("/login", data=data, allow_redirects=True)
+            await client.gather(login_resp)
+            login_resp.raise_for_status()
+
+            self.secrets.set_json(COOKIE_KEY, COOKIE_KEY, self._cookies_jar(client.cookies))
+            return True
+        except Exception as e:
+            logger.error("Async login sequence failed: %s", e)
+            logger.debug("Full traceback", exc_info=True)
+            return False
 
     async def _upload_image(
         self,
