@@ -299,7 +299,7 @@ class PlaybackManager(QObject):
                     self._tbar.window(),
                     text=error_msg,
                     icon=QMessageBox.Icon.Warning,
-                    standardButtons=QMessageBox.StandardButton.Ok,  # type: ignore[call-overload]
+                    standardButtons=QMessageBox.StandardButton.Ok,
                 )
                 msg.setWindowTitle("Playback Error")
                 msg.setModal(False)
