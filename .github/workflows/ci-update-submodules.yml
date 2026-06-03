@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   update:
+    if: github.repository_owner == 'Jaded-Encoding-Thaumaturgy'
     runs-on: ubuntu-latest
 
     steps:
