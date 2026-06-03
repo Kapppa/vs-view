@@ -59,6 +59,18 @@ dependencies = [
     "typing_extensions>=4.15.0; python_version<'3.13'",
 ]
 
+[project.scripts]
+vsview = "vsview.cli:main"
+
+[project.optional-dependencies]
+recommended = [
+    "vsview-frameprops-extended",
+    "vsview-split-planes",
+    "vsview-fftspectrum",
+    "vsview-comp",
+]
+secrets = ["keyring>=25.7.0"]
+
 [dependency-groups]
 dev = [
     "hatchling>=1.29.0",
@@ -80,24 +92,13 @@ test = [
 ]
 doc = ["mkdocstrings[python]>=1.0.3", "zensical==0.0.41", "ruff"]
 plugins = [
+    "vsview-frameprops-extended",
     "vsview-split-planes",
     "vsview-fftspectrum",
-    "vsview-frameprops-extended",
-    "vsview-audio-convert",
     "vsview-comp",
     "vsview-nativeres",
+    "vsview-audio-convert",
 ]
-
-[project.scripts]
-vsview = "vsview.cli:main"
-
-[project.optional-dependencies]
-recommended = [
-    "vsview-split-planes",
-    "vsview-frameprops-extended",
-    "vsview-comp",
-]
-secrets = ["keyring>=25.7.0"]
 
 [project.urls]
 Documentation = "https://jaded-encoding-thaumaturgy.github.io/vs-view/"
