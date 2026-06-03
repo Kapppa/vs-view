@@ -17,8 +17,8 @@ from uuid import uuid4
 
 import anyio
 import niquests
+import niquests.cookies
 from jetpytools import cachedproperty, ndigits
-from niquests.cookies import cookiejar_from_dict
 from pathvalidate import sanitize_filepath
 from PySide6.QtCore import QThreadPool
 from PySide6.QtGui import QImage
@@ -304,21 +304,20 @@ class TMDBWorker:
     @run_in_background(name="TMDBSearch")
     async def search(self, query: str) -> list[TMDBTitle]:
         titles = list[TMDBTitle]()
-        search_params = {**self.BASE_PARAMS, "query": query}
-        api_headers = {"Authorization": f"Bearer {self.api_key}"}
 
         async with (
             niquests.AsyncSession(
                 base_url=self.BASE_URL,
                 timeout=10,
-                headers=api_headers,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                params=self.BASE_PARAMS,
                 disable_http3=True,
                 multiplexed=True,
                 revocation_configuration=REV_CONF,
             ) as client,
             LogNiquestsErrors("TMDB search"),
         ):
-            tv_resp = await client.get("/search/tv", params=search_params)
+            tv_resp = await client.get("/search/tv", params={"query": query})
             await client.gather(tv_resp)
 
             num_tv_task = None
@@ -326,11 +325,11 @@ class TMDBWorker:
 
             async with asyncio.TaskGroup() as tg:
                 tg.create_task(self._ensure_genres_loaded(client))
-                movie_task = tg.create_task(client.get("/search/movie", params=search_params))
+                movie_task = tg.create_task(client.get("/search/movie", params={"query": query}))
 
                 if query.isnumeric():
-                    num_tv_task = tg.create_task(client.get(f"/tv/{query}", params=self.BASE_PARAMS))
-                    num_movie_task = tg.create_task(client.get(f"/movie/{query}", params=self.BASE_PARAMS))
+                    num_tv_task = tg.create_task(client.get(f"/tv/{query}"))
+                    num_movie_task = tg.create_task(client.get(f"/movie/{query}"))
 
             movie_resp = movie_task.result()
             await client.gather(movie_resp)
@@ -458,6 +457,7 @@ class SlowPicsWorker:
                 pool_maxsize=self.MAX_CONCURRENT_REQUESTS,
                 pool_connections=self.MAX_CONCURRENT_REQUESTS,
                 headers=self.headers,
+                cookies=cookies,
                 timeout=20,
                 disable_http3=True,
                 multiplexed=True,
@@ -532,14 +532,12 @@ class SlowPicsWorker:
             return f"https://slow.pics/c/{key}"
 
     async def _setup_client(self, client: niquests.AsyncSession, cookies: dict[str, str]) -> None:
-        client.cookies = cookiejar_from_dict(cookies)
-
         homepage = await client.get("/comparison")
         await client.gather(homepage)
         homepage.raise_for_status()
 
         if not (browser_id := self._get_cookie(client.cookies, "BROWSER-ID")):
-            cookiejar_from_dict({"BROWSER-ID": self.browser_id}, cookiejar=client.cookies)
+            niquests.cookies.cookiejar_from_dict({"BROWSER-ID": self.browser_id}, cookiejar=client.cookies)
         else:
             self.browser_id = browser_id
 
@@ -635,8 +633,8 @@ class SlowPicsWorker:
         return {c.name: c.value or "" for c in cookies}
 
     @staticmethod
-    def _get_cookie(jar: CookieJar, name: str) -> str | None:
+    def _get_cookie(jar: CookieJar, name: str) -> str:
         for cookie in jar:
-            if cookie.name == name:
+            if cookie.name == name and cookie.value:
                 return cookie.value
         return ""
