@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.14"
+# dependencies = [
+#     "pyside6>=6.11.1",
+#     "qdarkstyle>=3.2.3",
+# ]
+# ///
 import pathlib
 import sys
 
