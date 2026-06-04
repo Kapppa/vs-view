@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import faulthandler
+import io
 import os
 import shlex
 import shutil
 import sys
 from collections.abc import Sequence
+from contextlib import suppress
 from itertools import chain
 from logging import DEBUG, getLogger
 from pathlib import Path
@@ -26,7 +28,14 @@ setup_basic_logging()
 logger = getLogger(__name__)
 
 # Enable faulthandler to get stack traces on segfaults
-faulthandler.enable(file=console.file)
+for stream in (console.file, sys.stderr, sys.__stderr__):
+    if not stream:
+        continue
+
+    with suppress(AttributeError, OSError, RuntimeError, ValueError, io.UnsupportedOperation):
+        stream.fileno()
+        faulthandler.enable(file=stream)
+        break
 
 
 class CLIConfig(BaseModel):
