@@ -221,3 +221,6 @@ __marimo__/
 # VapourSynth inventory files
 vs_objects.inv
 vs_fixed.inv
+
+# Doc workraws
+docs/assets/raws

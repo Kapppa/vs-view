@@ -40,6 +40,7 @@ Additionally, the top-right corner of the tab bar contains buttons that control 
 <figure markdown="span">
     ![](../../assets/workspace_tab_buttons.png){ loading=lazy }
 </figure>
+- **Toggle Plugin Tool Docks**: Shows or hides the side Tool Docks area used by plugin tools.
 - **Sync playhead**: Cycles through four modes for cross-tab timeline sync:
     - **Adaptive link**: Follows the current Timeline display mode (Time or Frame).
     - **Link by time**: Seeks all tabs to matching timestamps.
@@ -117,6 +118,8 @@ Right-click the Timeline to switch display mode:
 Tool docks are movable plugin windows attached to the workspace layout.
 You can drag a dock by its title bar to reposition it, dock it to an edge, stack it with other docks, or leave it floating as a separate window.
 
+You can also toggle their visibility by using the **Toggle Plugin Tool Docks** button in the [Workspace Tabs](#1-workspace-tabs).
+
 <figure markdown="span">
     <video controls width="100%" style="border-radius: 8px;">
         <source src="../../assets/tool_dock_showoff.mp4" type="video/mp4">
@@ -131,6 +134,7 @@ See [Plugins](../../plugins/index.md) for more information.
 Tool Panels provide the same plugin tooling in a compact tabbed panel located on the right side of the workspace. 
 
 The panel is part of a **horizontal splitter**, which means you can click and drag the handle between the main content and the panel to resize it.
+
 You can also hide the panel by dragging it to the edge or by using the **Toggle Plugin Tool Panel** button in the [Workspace Tabs](#1-workspace-tabs).
 
 <figure markdown="span">
