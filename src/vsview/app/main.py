@@ -89,10 +89,15 @@ class Application(QApplication):
         self.setStyle(SettingsManager.global_settings.appearance.style or "")
         SettingsManager.global_settings.appearance.style = self.style().name().lower()
 
+        # Theme: Dark/Light/System Default
         if (theme := SettingsManager.global_settings.appearance.theme) is not None:
             self.styleHints().setColorScheme(theme)
         else:
             self.styleHints().unsetColorScheme()
+
+        # Custom style sheet
+        if sheet := SettingsManager.global_settings.appearance.custom_stylesheet:
+            self.setStyleSheet(Path(sheet).read_text())
 
         SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
         self.installEventFilter(self)
@@ -123,6 +128,16 @@ class Application(QApplication):
                 refresh_widgets = True
         elif theme != self.styleHints().colorScheme():
             self.styleHints().setColorScheme(theme)
+            refresh_widgets = True
+
+        if (  # nofmt
+            (stylesheet_path := SettingsManager.global_settings.appearance.custom_stylesheet)
+            and (stylesheet := Path(stylesheet_path).read_text()) != self.styleSheet()
+        ):
+            self.setStyleSheet(stylesheet)
+            refresh_widgets = True
+        elif not stylesheet_path:
+            self.setStyleSheet("")
             refresh_widgets = True
 
         if refresh_widgets:

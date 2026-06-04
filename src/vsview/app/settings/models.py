@@ -33,7 +33,17 @@ from ...assets import ICON_PROVIDERS
 from ...env import getenv_bool
 from .action import ActionID
 from .enums import Resizer
-from .metadata import Checkbox, ColorPicker, DoubleSpin, Dropdown, LineEdit, Spin, WidgetMetadata, WidgetTimeEdit
+from .metadata import (
+    Checkbox,
+    ColorPicker,
+    DoubleSpin,
+    Dropdown,
+    FilePicker,
+    LineEdit,
+    Spin,
+    WidgetMetadata,
+    WidgetTimeEdit,
+)
 
 logger = getLogger(__name__)
 
@@ -121,6 +131,15 @@ class AppearanceSettings(BaseModel):
                 "Application style.\n"  #
                 "You may have to restart the application for the changes to fully take effect."
             ),
+        ),
+    ] = None
+    custom_stylesheet: Annotated[
+        str | None,
+        FilePicker(
+            label="Custom Stylesheet",
+            file_filter="Stylesheets (*.qss)",
+            dialog_title="Select QSS File",
+            tooltip="Path to a custom .qss stylesheet to apply.",
         ),
     ] = None
 

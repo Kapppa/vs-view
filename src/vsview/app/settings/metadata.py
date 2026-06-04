@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from .secrets import SecretsManager
-from .widgets import ColorPickerInput, ListEditWidget, LoginCredentialsInput
+from .widgets import ColorPickerInput, FilePickerWidget, ListEditWidget, LoginCredentialsInput
 
 logger = getLogger(__name__)
 
@@ -417,3 +417,20 @@ class WidgetTimeEdit(WidgetMetadata[QTimeEdit]):
     def get_value(self, widget: QTimeEdit) -> Any:
         with self.apply_transform(widget.time(), self.from_ui) as value:
             return value
+@dataclass(frozen=True, slots=True)
+class FilePicker(WidgetMetadata[FilePickerWidget]):
+    """Widget metadata for FilePickerWidget (single file picker)."""
+
+    file_filter: str = "All Files (*.*)"
+    dialog_title: str = "Select File"
+
+    def create_widget(self, parent: QWidget | None = None) -> FilePickerWidget:
+        return FilePickerWidget(parent, self.file_filter, self.dialog_title)
+
+    def load_value(self, widget: FilePickerWidget, value: Any) -> None:
+        with self.apply_transform(value, self.to_ui) as value:
+            widget.file_path = value or ""
+
+    def get_value(self, widget: FilePickerWidget) -> Any:
+        with self.apply_transform(widget.file_path, self.from_ui) as value:
+            return value or None

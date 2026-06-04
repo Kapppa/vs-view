@@ -10,6 +10,7 @@ from PySide6.QtGui import QColor, QMouseEvent
 from PySide6.QtWidgets import (
     QColorDialog,
     QCompleter,
+    QFileDialog,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -231,3 +232,47 @@ class ListEditWidget[T](QWidget, IconReloadMixin):
             self.list_widget.addItem(text)
         except ValidationError as e:
             logger.error("Invalid value: %s", e)
+
+class FilePickerWidget(QWidget, IconReloadMixin):
+    """Widget for selecting a single file path with a Browse button."""
+
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        file_filter: str = "All Files (*.*)",
+        dialog_title: str = "Select File",
+    ) -> None:
+        super().__init__(parent)
+        self.file_filter = file_filter
+        self.dialog_title = dialog_title
+
+        self.setLayout(layout := QHBoxLayout(self))
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        self.line_edit = QLineEdit(self)
+        self.line_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        layout.addWidget(self.line_edit)
+
+        self.browse_btn = self.make_tool_button(IconName.FILE_IMPORT, "Browse File", self)
+        self.browse_btn.clicked.connect(self._browse_file)
+        self.clear_btn = self.make_tool_button(IconName.X_CIRCLE, "Clear selection", self)
+        self.clear_btn.clicked.connect(self._clear_selection)
+        layout.addWidget(self.browse_btn)
+        layout.addWidget(self.clear_btn)
+
+    def _browse_file(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, self.dialog_title, self.line_edit.text(), self.file_filter)
+        if path:
+            self.line_edit.setText(path)
+
+    def _clear_selection(self) -> None:
+        self.line_edit.setText(None)
+
+    @property
+    def file_path(self) -> str:
+        return self.line_edit.text().strip()
+
+    @file_path.setter
+    def file_path(self, value: str) -> None:
+        self.line_edit.setText(value)

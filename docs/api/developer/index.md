@@ -57,6 +57,7 @@ Most of these symbols are re-exported through the top-level `vsview.api` module 
            - ListEditWidget
            - LoginCredentialsInput
            - ColorPickerInput
+           - FilePickerWidget
 
 ## UI Settings
 
@@ -74,6 +75,7 @@ Most of these symbols are re-exported through the top-level `vsview.api` module 
            - WidgetTimeEdit
            - Login
            - ColorPicker
+           - FilePicker
 
 
 ## Timeline & Playback

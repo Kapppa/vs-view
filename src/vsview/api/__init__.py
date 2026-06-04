@@ -21,6 +21,7 @@ from ..app.settings.metadata import (
     ColorPicker,
     DoubleSpin,
     Dropdown,
+    FilePicker,
     LineEdit,
     ListEdit,
     Login,
@@ -29,7 +30,12 @@ from ..app.settings.metadata import (
     WidgetMetadata,
     WidgetTimeEdit,
 )
-from ..app.settings.widgets import ColorPickerInput, ListEditWidget, LoginCredentialsInput
+from ..app.settings.widgets import (
+    ColorPickerInput,
+    FilePickerWidget,
+    ListEditWidget,
+    LoginCredentialsInput,
+)
 from ..app.views import OutputInfo
 from ..app.views.components import AbstractTableModel, Accordion, AnimatedToggle, NonClosingMenu, SegmentedControl
 from ..app.views.timeline import FrameEdit, TimeEdit
@@ -51,6 +57,8 @@ __all__ = [
     "ColorPickerInput",
     "DoubleSpin",
     "Dropdown",
+    "FilePicker",
+    "FilePickerWidget",
     "Frame",
     "FrameEdit",
     "GraphicsViewProxy",
