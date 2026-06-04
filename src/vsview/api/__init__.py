@@ -25,6 +25,7 @@ from ..app.settings.metadata import (
     LineEdit,
     ListEdit,
     Login,
+    PathListEdit,
     PlainTextEdit,
     Spin,
     WidgetMetadata,
@@ -35,6 +36,7 @@ from ..app.settings.widgets import (
     FilePickerWidget,
     ListEditWidget,
     LoginCredentialsInput,
+    PathListEditWidget,
 )
 from ..app.views import OutputInfo
 from ..app.views.components import AbstractTableModel, Accordion, AnimatedToggle, NonClosingMenu, SegmentedControl
@@ -74,6 +76,8 @@ __all__ = [
     "NonClosingMenu",
     "OutputInfo",
     "Packer",
+    "PathListEdit",
+    "PathListEditWidget",
     "PlainTextEdit",
     "PluginAPI",
     "PluginGraphicsView",

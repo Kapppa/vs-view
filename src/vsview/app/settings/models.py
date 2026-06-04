@@ -40,6 +40,7 @@ from .metadata import (
     Dropdown,
     FilePicker,
     LineEdit,
+    PathListEdit,
     Spin,
     WidgetMetadata,
     WidgetTimeEdit,
@@ -126,7 +127,7 @@ class AppearanceSettings(BaseModel):
         str | None,
         Dropdown(
             label="Style",
-            items=[(k.title(), k.lower()) for k in QStyleFactory.keys()],  # noqa: SIM118
+            items=lambda QStyleFactory=QStyleFactory: [(k.title(), k.lower()) for k in QStyleFactory.keys()],  # noqa: N803, SIM118
             tooltip=(
                 "Application style.\n"  #
                 "You may have to restart the application for the changes to fully take effect."
@@ -516,6 +517,8 @@ class ViewTools(BaseModel):
 
 
 class QtSettings(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
     custom_colors: list[
         Annotated[
             QColor,
@@ -523,7 +526,15 @@ class QtSettings(BaseModel):
             PlainSerializer(lambda color: color.name(), return_type=str),
         ]
     ] = Field(default_factory=list)
-    model_config = ConfigDict(validate_assignment=True)
+
+    custom_plugin_paths: Annotated[
+        list[str],
+        PathListEdit(
+            label="Custom plugins paths",
+            default_value=[],
+            tooltip="Directories to search for custom Qt plugins.",
+        ),
+    ] = Field(default_factory=list)
 
     def model_post_init(self, context: Any) -> None:
         if self.custom_colors:

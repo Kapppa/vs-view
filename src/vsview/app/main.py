@@ -86,6 +86,11 @@ class Application(QApplication):
         ShortcutManager()
         SecretsManager()
 
+        # Register custom plugin paths first
+        for path in SettingsManager.global_settings.qt_settings.custom_plugin_paths:
+            QApplication.addLibraryPath(path)
+
+        # And then set the style
         self.setStyle(SettingsManager.global_settings.appearance.style or "")
         SettingsManager.global_settings.appearance.style = self.style().name().lower()
 

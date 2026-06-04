@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from .secrets import SecretsManager
-from .widgets import ColorPickerInput, FilePickerWidget, ListEditWidget, LoginCredentialsInput
+from .widgets import ColorPickerInput, FilePickerWidget, ListEditWidget, LoginCredentialsInput, PathListEditWidget
 
 logger = getLogger(__name__)
 
@@ -227,12 +227,12 @@ class LineEdit(WidgetMetadata[QLineEdit]):
 class Dropdown(WidgetMetadata[QComboBox]):
     """Dropdown/ComboBox widget metadata."""
 
-    items: Iterable[tuple[str, Any]]
-    """Iterable of (display_text, value) tuples."""
+    items: Iterable[tuple[str, Any]] | Callable[[], Iterable[tuple[str, Any]]]
+    """Iterable of (display_text, value) tuples or a callable that returns one."""
 
     def create_widget(self, parent: QWidget | None = None) -> QComboBox:
         widget = QComboBox(parent)
-        for display_text, value in self.items:
+        for display_text, value in self.items() if callable(self.items) else self.items:
             widget.addItem(display_text, value)
         return widget
 
@@ -417,6 +417,26 @@ class WidgetTimeEdit(WidgetMetadata[QTimeEdit]):
     def get_value(self, widget: QTimeEdit) -> Any:
         with self.apply_transform(widget.time(), self.from_ui) as value:
             return value
+
+
+@dataclass(frozen=True, slots=True)
+class PathListEdit(WidgetMetadata[PathListEditWidget]):
+    """Widget metadata for PathListEditWidget (directory paths list)."""
+
+    default_value: str | Sequence[str] | None = field(default=None, kw_only=True)
+
+    def create_widget(self, parent: QWidget | None = None) -> PathListEditWidget:
+        return PathListEditWidget(parent, self.default_value)
+
+    def load_value(self, widget: PathListEditWidget, value: Any) -> None:
+        with self.apply_transform(value, self.to_ui) as value:
+            widget.set_values(value)
+
+    def get_value(self, widget: PathListEditWidget) -> Any:
+        with self.apply_transform(widget.get_values(), self.from_ui) as value:
+            return sorted(set(value)) if isinstance(value, list) else value
+
+
 @dataclass(frozen=True, slots=True)
 class FilePicker(WidgetMetadata[FilePickerWidget]):
     """Widget metadata for FilePickerWidget (single file picker)."""

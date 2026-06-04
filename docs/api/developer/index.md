@@ -58,6 +58,7 @@ Most of these symbols are re-exported through the top-level `vsview.api` module 
            - LoginCredentialsInput
            - ColorPickerInput
            - FilePickerWidget
+           - PathListEditWidget
 
 ## UI Settings
 
@@ -76,6 +77,7 @@ Most of these symbols are re-exported through the top-level `vsview.api` module 
            - Login
            - ColorPicker
            - FilePicker
+           - PathListEdit
 
 
 ## Timeline & Playback

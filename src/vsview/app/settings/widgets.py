@@ -233,6 +233,59 @@ class ListEditWidget[T](QWidget, IconReloadMixin):
         except ValidationError as e:
             logger.error("Invalid value: %s", e)
 
+
+class PathListEditWidget(QWidget, IconReloadMixin):
+    """Widget for managing multiple directory paths with Add/Remove buttons."""
+
+    def __init__(self, parent: QWidget | None = None, default_value: Sequence[str] | None = None) -> None:
+        super().__init__(parent)
+        self.default_value = default_value
+
+        self.setLayout(layout := QVBoxLayout(self))
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        self.list_widget = QListWidget(self)
+        self.list_widget.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.list_widget.setAlternatingRowColors(True)
+        self.list_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding)
+        self.list_widget.setMaximumHeight(100)
+        layout.addWidget(self.list_widget)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(4)
+
+        self.add_btn = self.make_tool_button(IconName.PLUS, "Add Directory", self)
+        self.add_btn.clicked.connect(self._add_directory)
+
+        self.remove_btn = self.make_tool_button(IconName.MINUS, "Remove Selected", self)
+        self.remove_btn.clicked.connect(self._remove_selected)
+
+        btn_layout.addWidget(self.add_btn)
+        btn_layout.addWidget(self.remove_btn)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+    def _add_directory(self) -> None:
+        path = QFileDialog.getExistingDirectory(self, "Select Directory")
+        if path:
+            self.list_widget.addItem(path)
+
+    def _remove_selected(self) -> None:
+        for item in self.list_widget.selectedItems():
+            self.list_widget.takeItem(self.list_widget.row(item))
+
+    def get_values(self) -> list[str]:
+        values = [self.list_widget.item(i).text() for i in range(self.list_widget.count())]
+        return to_arr(self.default_value) if not values and self.default_value else values
+
+    def set_values(self, values: Sequence[str]) -> None:
+        self.list_widget.clear()
+        if not values and self.default_value:
+            values = self.default_value
+        self.list_widget.addItems(values)
+
+
 class FilePickerWidget(QWidget, IconReloadMixin):
     """Widget for selecting a single file path with a Browse button."""
 
