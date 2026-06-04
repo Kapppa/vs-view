@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Self
 
 import pluggy
-from jetpytools import cachedproperty, classproperty, fallback, flatten, to_arr
+from jetpytools import cachedproperty, classproperty, flatten, to_arr
 from pydantic import BaseModel, ConfigDict, Field
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QAction, QKeySequence
@@ -116,7 +116,6 @@ class GlobalSettings(BaseModel):
 
 class LocalSettings(LocalSettingsModel):
     scenes: list[SceneRow] = Field(default_factory=list)
-    toolbar_style: Qt.ToolButtonStyle | None = None
 
 
 class SceningPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconReloadMixin):
@@ -560,7 +559,7 @@ class SceningPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconReloadM
             logger.warning("Toolbar styles mismatch. Forcing update.")
 
         styles = islice(GlobalSettings.toolbar_styles, current_style.value + 1, None)
-        self.settings.local_.toolbar_style = next(styles)
+        self.settings.global_.toolbar_style = next(styles)
         self._update_toolbar_style()
 
     def on_range_selection_changed(self) -> None:
@@ -804,6 +803,6 @@ class SceningPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconReloadM
         set_text(self.add_frame_action, ShortcutDefinition.ADD_SINGLE_FRAME.definition, "Add frame")
 
     def _update_toolbar_style(self) -> None:
-        style = fallback(self.settings.local_.toolbar_style, self.settings.global_.toolbar_style)
+        style = self.settings.global_.toolbar_style
         self.scenes_toolbar.setToolButtonStyle(style)
         self.range_toolbar.setToolButtonStyle(style)
