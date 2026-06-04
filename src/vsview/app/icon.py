@@ -379,6 +379,4 @@ def load_icon(
     if isinstance(size, int):
         size = QSize(size, size)
 
-    svg_data = ICON_PROVIDERS[provider].get_icon_path(name, weight).read_bytes()
-
-    return load_svg(svg_data, size, QColor(color) if color is not None else None, dpr=dpr)
+    return ICON_PROVIDERS[provider].get_pixmap(name, weight, size, QColor(color) if color is not None else None, dpr)

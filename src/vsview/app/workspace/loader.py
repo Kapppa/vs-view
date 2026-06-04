@@ -115,7 +115,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         # Left dock toggle button styled as a splitter handle
         self.dock_toggle_btn = DockButton(self.content_area)
         self.dock_toggle_btn.raise_()
-        self.dock_toggle_btn.clicked.connect(self._on_dock_toggle)
+        self.dock_toggle_btn.toggled.connect(self._on_dock_toggle)
         self.content_layout.addWidget(self.dock_toggle_btn, alignment=Qt.AlignmentFlag.AlignRight)
 
         # Embedded QMainWindow for dock widget support in the view area
@@ -138,6 +138,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.plugin_splitter.insert_main_widget(self.tab_manager)
 
         # Connect plugin visibility signals
+        self.tab_manager.toggle_tooldock_btn.toggled.connect(self._on_dock_toggle)
         self.tab_manager.toggle_toolpanel_btn.toggled.connect(self.plugin_splitter.toggle_right_panel)
         self.plugin_splitter.rightPanelVisibilityChanged.connect(self._sync_toolpanel_btn)
         self.plugin_splitter.rightPanelVisibilityChanged.connect(self._on_splitter_visibility_changed)
@@ -756,6 +757,10 @@ class LoaderWorkspace[T](BaseWorkspace):
         for dock in self.docks:
             if self.global_settings.view_tools.docks.get(dock.objectName(), True):
                 dock.setVisible(checked)
+
+        with QSignalBlocker(self.dock_toggle_btn), QSignalBlocker(self.tab_manager.toggle_tooldock_btn):
+            self.dock_toggle_btn.setChecked(checked)
+            self.tab_manager.toggle_tooldock_btn.setChecked(checked)
 
     def _on_dock_visibility_changed(self, visible: bool, dock: PluginDock) -> None:
         if not isinstance(w := dock.widget(), WidgetPluginBase):

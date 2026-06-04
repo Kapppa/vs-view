@@ -51,6 +51,7 @@ class ActionID(StrEnum):
     TOGGLE_SAR = "workspace.loader.view.sar", "Toggle SAR view", ""
     SAVE_CURRENT_IMAGE = "workspace.loader.view.save_current_image", "Save Current Image", "Ctrl+Shift+S"
     COPY_IMAGE_TO_CLIPBOARD = "workspace.loader.view.copy_image_to_clipboard", "Copy Image to Clipboard", "Ctrl+S"
+    TOGGLE_PLUGIN_DOCK = "workspace.loader.view.toggle_plugin_dock", "Toggle Plugin Dock", ""
     TOGGLE_PLUGIN_PANEL = "workspace.loader.view.toggle_plugin_panel", "Toggle Plugin Panel", "Ctrl+P"
 
     # Timeline actions

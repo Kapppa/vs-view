@@ -8,7 +8,12 @@ from abc import ABC, abstractmethod
 from enum import StrEnum
 from importlib import resources
 from importlib.resources.abc import Traversable
-from typing import ClassVar
+from typing import ClassVar, Self
+
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QColor, QPixmap
+
+from .utils import load_svg
 
 
 class IconName(StrEnum):
@@ -53,7 +58,16 @@ class IconName(StrEnum):
     MARK_IN = "selection-background"
     MARK_OUT = "selection-foreground"
     FRAME_ADD = "selection"
-    SIDEBAR = "sidebar-simple"
+    SIDEBAR_RIGHT = "sidebar-simple", "mirror"
+    SIDEBAR_LEFT = "sidebar-simple"
+
+    modifier: str
+
+    def __new__(cls, value: str, modifier: str = "") -> Self:
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj.modifier = modifier
+        return obj
 
 
 class IconProvider(ABC):
@@ -102,6 +116,33 @@ class IconProvider(ABC):
             return path
 
         return folder / f"{mapped}.svg"
+
+    def get_pixmap(
+        self,
+        name: IconName,
+        weight: str,
+        size: QSize,
+        color: QColor | None = None,
+        dpr: float | None = None,
+    ) -> QPixmap:
+        """Get a QPixmap from the specified IconName."""
+
+        svg_data = self.get_icon_path(name, weight).read_bytes()
+
+        svg = load_svg(svg_data, size, color, dpr)
+
+        if not name.modifier:
+            return svg
+
+        match name.modifier:
+            case "mirror":
+                img = svg.toImage()
+                img.mirror(vertically=True)
+                svg = QPixmap(img)
+            case _:
+                raise NotImplementedError
+
+        return svg
 
 
 class PhosphorProvider(IconProvider):
@@ -161,7 +202,8 @@ class MaterialProvider(IconProvider):
         IconName.MARK_IN: "step-backward",
         IconName.MARK_OUT: "step-forward",
         IconName.FRAME_ADD: "plus-box",
-        IconName.SIDEBAR: "page-layout-sidebar-right",
+        IconName.SIDEBAR_RIGHT: "page-layout-sidebar-right",
+        IconName.SIDEBAR_LEFT: "page-layout-sidebar-left",
     }
 
     @property
@@ -215,7 +257,8 @@ class LucideProvider(IconProvider):
         IconName.MARK_IN: "square-chevron-left",
         IconName.MARK_OUT: "square-chevron-right",
         IconName.FRAME_ADD: "square-arrow-right-enter",
-        IconName.SIDEBAR: "panel-right-open",
+        IconName.SIDEBAR_RIGHT: "panel-right-open",
+        IconName.SIDEBAR_LEFT: "panel-left-open",
     }
 
     @property

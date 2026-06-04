@@ -261,7 +261,8 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         if layout.dock_state:
             self.dock_container.restoreState(QByteArray(b64decode(layout.dock_state)))
 
-        self.dock_toggle_btn.setChecked(any(not dock.isHidden() for dock in self.docks))
+        dock_visible = any(not dock.isHidden() for dock in self.docks)
+        self.dock_toggle_btn.setChecked(dock_visible)
 
     def _get_supported_drop_file(self, event: QDropEvent) -> Path | None:
         if (mime_data := event.mimeData()).hasUrls():

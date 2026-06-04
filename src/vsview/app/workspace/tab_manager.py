@@ -164,8 +164,16 @@ class TabManager(QWidget, IconReloadMixin):
             checked=False,
             icon_states=self.DEFAULT_ICON_STATES,
         )
+        self.toggle_tooldock_btn = self.make_tool_button(
+            IconName.SIDEBAR_LEFT,
+            "Show or hide the Plugin Tool Dock for the current workspace.",
+            self,
+            checkable=True,
+            checked=False,
+            icon_states=self.DEFAULT_ICON_STATES,
+        )
         self.toggle_toolpanel_btn = self.make_tool_button(
-            IconName.SIDEBAR,
+            IconName.SIDEBAR_RIGHT,
             "Show or hide the Plugin Tool Panel for the current workspace.",
             self,
             checkable=True,
@@ -175,6 +183,7 @@ class TabManager(QWidget, IconReloadMixin):
         self.sync_zoom_btn.toggled.connect(self._on_sync_zoom_changed)
         self.autofit_btn.toggled.connect(self._on_global_autofit_changed)
 
+        self.sync_layout.addWidget(self.toggle_tooldock_btn)
         self.sync_layout.addWidget(self.sync_playhead_btn)
         self.sync_layout.addWidget(self.sync_zoom_btn)
         self.sync_layout.addWidget(self.sync_scroll_btn)
@@ -197,6 +206,7 @@ class TabManager(QWidget, IconReloadMixin):
 
     def _setup_shortcuts(self) -> None:
         sm = ShortcutManager()
+        sm.register_shortcut(ActionID.TOGGLE_PLUGIN_DOCK, self.toggle_tooldock_btn.toggle, self)
         sm.register_shortcut(ActionID.SYNC_PLAYHEAD, self.sync_playhead_btn.set_state, self)
         sm.register_shortcut(ActionID.SYNC_ZOOM, self.sync_zoom_btn.toggle, self)
         sm.register_shortcut(ActionID.SYNC_SCROLL, self.sync_scroll_btn.toggle, self)
