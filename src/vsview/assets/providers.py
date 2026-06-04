@@ -58,7 +58,7 @@ class IconName(StrEnum):
     MARK_IN = "selection-background"
     MARK_OUT = "selection-foreground"
     FRAME_ADD = "selection"
-    SIDEBAR_RIGHT = "sidebar-simple", "mirror"
+    SIDEBAR_RIGHT = "sidebar-simple-mirror", "mirror"
     SIDEBAR_LEFT = "sidebar-simple"
 
     modifier: str
@@ -126,23 +126,7 @@ class IconProvider(ABC):
         dpr: float | None = None,
     ) -> QPixmap:
         """Get a QPixmap from the specified IconName."""
-
-        svg_data = self.get_icon_path(name, weight).read_bytes()
-
-        svg = load_svg(svg_data, size, color, dpr)
-
-        if not name.modifier:
-            return svg
-
-        match name.modifier:
-            case "mirror":
-                img = svg.toImage()
-                img.mirror(vertically=True)
-                svg = QPixmap(img)
-            case _:
-                raise NotImplementedError
-
-        return svg
+        return load_svg(self.get_icon_path(name, weight).read_bytes(), size, color, dpr)
 
 
 class PhosphorProvider(IconProvider):
@@ -169,7 +153,32 @@ class PhosphorProvider(IconProvider):
 
     def map_name(self, name: IconName) -> str:
         # Phosphor uses same kebab-case names as IconName
-        return name.value
+        return name.value.removesuffix(f"-{name.modifier}")
+
+    def get_pixmap(
+        self,
+        name: IconName,
+        weight: str,
+        size: QSize,
+        color: QColor | None = None,
+        dpr: float | None = None,
+    ) -> QPixmap:
+        """Get a QPixmap from the specified IconName."""
+
+        svg = super().get_pixmap(name, weight, size, color, dpr)
+
+        if not name.modifier:
+            return svg
+
+        match name.modifier:
+            case "mirror":
+                img = svg.toImage()
+                img.mirror(horizontally=True)
+                svg = QPixmap(img)
+            case _:
+                raise NotImplementedError
+
+        return svg
 
 
 class MaterialProvider(IconProvider):
