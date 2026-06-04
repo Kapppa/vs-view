@@ -20,6 +20,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QAction,
     QCloseEvent,
+    QDesktopServices,
     QDrag,
     QDragEnterEvent,
     QDragLeaveEvent,
@@ -246,6 +247,49 @@ class MainWindow(QMainWindow):
         self.menu_bar.addAction(self.settings_action)
 
         self.help_menu = self.menu_bar.addMenu("Help")
+
+        self.help_doc_act = QAction("Documentation", self)
+        self.help_doc_act.triggered.connect(
+            lambda: QDesktopServices.openUrl("https://jaded-encoding-thaumaturgy.github.io/vs-view/usage/")
+        )
+        self.help_menu.addAction(self.help_doc_act)
+
+        self.help_usage_submenu = QMenu("Workspace", self)
+        self.help_menu.addMenu(self.help_usage_submenu)
+
+        self.help_usage_workspace_act = QAction("Workspaces", self)
+        self.help_usage_workspace_act.triggered.connect(
+            lambda: QDesktopServices.openUrl("https://jaded-encoding-thaumaturgy.github.io/vs-view/usage/workspaces/")
+        )
+        self.help_usage_submenu.addAction(self.help_usage_workspace_act)
+
+        self.help_usage_color_management_act = QAction("Color Management", self)
+        self.help_usage_color_management_act.triggered.connect(
+            lambda: QDesktopServices.openUrl(
+                "https://jaded-encoding-thaumaturgy.github.io/vs-view/usage/color-management/"
+            )
+        )
+        self.help_usage_submenu.addAction(self.help_usage_color_management_act)
+
+        self.help_usage_config_act = QAction("Configuration", self)
+        self.help_usage_config_act.triggered.connect(
+            lambda: QDesktopServices.openUrl(
+                "https://jaded-encoding-thaumaturgy.github.io/vs-view/usage/configuration/"
+            )
+        )
+        self.help_usage_submenu.addAction(self.help_usage_config_act)
+
+        self.help_contributin_act = QAction("Plugins", self)
+        self.help_contributin_act.triggered.connect(
+            lambda: QDesktopServices.openUrl("https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/")
+        )
+        self.help_menu.addAction(self.help_contributin_act)
+
+        self.help_contributin_act = QAction("Contributing", self)
+        self.help_contributin_act.triggered.connect(
+            lambda: QDesktopServices.openUrl("https://jaded-encoding-thaumaturgy.github.io/vs-view/contributing/")
+        )
+        self.help_menu.addAction(self.help_contributin_act)
 
         self.status_widget = StatusWidget(self)
         self.statusBar().addWidget(self.status_widget, 1)
