@@ -279,17 +279,17 @@ class MainWindow(QMainWindow):
         )
         self.help_usage_submenu.addAction(self.help_usage_config_act)
 
-        self.help_contributin_act = QAction("Plugins", self)
-        self.help_contributin_act.triggered.connect(
+        self.help_usage_plugins_act = QAction("Plugins", self)
+        self.help_usage_plugins_act.triggered.connect(
             lambda: QDesktopServices.openUrl("https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/")
         )
-        self.help_menu.addAction(self.help_contributin_act)
+        self.help_menu.addAction(self.help_usage_plugins_act)
 
-        self.help_contributin_act = QAction("Contributing", self)
-        self.help_contributin_act.triggered.connect(
+        self.help_usage_contributing_act = QAction("Contributing", self)
+        self.help_usage_contributing_act.triggered.connect(
             lambda: QDesktopServices.openUrl("https://jaded-encoding-thaumaturgy.github.io/vs-view/contributing/")
         )
-        self.help_menu.addAction(self.help_contributin_act)
+        self.help_menu.addAction(self.help_usage_contributing_act)
 
         self.status_widget = StatusWidget(self)
         self.statusBar().addWidget(self.status_widget, 1)
