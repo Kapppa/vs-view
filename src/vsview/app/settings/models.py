@@ -169,7 +169,7 @@ class AppearanceSettings(BaseModel):
             ),
             tristate=True,
         ),
-    ] = Qt.CheckState.PartiallyChecked
+    ] = Qt.CheckState.Checked
 
     sidebar_visible: bool = True
 
