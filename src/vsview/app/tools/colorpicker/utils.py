@@ -16,27 +16,27 @@ def get_chroma_offsets(frame: vs.VideoFrame) -> tuple[float, float]:
     return off_top, off_left
 
 
-def get_lowest_value(fmt: vs.VideoFormat, chroma: bool, range_in: vs.ColorRange) -> float:
+def get_lowest_value(fmt: vs.VideoFormat, chroma: bool, range_in: vs.Range) -> float:
     if fmt.color_family == vs.RGB:
         chroma = False
 
     if fmt.sample_type is vs.FLOAT:
         return -0.5 if chroma else 0.0
 
-    if range_in == vs.ColorRange.RANGE_LIMITED:
+    if range_in == vs.Range.RANGE_LIMITED:
         return 16 << fmt.bits_per_sample - 8
 
     return 0
 
 
-def get_peak_value(fmt: vs.VideoFormat, chroma: bool, range_in: vs.ColorRange) -> float:
+def get_peak_value(fmt: vs.VideoFormat, chroma: bool, range_in: vs.Range) -> float:
     if fmt.color_family == vs.RGB:
         chroma = False
 
     if fmt.sample_type is vs.FLOAT:
         return 0.5 if chroma else 1.0
 
-    if range_in == vs.ColorRange.RANGE_LIMITED:
+    if range_in == vs.Range.RANGE_LIMITED:
         return (240 if chroma else 235) << fmt.bits_per_sample - 8
 
     return (1 << fmt.bits_per_sample) - 1
@@ -48,14 +48,14 @@ def scale_value_to_float(value: float, input_frame: vs.VideoFrame, chroma: bool 
     in_fmt = input_frame.format
     out_fmt = in_fmt.replace(sample_type=vs.FLOAT, bits_per_sample=32)
 
-    prop = input_frame.props.get("_ColorRange")
+    prop = input_frame.props.get("_Range")
 
     if prop is not None:
-        range_in = vs.ColorRange(prop)  # type: ignore[arg-type]
+        range_in = vs.Range(prop)
     elif in_fmt.color_family == vs.RGB:
-        range_in = vs.ColorRange.RANGE_FULL
+        range_in = vs.Range.RANGE_FULL
     else:
-        range_in = vs.ColorRange.RANGE_LIMITED
+        range_in = vs.Range.RANGE_LIMITED
 
     if input_frame.format.bits_per_sample == 32 or (
         input_frame.format.bits_per_sample == 16 and input_frame.format.sample_type == vs.FLOAT
@@ -73,7 +73,7 @@ def scale_value_to_float(value: float, input_frame: vs.VideoFrame, chroma: bool 
     if in_fmt.sample_type is vs.INTEGER:
         if chroma:
             out_value -= 128 << (in_fmt.bits_per_sample - 8)
-        elif range_in == vs.ColorRange.RANGE_LIMITED:
+        elif range_in == vs.Range.RANGE_LIMITED:
             out_value -= 16 << (in_fmt.bits_per_sample - 8)
 
     out_value *= (output_peak - output_lowest) / (input_peak - input_lowest)

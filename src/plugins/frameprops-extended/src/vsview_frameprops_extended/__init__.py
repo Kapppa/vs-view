@@ -56,7 +56,7 @@ VIDEO_FORMATTERS: list[FormatterProperty] = [
         value_formatter=lambda v: ChromaLocation.from_param(v).pretty_string,
     ),
     FormatterProperty(
-        prop_key="_ColorRange",
+        prop_key="_Range",
         value_formatter=lambda v: Range.from_param(v).pretty_string,
     ),
     FormatterProperty(
