@@ -127,7 +127,7 @@ You can also toggle their visibility by using the **Toggle Plugin Tool Docks** b
     </video>
 </figure>
 
-See [Plugins](../../plugins/index.md) for more information.
+See [Plugins](../../plugins/overview.md) for more information.
 
 ## 6. Tool Panels
 
@@ -144,7 +144,7 @@ You can also hide the panel by dragging it to the edge or by using the **Toggle 
     </video>
 </figure>
 
-See [Plugins](../../plugins/index.md) for more information.
+See [Plugins](../../plugins/overview.md) for more information.
 
 ## 7. Status Bar
 

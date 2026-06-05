@@ -59,8 +59,8 @@ Install and launch directly from your terminal:
 
 - [Installation](installation.md): Requirements, `pip`/`uv` install, and development setup.
 - [Contributing](contributing.md): Development setup and editor recommendations.
-- [Usage](usage/index.md): CLI usage, file detection, workspaces, and shortcuts.
-- [Plugins](plugins/index.md): Built-in tools, official plugins, and plugin development.
+- [Usage](usage/overview.md): CLI usage, file detection, workspaces, and shortcuts.
+- [Plugins](plugins/overview.md): Built-in tools, official plugins, and plugin development.
 - [User API](api/user.md): `set_output` and script-side API usage.
 - [Developer API](api/developer/index.md): Plugin-facing classes, hooks, and utilities.
 

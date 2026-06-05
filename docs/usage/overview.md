@@ -63,7 +63,7 @@ Opens the **Settings Dialog**, where you can customize shortcuts, application an
 ## 3. The Main Content Area
 
 The main area displays the active workspace's content.
-See [Workspaces](workspaces/index.md) for more information.
+See [Workspaces](workspaces/workspace.md) for more information.
 
 ---
 

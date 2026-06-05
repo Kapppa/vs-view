@@ -6,4 +6,4 @@ icon: lucide/file-text
 
 The **Script Workspace** is the standard environment for working with VapourSynth scripts.
 
-Refer to the [Workspaces Overview](index.md) for full workspace functionality.
+Refer to the [Workspaces Overview](workspace.md) for full workspace functionality.

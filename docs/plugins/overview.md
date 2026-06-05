@@ -1,5 +1,5 @@
 ---
-icon: lucide/plug-2
+icon: lucide/book-open
 title: Plugins Overview
 ---
 
