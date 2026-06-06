@@ -44,6 +44,7 @@ from vsview.api import (
     IconReloadMixin,
     LocalSettingsModel,
     PluginAPI,
+    PluginSettings,
     VideoOutputProxy,
     WidgetPluginBase,
     run_in_loop,
@@ -135,14 +136,14 @@ class FramePropsViewMixin:
 class WordWrapDelegate(QStyledItemDelegate):
     def initStyleOption(self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex) -> None:
         super().initStyleOption(option, index)
-        if index.column() == 1:
+        if index.column() in (1, 2):
             option.features |= QStyleOptionViewItem.ViewItemFeature.WrapText
             option.textElideMode = Qt.TextElideMode.ElideNone
 
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex) -> QSize:
         size = super().sizeHint(option, index)
 
-        if index.column() != 1:
+        if index.column() not in (1, 2):
             return size
 
         if not (text := index.data(Qt.ItemDataRole.DisplayRole)):
@@ -267,9 +268,11 @@ class FramePropsTreeView(QTreeView, FramePropsViewMixin):
     previewRequested = Signal(object, str)  # (VideoFrame, title)
     treeColumnWidthChanged = Signal(int, int)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, settings: PluginSettings[GlobalSettings, LocalSettings], parent: QWidget | None = None) -> None:
         super().__init__(parent)
         FramePropsViewMixin.__init__(self)
+
+        self.settings = settings
 
         self.current_model = FramePropsModel(self)
         self.setModel(self.current_model)
@@ -309,6 +312,18 @@ class FramePropsTreeView(QTreeView, FramePropsViewMixin):
     def set_show_formatted(self, show: bool) -> None:
         if show:
             self.header().showSection(FramePropsModel.FORMATTED_COLUMN)
+            # Resize the Value column (1) if it is taking up almost the whole viewport,
+            # ensuring the Formatted column (2) is visible and doesn't get pushed out.
+            total_width = self.viewport().width()
+            col0_width = self.header().sectionSize(0)
+            col1_width = self.header().sectionSize(1)
+            widths = self.settings.local_.tree_column_widths or {}
+            if (1 not in widths or (col0_width + col1_width >= total_width - 50)) and (
+                remaining := total_width - col0_width
+            ) > 100:
+                val_width = remaining // 2
+                self.header().resizeSection(1, val_width)
+                self.header().resizeSection(2, remaining - val_width)
         else:
             self.header().hideSection(FramePropsModel.FORMATTED_COLUMN)
 
@@ -317,6 +332,16 @@ class FramePropsTreeView(QTreeView, FramePropsViewMixin):
     def _on_section_resized(self, logical_index: int, old_size: int, new_size: int) -> None:
         if logical_index == 1 and old_size != new_size:
             self.doItemsLayout()
+
+        # If the resized section is the last visible section, do not save its width
+        # as it is automatically stretched by Qt to fill the remaining space.
+        if self.header().stretchLastSection():
+            last_visible = -1
+            for col in range(self.header().count()):
+                if not self.header().isSectionHidden(col):
+                    last_visible = col
+            if logical_index == last_visible:
+                return
 
         self.treeColumnWidthChanged.emit(logical_index, new_size)
 
@@ -537,7 +562,7 @@ class FramePropsPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconRelo
         self.stack = QStackedWidget(self.splitter)
 
         self.raw_table = FramePropsTableView(self.stack)
-        self.categorize_tree = FramePropsTreeView(self.stack)
+        self.categorize_tree = FramePropsTreeView(self.settings, self.stack)
         self.raw_table.copyMessage.connect(self.status_message)
         self.categorize_tree.copyMessage.connect(self.status_message)
 
