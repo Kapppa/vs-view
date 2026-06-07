@@ -49,8 +49,8 @@ class OGMParser(Parser):
 
     def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
         pattern = re.compile(
-            r"^\s*(CHAPTER\d+)\s*=\s*(\d+):(\d+):(\d+(?:\.\d+)?)\s*[\r\n]+"
-            r"\s*\1NAME\s*=\s*(.*)",
+            r"^[ \t]*(CHAPTER\d+)[ \t]*=[ \t]*(\d+):(\d+):(\d+(?:\.\d+)?)[ \t]*[\r\n]+"
+            r"[ \t]*\1NAME[ \t]*=[ \t]*(.*)",
             re.MULTILINE,
         )
 

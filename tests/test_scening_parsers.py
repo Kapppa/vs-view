@@ -107,6 +107,24 @@ class TestOGMParser:
             (timedelta(hours=1, minutes=23, seconds=45.678), "Ending"),
         ]
 
+    def test_parse_fixture(self, ogm_p: OGMParser) -> None:
+        result = parse(ogm_p, FIXTURES / "test_ogm.txt")
+        assert len(result.ranges) == 12
+        assert [(r.start, r.label) for r in result.ranges] == [
+            (timedelta(0), "intro"),
+            (timedelta(seconds=432, microseconds=798000), "A"),
+            (timedelta(seconds=971, microseconds=440000), "B"),
+            (timedelta(seconds=1412, microseconds=654000), ""),
+            (timedelta(seconds=1880, microseconds=756000), ""),
+            (timedelta(seconds=2375, microseconds=745000), ""),
+            (timedelta(seconds=3017, microseconds=860000), ""),
+            (timedelta(seconds=3504, microseconds=231000), ""),
+            (timedelta(seconds=3926, microseconds=274000), ""),
+            (timedelta(seconds=4391, microseconds=103000), ""),
+            (timedelta(seconds=4861, microseconds=876000), ""),
+            (timedelta(seconds=5326, microseconds=537000), ""),
+        ]
+
     def test_empty_file(self, ogm_p: OGMParser, tmp_path: Path) -> None:
         (f := tmp_path / "empty.txt").write_text("", encoding="utf-8")
         with pytest.raises(ValueError, match="Empty file"):
