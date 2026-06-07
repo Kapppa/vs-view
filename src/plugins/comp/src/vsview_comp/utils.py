@@ -7,6 +7,7 @@ from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from functools import cache
 from logging import getLogger
 from types import TracebackType
+from typing import override
 
 import niquests
 
@@ -30,9 +31,11 @@ class LogNiquestsErrors(AbstractContextManager[None], AbstractAsyncContextManage
     def __init__(self, ctx_message: str) -> None:
         self.ctx_message = ctx_message
 
+    @override
     def __enter__(self) -> None:
         return None
 
+    @override
     def __exit__(
         self,
         exc_t: type[BaseException] | None,
@@ -45,9 +48,11 @@ class LogNiquestsErrors(AbstractContextManager[None], AbstractAsyncContextManage
             return True
         return None
 
+    @override
     async def __aenter__(self) -> None:
         return None
 
+    @override
     async def __aexit__(
         self,
         exc_t: type[BaseException] | None,

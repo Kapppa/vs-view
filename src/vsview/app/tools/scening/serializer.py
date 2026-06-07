@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import BinaryIO
+from typing import BinaryIO, override
 
 from .api import Serializer, borrowed_text_wrapper
 from .models import UnifiedRange
@@ -8,6 +8,7 @@ from .models import UnifiedRange
 class OGMSerializer(Serializer):
     filter = Serializer.FileFilter("OGM Chapters", "txt")
 
+    @override
     def serialize(self, io: BinaryIO, ranges: Iterable[UnifiedRange]) -> None:
         with borrowed_text_wrapper(io) as wrapper:
             for i, r in enumerate(ranges, 1):
@@ -21,6 +22,7 @@ class OGMSerializer(Serializer):
 class QPFileSerializer(Serializer):
     filter = Serializer.FileFilter("QP File", "qp")
 
+    @override
     def serialize(self, io: BinaryIO, ranges: Iterable[UnifiedRange]) -> None:
         with borrowed_text_wrapper(io) as wrapper:
             for r in ranges:
@@ -30,6 +32,7 @@ class QPFileSerializer(Serializer):
 class PythonListFramesSerializer(Serializer):
     filter = Serializer.FileFilter("Python List (Frames)", "txt")
 
+    @override
     def serialize(self, io: BinaryIO, ranges: Iterable[UnifiedRange]) -> None:
         with borrowed_text_wrapper(io) as wrapper:
             wrapper.write(str([r.as_frames() for r in ranges]))
@@ -38,6 +41,7 @@ class PythonListFramesSerializer(Serializer):
 class PythonListTimestampsSerializer(Serializer):
     filter = Serializer.FileFilter("Python List (Timestamps)", "txt")
 
+    @override
     def serialize(self, io: BinaryIO, ranges: Iterable[UnifiedRange]) -> None:
         with borrowed_text_wrapper(io) as wrapper:
             wrapper.write(

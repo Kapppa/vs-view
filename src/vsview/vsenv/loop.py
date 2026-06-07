@@ -7,7 +7,7 @@ from functools import wraps
 from inspect import iscoroutinefunction
 from logging import getLogger
 from threading import Lock, current_thread
-from typing import Any, Literal, Protocol, cast, overload
+from typing import Any, Literal, Protocol, cast, overload, override
 
 from PySide6.QtCore import QObject, QRunnable, QThread, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import QApplication
@@ -24,6 +24,7 @@ class QtEventLoop(QObject, EventLoop):
 
     _invoke = Signal(int)
 
+    @override
     def attach(self) -> None:
         self._lock = Lock()
         self._counter = 0
@@ -32,6 +33,7 @@ class QtEventLoop(QObject, EventLoop):
         self._pending = dict[int, Callable[[], None]]()
         self._invoke.connect(self._on_invoke)
 
+    @override
     def detach(self) -> None:
         self.wait_for_threads(5000)
         self._invoke.disconnect(self._on_invoke)
@@ -44,6 +46,7 @@ class QtEventLoop(QObject, EventLoop):
         if wrapper:
             wrapper()
 
+    @override
     def from_thread[**P, R](self, func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> Future[R]:
         """Schedule func to run on the main Qt thread."""
         fut = Future[R]()
@@ -68,6 +71,7 @@ class QtEventLoop(QObject, EventLoop):
 
         return fut
 
+    @override
     def to_thread[**P, R](self, func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> Future[R]:
         """Run func in Qt's global thread pool."""
         fut = Future[R]()

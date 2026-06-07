@@ -1,6 +1,6 @@
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, override
 
 from jetpytools import copy_signature
 from PySide6.QtCore import (
@@ -46,6 +46,7 @@ class _OverlayWidget(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setVisible(False)
 
+    @override
     def event(self, event: QEvent) -> bool:
         if event.type() in (
             QEvent.Type.MouseButtonPress,
@@ -81,10 +82,12 @@ class BlockableWidget(QWidget):
         self._blocked = False
         self._overlay = _OverlayWidget(self)
 
+    @override
     def setEnabled(self, arg__1: bool) -> None:
         self.blocked = not arg__1
         return super().setEnabled(arg__1)
 
+    @override
     def setDisabled(self, arg__1: bool) -> None:
         self.blocked = arg__1
         return super().setDisabled(arg__1)
@@ -123,16 +126,19 @@ class BlockableWidget(QWidget):
     def blocked(self, value: bool) -> None:
         self.set_blocked(value)
 
+    @override
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
         self._overlay.setGeometry(self.rect())
 
+    @override
     def focusNextPrevChild(self, next: bool) -> bool:
         # Prevent tab focus transition when blocked
         if self._blocked:
             return False
         return super().focusNextPrevChild(next)
 
+    @override
     def event(self, event: QEvent) -> bool:
         if self._blocked and event.type() in (
             QEvent.Type.KeyPress,
@@ -274,6 +280,7 @@ class CustomLoadingPage(QWidget):
         self.icon_animation.setLoopCount(-1)
         self.icon_animation.valueChanged.connect(self._update_bounce)
 
+    @override
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
 
@@ -315,17 +322,21 @@ class AnimatedToggle(QCheckBox):
 
         self.stateChanged.connect(self._setup_animation)
 
+    @override
     def sizeHint(self) -> QSize:
         return QSize(58, 30)
 
+    @override
     def hitButton(self, pos: QPoint) -> bool:
         return self.contentsRect().contains(pos)
 
+    @override
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
         # Sync handle position with initial checked state without animation
         self.handle_position = 1.0 if self.isChecked() else 0.0
 
+    @override
     def paintEvent(self, e: QPaintEvent) -> None:
         cont_rect = self.contentsRect()
         handle_radius = round(0.40 * cont_rect.height())
@@ -495,6 +506,7 @@ class AbstractTableModel(QAbstractTableModel):
 
 
 class NonClosingMenu(QMenu):
+    @override
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if action := self.actionAt(event.position().toPoint()):
             return action.trigger()

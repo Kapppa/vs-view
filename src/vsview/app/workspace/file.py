@@ -7,7 +7,7 @@ from functools import wraps
 from importlib.util import find_spec
 from logging import getLogger
 from pathlib import Path
-from typing import Any, ClassVar, Concatenate, NamedTuple, overload
+from typing import Any, ClassVar, Concatenate, NamedTuple, overload, override
 
 from jetpytools import cachedproperty, to_arr
 from PySide6.QtCore import QByteArray, Qt, QTimer
@@ -94,6 +94,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         SettingsManager.signals.aboutToSaveLocal.connect(lambda _: self.snapshot_settings())
         SettingsManager.signals.localChanged.connect(lambda _: self._on_local_settings_changed())
 
+    @override
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         if self._get_supported_drop_file(event) is not None:
             event.acceptProposedAction()
@@ -101,6 +102,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
 
         event.ignore()
 
+    @override
     def dragMoveEvent(self, event: QDragMoveEvent) -> None:
         if self._get_supported_drop_file(event) is not None:
             event.acceptProposedAction()
@@ -108,6 +110,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
 
         event.ignore()
 
+    @override
     def dropEvent(self, event: QDropEvent) -> None:
         if (dropped_file := self._get_supported_drop_file(event)) is None:
             event.ignore()
@@ -116,6 +119,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.load_content(dropped_file)
         event.acceptProposedAction()
 
+    @override
     def deleteLater(self) -> None:
         self._autosave_timer.stop()
         self.playback.stop()
@@ -166,6 +170,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.local_settings.layout.plugin_tab_index = self.plugin_splitter.plugin_tabs.currentIndex()
         self.local_settings.layout.dock_state = b64encode(self.dock_container.saveState().data()).decode("ascii")
 
+    @override
     def init_load(self, frame: int | None = None, time: float | None = None, tab_index: int | None = None) -> None:
         from ..plugins.manager import PluginManager
 
@@ -200,9 +205,11 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         PluginManager.populate_default_settings("local", self.content)
 
     @requires_content(return_fallback=dict[int, Any])
+    @override
     def get_output_metadata(self) -> dict[int, Any]:
         return output_metadata.get(str(self.content), {})
 
+    @override
     def load_content(
         self,
         content: Path,
@@ -216,6 +223,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         future.add_done_callback(lambda _: self._start_autosave(remaining_time))
         return future
 
+    @override
     def reload_content(self) -> Future[None]:
         remaining_time = self._stop_autosave()
         future = super().reload_content()
@@ -223,11 +231,13 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         return future
 
     @run_in_loop(return_future=False)
+    @override
     def clear_failed_load(self) -> None:
         self._autosave_timer.stop()
         super().clear_failed_load()
 
     @run_in_loop(return_future=False)
+    @override
     def load_plugins(self) -> None:
         if not self.plugins_loaded:
             super().load_plugins()
@@ -344,6 +354,7 @@ class VideoFileWorkspace(GenericFileWorkspace):
         ),
     )
 
+    @override
     def loader(self) -> None:
         if not self.content.exists():
             logger.error("File not found: %s", self.content)
@@ -382,6 +393,7 @@ class PythonScriptWorkspace(GenericFileWorkspace, VSEngineWorkspace[Path]):
 
     content_type = "script"
 
+    @override
     def loader(self) -> None:
         if not self.content.exists():
             logger.error("File not found: %s", self.content)

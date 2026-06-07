@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import Flag, auto
 from logging import getLogger
 from math import isclose
-from typing import Any, Literal, NamedTuple
+from typing import Any, Literal, NamedTuple, override
 
 from jetpytools import cachedproperty, clamp, copy_signature, cround
 from PySide6.QtCore import (
@@ -241,9 +241,11 @@ class RectSelectionOverlay(QGraphicsObject):
             self._selection_color = new_color
             self.update()
 
+    @override
     def boundingRect(self) -> QRectF:
         return self._image_rect
 
+    @override
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
         if self._image_rect.isEmpty() or self._selection_rect.isEmpty():
             return
@@ -472,6 +474,7 @@ class BaseGraphicsView(QGraphicsView):
 
         self._update_rect_selection_cursor()
 
+    @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         self.contextMenuRequested.emit(event)
 
@@ -480,6 +483,7 @@ class BaseGraphicsView(QGraphicsView):
 
         self.context_menu.exec(event.globalPos())
 
+    @override
     def drawBackground(self, painter: QPainter, rect: QRectF | QRect) -> None:
         if not Shiboken.isValid(self.pixmap_item) or self.pixmap_item.pixmap().isNull():
             return super().drawBackground(painter, rect)
@@ -497,6 +501,7 @@ class BaseGraphicsView(QGraphicsView):
 
         return None
 
+    @override
     def viewportEvent(self, event: QEvent) -> bool:
         if not isinstance(event, QNativeGestureEvent) or event.gestureType() != Qt.NativeGestureType.ZoomNativeGesture:
             return super().viewportEvent(event)
@@ -518,12 +523,14 @@ class BaseGraphicsView(QGraphicsView):
 
         return True
 
+    @override
     def resizeEvent(self, event: QResizeEvent) -> None:
         if event.type() == QResizeEvent.Type.Resize:
             self.set_zoom(self.current_zoom if not self.autofit else 0)
 
         super().resizeEvent(event)
 
+    @override
     def wheelEvent(self, event: QWheelEvent) -> None:
         if self.autofit:
             return event.ignore()
@@ -1088,6 +1095,7 @@ class GraphicsView(BaseGraphicsView):
         super().__init__(*args, **kwargs)
         self.setMouseTracking(True)
 
+    @override
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         if self._update_rect_selection_drag(event):
             if self.isVisible():
@@ -1102,6 +1110,7 @@ class GraphicsView(BaseGraphicsView):
         if self.hasMouseTracking() and self.isVisible():
             self.mouseMoved.emit(event)
 
+    @override
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if self._start_rect_selection_drag(event):
             if self.isVisible():
@@ -1113,6 +1122,7 @@ class GraphicsView(BaseGraphicsView):
         if self.isVisible():
             self.mousePressed.emit(event)
 
+    @override
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if self._finish_rect_selection_drag(event):
             if self.isVisible():
@@ -1124,6 +1134,7 @@ class GraphicsView(BaseGraphicsView):
         if self.isVisible():
             self.mouseReleased.emit(event)
 
+    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if self._cancel_rect_selection_drag(event):
             if self.isVisible():
@@ -1135,18 +1146,21 @@ class GraphicsView(BaseGraphicsView):
         if self.isVisible():
             self.keyPressed.emit(event)
 
+    @override
     def keyReleaseEvent(self, event: QKeyEvent) -> None:
         super().keyReleaseEvent(event)
 
         if self.isVisible():
             self.keyReleased.emit(event)
 
+    @override
     def set_zoom(self, value: float, *, animated: bool = True) -> None:
         super().set_zoom(value, animated=animated)
 
         if value:
             self.zoomChanged.emit(self.current_zoom)
 
+    @override
     def _on_autofit_action(self) -> None:
         super()._on_autofit_action()
 

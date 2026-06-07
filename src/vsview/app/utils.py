@@ -9,7 +9,7 @@ from collections import OrderedDict, UserDict
 from collections.abc import Callable, Container, Iterator, MutableSet, Sized
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, override
 
 import vapoursynth as vs
 from PySide6.QtCore import QObject
@@ -82,12 +82,14 @@ class LRUCache[K, V](OrderedDict[K, V]):
         super().__init__()
         self.cache_size = cache_size
 
+    @override
     def __getitem__(self, key: K) -> V:
         val = super().__getitem__(key)
         super().move_to_end(key)
 
         return val
 
+    @override
     def __setitem__(self, key: K, value: V) -> None:
         super().__setitem__(key, value)
         super().move_to_end(key)
@@ -108,12 +110,14 @@ class VideoFramesCache(UserDict[int, vs.VideoFrame]):
 
         vs.register_on_destroy(self.clear)
 
+    @override
     def __setitem__(self, key: int, value: vs.VideoFrame) -> None:
         super().__setitem__(key, value)
 
         if len(self) > self.cache_size:
             del self[next(iter(self.keys()))]
 
+    @override
     def __getitem__(self, key: int) -> vs.VideoFrame:
         if key not in self and (c := self.clip()):
             self.add_frame(key, c.get_frame(key))
@@ -162,23 +166,29 @@ class QObjectSet[T: QObject](MutableSet[T]):
     def __init__(self) -> None:
         self._data = weakref.WeakSet[T]()
 
+    @override
     def __contains__(self, value: object) -> bool:
         return value in self._data
 
+    @override
     def __iter__(self) -> Iterator[T]:
         return iter(self._data)
 
+    @override
     def __len__(self) -> int:
         return len(self._data)
 
+    @override
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self._data!r})"
 
+    @override
     def add(self, value: T) -> None:
         if value not in self._data:
             self._data.add(value)
             value.destroyed.connect(lambda: self.discard(value))
 
+    @override
     def discard(self, value: T) -> None:
         self._data.discard(value)
 
@@ -194,9 +204,11 @@ class QObjectCounter[T: QObject](Container[T], Sized):
         self._counts = weakref.WeakKeyDictionary[T, int]()
         self._cleanup = weakref.WeakKeyDictionary[T, Callable[..., None]]()
 
+    @override
     def __contains__(self, value: object) -> bool:
         return value in self._counts
 
+    @override
     def __len__(self) -> int:
         return len(self._counts)
 

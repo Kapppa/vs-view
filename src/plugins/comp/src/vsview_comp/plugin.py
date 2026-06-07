@@ -4,7 +4,7 @@ from concurrent.futures import Future
 from functools import cache
 from logging import getLogger
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, override
 
 from pydantic import BaseModel
 from PySide6.QtCore import QEvent, QObject, QSignalBlocker, Qt, QTime, QTimer
@@ -487,6 +487,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         included = self.outputs_dropdown.included_outputs
         return [v for v in self.comp_voutputs if v.vs_index in included]
 
+    @override
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         # Intercept tooltips for this plugin tree when disabled
         if (
@@ -535,6 +536,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
 
         self._update_buttons_state()
 
+    @override
     def on_current_voutput_changed(self, voutput: VideoOutputProxy, tab_index: int) -> None:
         self.init_load()
 

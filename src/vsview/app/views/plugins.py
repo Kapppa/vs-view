@@ -1,6 +1,7 @@
 """Plugin splitter widget for managing plugin panel visibility."""
 
 from collections.abc import Sequence
+from typing import override
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QDockWidget, QHBoxLayout, QLabel, QSplitter, QTabBar, QTabWidget, QWidget
@@ -51,6 +52,7 @@ class PluginSplitter(QSplitter, IconReloadMixin):
         self.last_sizes = [1, 0]
         self.splitterMoved.connect(lambda *_: self.setSizes(self.sizes()))  # for manual drag sync
 
+    @override
     def setSizes(self, sizes: Sequence[int]) -> None:
         was_collapsed = self.right_panel_collapsed
         super().setSizes(sizes)

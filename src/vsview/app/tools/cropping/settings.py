@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, override
 
 from pydantic import BaseModel
 from PySide6.QtWidgets import QWidget
@@ -9,6 +9,7 @@ from vsview.api import ListEdit, ListEditWidget, Spin
 
 
 class CodeFormatListEdit(ListEdit[str]):
+    @override
     def create_widget(self, parent: QWidget | None = None) -> ListEditWidget[str]:
         w = super().create_widget(parent)
 

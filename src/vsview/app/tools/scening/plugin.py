@@ -7,7 +7,7 @@ from functools import cache
 from itertools import count, cycle, islice
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Self
+from typing import TYPE_CHECKING, Annotated, Self, override
 
 import pluggy
 from jetpytools import cachedproperty, classproperty, flatten, to_arr
@@ -413,6 +413,7 @@ class SceningPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconReloadM
         self.output_map.clear()
         self.output_map.update((out.vs_index, out.vs_name) for out in self.api.voutputs)
 
+    @override
     def on_current_voutput_changed(self, voutput: VideoOutputProxy, tab_index: int) -> None:
         self.init_load()
         cachedproperty.clear_cache(self.ranges_model)

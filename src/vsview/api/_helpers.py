@@ -1,7 +1,7 @@
 from collections import UserDict, defaultdict
 from collections.abc import Callable
 from os import PathLike
-from typing import Any
+from typing import Any, override
 
 from jetpytools import copy_signature
 
@@ -29,12 +29,15 @@ class OutputMetadata(DefaultUserDict[str, dict[int, Any]]):
 
         return path_to_hash(key)
 
+    @override
     def __getitem__(self, key: str | PathLike[str]) -> dict[int, Any]:
         return super().__getitem__(self._hash_key(key))
 
+    @override
     def __setitem__(self, key: str | PathLike[str], value: dict[int, Any]) -> None:
         super().__setitem__(self._hash_key(key), value)
 
+    @override
     def __contains__(self, key: object) -> bool:
         return super().__contains__(self._hash_key(str(key)))
 

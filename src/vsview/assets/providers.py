@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from enum import StrEnum
 from importlib import resources
 from importlib.resources.abc import Traversable
-from typing import ClassVar, Self
+from typing import ClassVar, Self, override
 
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QColor, QPixmap
@@ -133,28 +133,35 @@ class PhosphorProvider(IconProvider):
     """Phosphor Icons provider."""
 
     @property
+    @override
     def id(self) -> str:
         return "phosphor"
 
     @property
+    @override
     def name(self) -> str:
         return "Phosphor Icons"
 
     @property
+    @override
     def weights(self) -> frozenset[str]:
         return frozenset({"thin", "light", "regular", "bold", "fill", "duotone"})
 
     @property
+    @override
     def default_weight(self) -> str:
         return "regular"
 
+    @override
     def get_folder(self) -> Traversable:
         return resources.files("vsview.assets.icons.phosphor")
 
+    @override
     def map_name(self, name: IconName) -> str:
         # Phosphor uses same kebab-case names as IconName
         return name.value.removesuffix(f"-{name.modifier}")
 
+    @override
     def get_pixmap(
         self,
         name: IconName,
@@ -216,24 +223,30 @@ class MaterialProvider(IconProvider):
     }
 
     @property
+    @override
     def id(self) -> str:
         return "material"
 
     @property
+    @override
     def name(self) -> str:
         return "Material Design Icons"
 
     @property
+    @override
     def weights(self) -> frozenset[str]:
         return frozenset({"regular", "outline"})
 
     @property
+    @override
     def default_weight(self) -> str:
         return "regular"
 
+    @override
     def get_folder(self) -> Traversable:
         return resources.files("vsview.assets.icons.material")
 
+    @override
     def map_name(self, name: IconName) -> str:
         return self.NAME_MAP.get(name, name.value)
 
@@ -271,24 +284,30 @@ class LucideProvider(IconProvider):
     }
 
     @property
+    @override
     def id(self) -> str:
         return "lucide"
 
     @property
+    @override
     def name(self) -> str:
         return "Lucide Icons"
 
     @property
+    @override
     def weights(self) -> frozenset[str]:
         return frozenset({"regular"})
 
     @property
+    @override
     def default_weight(self) -> str:
         return "regular"
 
+    @override
     def get_folder(self) -> Traversable:
         return resources.files("vsview.assets.icons.lucide")
 
+    @override
     def map_name(self, name: IconName) -> str:
         return self.NAME_MAP.get(name, name.value)
 

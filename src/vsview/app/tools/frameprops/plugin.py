@@ -7,7 +7,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import suppress
 from logging import getLogger
-from typing import Annotated, Any, ClassVar, NamedTuple
+from typing import Annotated, Any, ClassVar, NamedTuple, override
 
 import pluggy
 import vapoursynth as vs
@@ -134,12 +134,14 @@ class FramePropsViewMixin:
 
 
 class WordWrapDelegate(QStyledItemDelegate):
+    @override
     def initStyleOption(self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex) -> None:
         super().initStyleOption(option, index)
         if index.column() in (1, 2):
             option.features |= QStyleOptionViewItem.ViewItemFeature.WrapText
             option.textElideMode = Qt.TextElideMode.ElideNone
 
+    @override
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex) -> QSize:
         size = super().sizeHint(option, index)
 
@@ -627,18 +629,22 @@ class FramePropsPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconRelo
 
         self.categorize_tree.treeColumnWidthChanged.connect(self._on_tree_column_resized)
 
+    @override
     def on_current_voutput_changed(self, voutput: VideoOutputProxy, tab_index: int) -> None:
         self._hide_preview()
         return super().on_current_voutput_changed(voutput, tab_index)
 
+    @override
     def on_current_frame_changed(self, n: int) -> None:
         self.update_history_ui(n)
 
+    @override
     def on_playback_started(self) -> None:
         self.history_combo.setEnabled(False)
         self.history_combo.hidePopup()
         self.update_nav_buttons()
 
+    @override
     def on_playback_stopped(self) -> None:
         self.history_combo.setEnabled(True)
         self.update_nav_buttons()

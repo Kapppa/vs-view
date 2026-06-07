@@ -9,7 +9,7 @@ from datetime import time, timedelta
 from logging import getLogger
 from operator import attrgetter
 from pathlib import Path
-from typing import Annotated, Any, Literal, NamedTuple, get_args, get_origin, get_type_hints
+from typing import Annotated, Any, Literal, NamedTuple, get_args, get_origin, get_type_hints, override
 
 from jetpytools import SPath, classproperty
 from platformdirs import user_config_path
@@ -536,6 +536,7 @@ class QtSettings(BaseModel):
         ),
     ] = Field(default_factory=list)
 
+    @override
     def model_post_init(self, context: Any) -> None:
         if self.custom_colors:
             self.sync_to_dialog()

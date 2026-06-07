@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
-from typing import Self
+from typing import Self, override
 
 from jetpytools import cachedproperty, classproperty
 from PySide6.QtCore import QEvent, Qt
@@ -75,6 +75,7 @@ class ShortcutEditor(QKeySequenceEdit):
     Subclass of QKeySequenceEdit that allows capturing Tab.
     """
 
+    @override
     def event(self, event: QEvent) -> bool:
         if (
             event.type() == QEvent.Type.KeyPress
@@ -120,6 +121,7 @@ class SettingsDialog(QDialog, IconReloadMixin):
 
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
 
+    @override
     def deleteLater(self) -> None:
         self._global_widgets.clear()
         self._local_widgets.clear()

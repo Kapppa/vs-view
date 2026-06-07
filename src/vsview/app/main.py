@@ -4,7 +4,7 @@ from collections.abc import Callable, Sequence
 from functools import partial
 from logging import getLogger
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, cast, override
 
 from PySide6.QtCore import (
     QEasingCurve,
@@ -107,6 +107,7 @@ class Application(QApplication):
         SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
         self.installEventFilter(self)
 
+    @override
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if (
             event.type() == QEvent.Type.KeyPress
@@ -329,6 +330,7 @@ class MainWindow(QMainWindow):
         sm.register_action(ActionID.WORKSPACE_FILE, self.file_subaction)
         sm.register_action(ActionID.WORKSPACE_QUICK_SCRIPT, self.quick_script_subaction)
 
+    @override
     def closeEvent(self, event: QCloseEvent) -> None:
         self._save_geometry()
 
@@ -722,20 +724,24 @@ class DraggableNavContainer(QWidget):
         self._drop_indicator.setStyleSheet("background-color: palette(accent); min-height: 2px; max-height: 2px;")
         self._drop_indicator.hide()
 
+    @override
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         if event.mimeData().hasFormat(DRAG_MIME_TYPE):
             event.acceptProposedAction()
 
+    @override
     def dragMoveEvent(self, event: QDragMoveEvent) -> None:
         if event.mimeData().hasFormat(DRAG_MIME_TYPE):
             self._drop_index = self._get_drop_index(int(event.position().y()))
             self._update_drop_indicator(self._drop_index)
             event.acceptProposedAction()
 
+    @override
     def dragLeaveEvent(self, event: QDragLeaveEvent) -> None:
         self._drop_indicator.hide()
         self._drop_index = -1
 
+    @override
     def dropEvent(self, event: QDropEvent) -> None:
         self._drop_indicator.hide()
 
@@ -815,11 +821,13 @@ class WorkspaceToolButton[WorkspaceT: BaseWorkspace](QToolButton, IconReloadMixi
         # Drag tracking
         self._drag_start_pos: QPoint | None = None
 
+    @override
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._drag_start_pos = event.position().toPoint()
         super().mousePressEvent(event)
 
+    @override
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         if (
             self._drag_start_pos is not None
@@ -837,6 +845,7 @@ class WorkspaceToolButton[WorkspaceT: BaseWorkspace](QToolButton, IconReloadMixi
         else:
             super().mouseMoveEvent(event)
 
+    @override
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         self._drag_start_pos = None
         super().mouseReleaseEvent(event)

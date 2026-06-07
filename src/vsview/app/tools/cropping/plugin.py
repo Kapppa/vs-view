@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import override
+
 from jetpytools import clamp
 from PySide6.QtCore import QRect, QSignalBlocker, QSize, Qt
 from PySide6.QtGui import QCursor
@@ -155,18 +157,22 @@ class RegionSelectorPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
             self.cmd_group_layout.addLayout(cmd_layout)
 
     # Plugin API Hooks
+    @override
     def on_hide(self) -> None:
         if self.enable_btn.isChecked():
             self.enable_btn.setChecked(False)
 
     @run_in_loop(return_future=False)
+    @override
     def on_current_voutput_changed(self, voutput: VideoOutputProxy, tab_index: int) -> None:
         self.api.current_view.rect_selection_enabled = self.enable_btn.isChecked()
         self._apply_view_selection(self.api.current_view.rect_selection)
 
+    @override
     def on_view_rect_selection_changed(self, rect: QRect) -> None:
         self._apply_view_selection(rect)
 
+    @override
     def on_view_rect_selection_finished(self, rect: QRect) -> None:
         self._apply_view_selection(rect)
 

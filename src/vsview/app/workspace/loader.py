@@ -10,7 +10,7 @@ from logging import getLogger
 from pathlib import Path
 from threading import Lock
 from types import ModuleType
-from typing import Any, ClassVar, Literal, assert_never
+from typing import Any, ClassVar, Literal, assert_never, override
 
 from jetpytools import clamp, fallback
 from PySide6.QtCore import QSignalBlocker, Qt, QTimer, Signal
@@ -230,6 +230,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         sm.register_shortcut(ActionID.SWITCH_PREVIOUS_TAB, lambda: self.tab_manager.switch_tab(delta=-1), self)
         sm.register_shortcut(ActionID.SWITCH_NEXT_TAB, lambda: self.tab_manager.switch_tab(delta=1), self)
 
+    @override
     def deleteLater(self) -> None:
         logger.debug(
             "%s(%r) deleteLater called, cleaning up resources",
@@ -243,6 +244,7 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         return super().deleteLater()
 
+    @override
     def clear_environment(self) -> None:
         if self._env and not self._env.disposed:
             with self._env.use():
@@ -831,6 +833,7 @@ class VSEngineWorkspace[T](LoaderWorkspace[T]):
             else self._script_kwargs.get("filename", repr(self.content))
         )
 
+    @override
     def loader(self) -> None:
         module = ModuleType("__vsview__")
         module.__dict__.update(self.vsargs)

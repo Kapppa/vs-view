@@ -6,7 +6,7 @@ from contextlib import contextmanager, suppress
 from dataclasses import KW_ONLY, dataclass, field
 from functools import wraps
 from logging import getLogger
-from typing import TYPE_CHECKING, Any, Concatenate
+from typing import TYPE_CHECKING, Any, Concatenate, override
 
 from jetpytools import SupportsRichComparison
 from pydantic import TypeAdapter, ValidationError
@@ -125,9 +125,11 @@ class Login(WidgetMetadata[LoginCredentialsInput]):
     to_ui: None = None
     from_ui: None = None
 
+    @override
     def create_widget(self, parent: QWidget | None = None) -> LoginCredentialsInput:
         return LoginCredentialsInput(parent)
 
+    @override
     def load_value(self, widget: LoginCredentialsInput, value: str) -> None:
         username = value
         password = self._get_password(username) if username else ""
@@ -135,6 +137,7 @@ class Login(WidgetMetadata[LoginCredentialsInput]):
         if username and password:
             widget.credentials = username, password
 
+    @override
     def get_value(self, widget: LoginCredentialsInput) -> Any:
         username, password = widget.credentials
         self._set_password((username, password))
@@ -161,9 +164,11 @@ class Login(WidgetMetadata[LoginCredentialsInput]):
 class ColorPicker(WidgetMetadata[ColorPickerInput]):
     """ColorPicker widget metadata."""
 
+    @override
     def create_widget(self, parent: QWidget | None = None) -> ColorPickerInput:
         return ColorPickerInput(parent)
 
+    @override
     def load_value(self, widget: ColorPickerInput, value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
             if isinstance(value, str):
@@ -171,6 +176,7 @@ class ColorPicker(WidgetMetadata[ColorPickerInput]):
             elif isinstance(value, QColor):
                 widget.color = value
 
+    @override
     def get_value(self, widget: ColorPickerInput) -> Any:
         with self.apply_transform(widget.color, self.from_ui) as value:
             if isinstance(value, QColor):
@@ -188,9 +194,11 @@ class Checkbox(WidgetMetadata[QCheckBox]):
     tristate: bool = field(default=False, kw_only=True)
     """Whether the checkbox is a tri-state checkbox"""
 
+    @override
     def create_widget(self, parent: QWidget | None = None) -> QCheckBox:
         return QCheckBox(self.text, parent, tristate=self.tristate)
 
+    @override
     def load_value(self, widget: QCheckBox, value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
             if self.tristate:
@@ -201,6 +209,7 @@ class Checkbox(WidgetMetadata[QCheckBox]):
             else:
                 widget.setChecked(bool(value))
 
+    @override
     def get_value(self, widget: QCheckBox) -> Any:
         val = widget.checkState() if self.tristate else widget.isChecked()
         with self.apply_transform(val, self.from_ui) as value:
@@ -211,13 +220,16 @@ class Checkbox(WidgetMetadata[QCheckBox]):
 class LineEdit(WidgetMetadata[QLineEdit]):
     """LineEdit widget metadata."""
 
+    @override
     def create_widget(self, parent: QWidget | None = None) -> QLineEdit:
         return QLineEdit(parent)
 
+    @override
     def load_value(self, widget: QLineEdit, value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
             widget.setText(value)
 
+    @override
     def get_value(self, widget: QLineEdit) -> Any:
         with self.apply_transform(widget.text(), self.from_ui) as value:
             return value
@@ -230,18 +242,21 @@ class Dropdown(WidgetMetadata[QComboBox]):
     items: Iterable[tuple[str, Any]] | Callable[[], Iterable[tuple[str, Any]]]
     """Iterable of (display_text, value) tuples or a callable that returns one."""
 
+    @override
     def create_widget(self, parent: QWidget | None = None) -> QComboBox:
         widget = QComboBox(parent)
         for display_text, value in self.items() if callable(self.items) else self.items:
             widget.addItem(display_text, value)
         return widget
 
+    @override
     def load_value(self, widget: QComboBox, value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
             index = widget.findData(value)
             if index >= 0:
                 widget.setCurrentIndex(index)
 
+    @override
     def get_value(self, widget: QComboBox) -> Any:
         with self.apply_transform(widget.currentData(), self.from_ui) as value:
             return value
@@ -255,6 +270,7 @@ class Spin(WidgetMetadata[QSpinBox]):
     max: int = 100
     suffix: str = ""
 
+    @override
     def create_widget(self, parent: QWidget | None = None) -> QSpinBox:
         widget = QSpinBox(parent)
         widget.setMinimum(self.min)
@@ -262,10 +278,12 @@ class Spin(WidgetMetadata[QSpinBox]):
         widget.setSuffix(self.suffix)
         return widget
 
+    @override
     def load_value(self, widget: QSpinBox, value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
             widget.setValue(value)
 
+    @override
     def get_value(self, widget: QSpinBox) -> Any:
         with self.apply_transform(widget.value(), self.from_ui) as value:
             return value
@@ -280,6 +298,7 @@ class DoubleSpin(WidgetMetadata[QDoubleSpinBox]):
     suffix: str = ""
     decimals: int = 2
 
+    @override
     def create_widget(self, parent: QWidget | None = None) -> QDoubleSpinBox:
         widget = QDoubleSpinBox(parent)
         widget.setMinimum(self.min)
@@ -289,10 +308,12 @@ class DoubleSpin(WidgetMetadata[QDoubleSpinBox]):
         widget.setStepType(QDoubleSpinBox.StepType.AdaptiveDecimalStepType)
         return widget
 
+    @override
     def load_value(self, widget: QDoubleSpinBox, value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
             widget.setValue(value)
 
+    @override
     def get_value(self, widget: QDoubleSpinBox) -> Any:
         with self.apply_transform(widget.value(), self.from_ui) as value:
             return value
@@ -315,16 +336,19 @@ class PlainTextEdit[T: SupportsRichComparison](WidgetMetadata[QPlainTextEdit]):
         if self.to_ui is None:
             object.__setattr__(self, "to_ui", self._list_to_ui)
 
+    @override
     def create_widget(self, parent: QWidget | None = None) -> QPlainTextEdit:
         widget = QPlainTextEdit(parent)
         widget.setMinimumHeight(self.max_height)
         widget.setMaximumHeight(self.max_height)
         return widget
 
+    @override
     def load_value(self, widget: QPlainTextEdit, value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
             widget.setPlainText(str(value))
 
+    @override
     def get_value(self, widget: QPlainTextEdit) -> Any:
         with self.apply_transform(widget.toPlainText(), self.from_ui) as value:
             return value
@@ -371,13 +395,16 @@ class ListEdit[T: SupportsRichComparison](WidgetMetadata[ListEditWidget[T]]):
     completions: Sequence[str] | None = None
     """Completions for the dialog."""
 
+    @override
     def create_widget(self, parent: QWidget | None = None) -> ListEditWidget[T]:
         return ListEditWidget(self.value_type, parent, self.default_value, self.dialog_label_text, self.completions)
 
+    @override
     def load_value(self, widget: ListEditWidget[T], value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
             widget.set_values(value)
 
+    @override
     def get_value(self, widget: ListEditWidget[T]) -> Any:
         with self.apply_transform(widget.get_values(), self.from_ui) as value:
             return sorted(set(value)) if isinstance(value, list) else value
@@ -397,6 +424,7 @@ class WidgetTimeEdit(WidgetMetadata[QTimeEdit]):
         to_ui: Callable[[Any], QTime] | None = None
         from_ui: Callable[[QTime], Any] | None = None
 
+    @override
     def create_widget(self, parent: QWidget | None = None) -> QTimeEdit:
         widget = QTimeEdit(parent)
 
@@ -410,10 +438,12 @@ class WidgetTimeEdit(WidgetMetadata[QTimeEdit]):
 
         return widget
 
+    @override
     def load_value(self, widget: QTimeEdit, value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
             widget.setTime(QTime(value))
 
+    @override
     def get_value(self, widget: QTimeEdit) -> Any:
         with self.apply_transform(widget.time(), self.from_ui) as value:
             return value
@@ -425,13 +455,16 @@ class PathListEdit(WidgetMetadata[PathListEditWidget]):
 
     default_value: str | Sequence[str] | None = field(default=None, kw_only=True)
 
+    @override
     def create_widget(self, parent: QWidget | None = None) -> PathListEditWidget:
         return PathListEditWidget(parent, self.default_value)
 
+    @override
     def load_value(self, widget: PathListEditWidget, value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
             widget.set_values(value)
 
+    @override
     def get_value(self, widget: PathListEditWidget) -> Any:
         with self.apply_transform(widget.get_values(), self.from_ui) as value:
             return sorted(set(value)) if isinstance(value, list) else value
@@ -444,13 +477,16 @@ class FilePicker(WidgetMetadata[FilePickerWidget]):
     file_filter: str = "All Files (*.*)"
     dialog_title: str = "Select File"
 
+    @override
     def create_widget(self, parent: QWidget | None = None) -> FilePickerWidget:
         return FilePickerWidget(parent, self.file_filter, self.dialog_title)
 
+    @override
     def load_value(self, widget: FilePickerWidget, value: Any) -> None:
         with self.apply_transform(value, self.to_ui) as value:
             widget.file_path = value or ""
 
+    @override
     def get_value(self, widget: FilePickerWidget) -> Any:
         with self.apply_transform(widget.file_path, self.from_ui) as value:
             return value or None

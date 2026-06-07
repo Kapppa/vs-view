@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from logging import getLogger
-from typing import TYPE_CHECKING, Any, NamedTuple, SupportsFloat
+from typing import TYPE_CHECKING, Any, NamedTuple, SupportsFloat, override
 
 from PySide6.QtCore import QSize, Qt, QTimer, Slot
 from PySide6.QtGui import QPalette, QPixmap, QTransform
@@ -174,6 +174,7 @@ class StatusWidget(IconReloadMixin, QWidget):
         separator.setFrameShadow(QFrame.Shadow.Sunken)
         return separator
 
+    @override
     def deleteLater(self) -> None:
         SettingsManager.signals.localChanged.disconnect(self._on_settings_changed)
         super().deleteLater()

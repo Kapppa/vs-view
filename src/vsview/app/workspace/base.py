@@ -1,4 +1,4 @@
-from typing import ClassVar, cast
+from typing import ClassVar, cast, override
 
 from PySide6.QtWidgets import QFrame, QMainWindow, QVBoxLayout, QWidget
 from vapoursynth import AudioNode, VideoOutputTuple
@@ -65,6 +65,7 @@ class BaseWorkspace(QMainWindow):
         """Return the global settings for this workspace."""
         return SettingsManager.global_settings
 
+    @override
     def deleteLater(self) -> None:
         self.clear_environment()
         return super().deleteLater()

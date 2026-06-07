@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, override
 
 from pydantic import BaseModel
 from PySide6.QtWidgets import QHBoxLayout, QWidget
@@ -89,6 +89,7 @@ class FFTSpectrumView(PluginGraphicsView):
         self.autofit = self.settings.global_.autofit
 
     @initialize_input(bits=32)
+    @override
     def get_node(self, clip: VideoNode) -> VideoNode:
         planes = split(clip)
 

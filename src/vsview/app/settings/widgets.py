@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from logging import getLogger
+from typing import override
 
 from jetpytools import to_arr
 from pydantic import TypeAdapter, ValidationError
@@ -67,6 +68,7 @@ class ColorPickerInput(QWidget):
 
             self.setCursor(Qt.CursorShape.PointingHandCursor)
 
+        @override
         def mouseReleaseEvent(self, event: QMouseEvent) -> None:
             if event.button() == Qt.MouseButton.LeftButton:
                 self.clicked.emit()

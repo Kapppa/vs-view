@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from copy import copy
 from datetime import timedelta
 from enum import IntEnum
-from typing import Any, Self
+from typing import Any, Self, override
 
 from jetpytools import cachedproperty, to_arr
 from PySide6.QtCore import (
@@ -78,12 +78,15 @@ class SceneTableModel(AbstractTableModel):
         self.scenes = list[SceneRow]()
         self.output_map = output_map
 
+    @override
     def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return len(self.scenes)
 
+    @override
     def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return len(Col)
 
+    @override
     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         if not index.isValid() or not (0 <= index.row() < len(self.scenes)):
             return None
@@ -129,6 +132,7 @@ class SceneTableModel(AbstractTableModel):
 
         return None
 
+    @override
     def setData(
         self, index: QModelIndex | QPersistentModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
     ) -> bool:
@@ -161,6 +165,7 @@ class SceneTableModel(AbstractTableModel):
         self.scenesModified.emit()
         return True
 
+    @override
     def flags(self, index: QModelIndex | QPersistentModelIndex) -> Qt.ItemFlag:
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
@@ -169,6 +174,7 @@ class SceneTableModel(AbstractTableModel):
 
         return base | Qt.ItemFlag.ItemIsEditable if Col(index.column()) == Col.NAME else base
 
+    @override
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         return (
             Col(section).header_name
@@ -221,10 +227,12 @@ class SceneTableDelegate(QStyledItemDelegate):
     def delete_pixmap(self) -> QPixmap:
         return load_icon(IconName.X_CIRCLE, self.DELETE_ICON_SIZE, QColor("#e74c3c"))
 
+    @override
     def initStyleOption(self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex) -> None:
         super().initStyleOption(option, index)
         option.state &= ~QStyle.StateFlag.State_HasFocus
 
+    @override
     def paint(
         self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex
     ) -> None:
@@ -302,6 +310,7 @@ class SceneTableDelegate(QStyledItemDelegate):
         pm = self.delete_pixmap
         painter.drawPixmap(self._center_rect(option.rect, self.DELETE_ICON_SIZE.width()).topLeft(), pm)
 
+    @override
     def editorEvent(
         self,
         event: QEvent,
@@ -342,6 +351,7 @@ class SceneTableDelegate(QStyledItemDelegate):
 
         return super().editorEvent(event, model, option, index)
 
+    @override
     def createEditor(
         self,
         parent: QWidget,
@@ -350,6 +360,7 @@ class SceneTableDelegate(QStyledItemDelegate):
     ) -> QWidget:
         return QLineEdit(parent) if Col(index.column()) == Col.NAME else super().createEditor(parent, option, index)
 
+    @override
     def setEditorData(self, editor: QWidget, index: QModelIndex | QPersistentModelIndex) -> None:
         if Col(index.column()) == Col.NAME and isinstance(editor, QLineEdit):
             value = index.data(Qt.ItemDataRole.EditRole)
@@ -359,6 +370,7 @@ class SceneTableDelegate(QStyledItemDelegate):
 
         super().setEditorData(editor, index)
 
+    @override
     def setModelData(
         self,
         editor: QWidget,
@@ -447,12 +459,15 @@ class RangeTableModel(AbstractTableModel):
 
         self.api.register_on_destroy(lambda: cachedproperty.clear_cache(self))
 
+    @override
     def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return len(self._data)
 
+    @override
     def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return len(RangeCol)
 
+    @override
     def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         if not index.isValid() or not (0 <= index.row() < len(self._data)):
             return None
@@ -508,6 +523,7 @@ class RangeTableModel(AbstractTableModel):
 
         return None
 
+    @override
     def setData(
         self,
         index: QModelIndex | QPersistentModelIndex,
@@ -548,12 +564,14 @@ class RangeTableModel(AbstractTableModel):
 
         return False
 
+    @override
     def flags(self, index: QModelIndex | QPersistentModelIndex) -> Qt.ItemFlag:
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
 
         return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable
 
+    @override
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         if role != Qt.ItemDataRole.DisplayRole:
             return None
@@ -574,6 +592,7 @@ class RangeTableModel(AbstractTableModel):
     def current_voutput(self) -> VideoOutputProxy:
         return self.api.current_voutput
 
+    @override
     def sort(self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:
         self._sort_column = column
         self._sort_order = order
@@ -631,6 +650,7 @@ class RangeTableModel(AbstractTableModel):
 
 
 class RangeTableDelegate(QStyledItemDelegate):
+    @override
     def createEditor(
         self,
         parent: QWidget,
@@ -656,6 +676,7 @@ class RangeTableDelegate(QStyledItemDelegate):
         editor.setAutoFillBackground(True)
         return editor
 
+    @override
     def setEditorData(self, editor: QWidget, index: QModelIndex | QPersistentModelIndex) -> None:
         col = RangeCol(index.column())
         value = index.data(Qt.ItemDataRole.EditRole)
@@ -681,6 +702,7 @@ class RangeTableDelegate(QStyledItemDelegate):
 
         super().setEditorData(editor, index)
 
+    @override
     def setModelData(
         self,
         editor: QWidget,

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from functools import cache
 from logging import getLogger
 from math import floor
-from typing import Any, Literal, NamedTuple
+from typing import Any, Literal, NamedTuple, override
 
 from jetpytools import clamp, complex_hash
 from PySide6.QtCore import QEvent, QLineF, QPoint, QPointF, QRectF, QSignalBlocker, QSize, Qt, QTime, Signal
@@ -140,9 +140,11 @@ class CustomNotch[T: (Time, Frame)](Notch[T]):
         super().__init__(data, end_data, color, line, end_line, label)  # type: ignore[arg-type]
         self.id = id
 
+    @override
     def __hash__(self) -> int:
         return hash(self.id)
 
+    @override
     def __eq__(self, other: object) -> bool:
         return self.id == other.id if isinstance(other, CustomNotch) else NotImplemented
 
@@ -177,6 +179,7 @@ class TimelineHoverPopup(QWidget):
         self.zoom_factor = 4.0
         self.hover_x = -1
 
+    @override
     def paintEvent(self, event: QPaintEvent) -> None:
         if self.hover_x < 0:
             return
@@ -572,17 +575,21 @@ class Timeline(QWidget):
 
         self.update()
 
+    @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         self.context_menu.exec(event.globalPos())
 
+    @override
     def focusOutEvent(self, event: QFocusEvent) -> None:
         super().focusOutEvent(event)
         self.reset_interaction()
 
+    @override
     def hideEvent(self, event: QHideEvent) -> None:
         super().hideEvent(event)
         self.reset_interaction()
 
+    @override
     def paintEvent(self, event: QPaintEvent) -> None:
         self.rect_f = QRectF(self.rect())
 
@@ -780,20 +787,24 @@ class Timeline(QWidget):
             painter.setPen(self.palette().color(self.TEXT_COLOR))
             painter.drawText(bg_rect, Qt.AlignmentFlag.AlignCenter, text)
 
+    @override
     def moveEvent(self, event: QMoveEvent) -> None:
         super().moveEvent(event)
         self.update()
 
+    @override
     def leaveEvent(self, event: QEvent) -> None:
         super().leaveEvent(event)
         self.hover_x = None
         self.hover_popup.hide()
         self.update()
 
+    @override
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if not self.is_events_blocked:
             self.mousepressed = False
 
+    @override
     def mousePressEvent(self, event: QMouseEvent) -> None:
         super().mousePressEvent(event)
 
@@ -807,6 +818,7 @@ class Timeline(QWidget):
         self.mousepressed = True
         self.mouseMoveEvent(event)
 
+    @override
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         super().mouseMoveEvent(event)
 
@@ -843,6 +855,7 @@ class Timeline(QWidget):
 
             self.clicked.emit(self.x_to_frame(new_x), self.x_to_time(new_x))
 
+    @override
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
         self.update()
@@ -1016,6 +1029,7 @@ class FrameEdit(QSpinBox):
 
         self.old_value = self.value()
 
+    @override
     def validate(self, input_text: str, pos: int) -> object:
         if input_text.isdigit():
             val = int(input_text)
@@ -1051,6 +1065,7 @@ class TimeEdit(QTimeEdit):
 
 
 class StepSpinBox(QSpinBox):
+    @override
     def stepBy(self, steps: int) -> None:
         if self.value() == 1 and steps < 0:
             self.setValue(-1)
@@ -1425,6 +1440,7 @@ class PlaybackContainer(QWidget, IconReloadMixin):
 
         raise NotImplementedError
 
+    @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         with QSignalBlocker(self.seek_step_spinbox):
             self.seek_step_spinbox.setValue(self.settings.seek_step)

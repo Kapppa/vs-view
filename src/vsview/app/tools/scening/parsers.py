@@ -6,7 +6,7 @@ from datetime import timedelta
 from fractions import Fraction
 from logging import getLogger
 from math import ceil
-from typing import Any, BinaryIO
+from typing import Any, BinaryIO, override
 
 from jetpytools import fallback
 
@@ -19,6 +19,7 @@ logger = getLogger(__name__)
 class AssParser(Parser):
     filter = Parser.FileFilter("Aegisub Advanced SSA subtitles", "ass")
 
+    @override
     def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
         with borrowed_text_wrapper(io, encoding="utf-8-sig") as wrapper:
             text = wrapper.read()
@@ -47,6 +48,7 @@ class AssParser(Parser):
 class OGMParser(Parser):
     filter = Parser.FileFilter("Ogg Media (OGM) Chapters", "txt")
 
+    @override
     def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
         pattern = re.compile(
             r"^[ \t]*(CHAPTER\d+)[ \t]*=[ \t]*(\d+):(\d+):(\d+(?:\.\d+)?)[ \t]*[\r\n]+"
@@ -78,6 +80,7 @@ class OGMParser(Parser):
 class MatroskaXMLParser(Parser):
     filter = Parser.FileFilter("Matroska XML Chapters", "xml")
 
+    @override
     def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow | list[SceneRow]:
         import xml.etree.ElementTree as ET
 
@@ -141,6 +144,7 @@ class MatroskaXMLParser(Parser):
 class XvidLogParser(Parser):
     filter = Parser.FileFilter("XviD Log", ["txt", "log"])
 
+    @override
     def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
         ranges = list[RangeFrame]()
         current_frame = 0
@@ -165,6 +169,7 @@ class XvidLogParser(Parser):
 class QPFileParser(Parser):
     filter = Parser.FileFilter("QP File", ["qp", "txt"])
 
+    @override
     def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
         ranges = list[RangeFrame]()
 
@@ -185,6 +190,7 @@ class QPFileParser(Parser):
 class WobblyParser(Parser):
     filter = Parser.FileFilter("Wobbly File", "wob")
 
+    @override
     def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow | list[SceneRow]:
         with borrowed_text_wrapper(io, encoding="utf-8") as wrapper:
             text = wrapper.read()
@@ -258,6 +264,7 @@ class WobblyParser(Parser):
 class PythonListFramesParser(Parser):
     filter = Parser.FileFilter("Python List (Frames)", "txt")
 
+    @override
     def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
         with borrowed_text_wrapper(io) as wrapper:
             text = wrapper.read().strip()
@@ -287,6 +294,7 @@ class PythonListFramesParser(Parser):
 class PythonListTimestampsParser(Parser):
     filter = Parser.FileFilter("Python List (Timestamps)", "txt")
 
+    @override
     def parse(self, io: BinaryIO, name: str, fps: Fraction) -> SceneRow:
         with borrowed_text_wrapper(io) as wrapper:
             text = wrapper.read().strip()

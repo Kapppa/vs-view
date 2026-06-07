@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Self
+from typing import Self, override
 
 
 class ActionDefinition(str):
@@ -19,6 +19,7 @@ class ActionDefinition(str):
         self.default_key = default_key
         return self
 
+    @override
     def __repr__(self) -> str:
         return f"ActionDefinition({super().__repr__()}, label={self.label!r}, default_key={self.default_key!r})"
 

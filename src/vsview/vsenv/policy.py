@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from logging import DEBUG, ERROR, FATAL, INFO, WARNING, getLogger
+from typing import override
 
 from vapoursynth import (
     DISABLE_LIBRARY_UNLOADING,
@@ -21,6 +22,7 @@ _logger = getLogger(__name__)
 
 
 class CustomPolicy(Policy):
+    @override
     def new_environment(self, *, set_logger: bool = True) -> ManagedEnvironment:
         _logger.debug("Creating new VS environment")
 

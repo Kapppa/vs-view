@@ -6,7 +6,7 @@ from collections import OrderedDict
 from collections.abc import Generator, Iterator
 from contextlib import contextmanager
 from logging import getLogger
-from typing import Any
+from typing import Any, override
 
 from jetpytools import copy_signature
 from PySide6.QtCore import Qt
@@ -35,18 +35,21 @@ class TabViewWidget(QTabWidget):
         return tabs[-2] if len(tabs) >= 2 else tabs[0]
 
     @copy_signature(QTabWidget.addTab)
+    @override
     def addTab(self, *args: Any) -> int:
         if not isinstance(args[0], GraphicsView):
             raise TypeError("TabViewWidget can only contain GraphicsViews")
 
         return super().addTab(*args)
 
+    @override
     def removeTab(self, index: int, /) -> None:
         if index in self.recent_tabs:
             del self.recent_tabs[index]
 
         super().removeTab(index)
 
+    @override
     def currentWidget(self) -> GraphicsView:
         """
         Return the currently selected GraphicsView.
@@ -61,6 +64,7 @@ class TabViewWidget(QTabWidget):
 
         return view
 
+    @override
     def setCurrentWidget(self, widget: QWidget) -> None:
         """
         Set the current widget to the specified GraphicsView.
@@ -73,6 +77,7 @@ class TabViewWidget(QTabWidget):
 
         return super().setCurrentWidget(widget)
 
+    @override
     def widget(self, index: int) -> GraphicsView:
         view = super().widget(index)
 
@@ -81,10 +86,12 @@ class TabViewWidget(QTabWidget):
 
         return view
 
+    @override
     def deleteLater(self) -> None:
         self.clear()
         return super().deleteLater()
 
+    @override
     def clear(self) -> None:
         self.recent_tabs.clear()
 

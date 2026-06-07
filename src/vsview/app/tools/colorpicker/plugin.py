@@ -6,7 +6,7 @@ from enum import Enum, auto
 from functools import partial
 from math import ceil, floor, log, log10
 from struct import unpack
-from typing import Annotated, Any
+from typing import Annotated, Any, override
 
 import vapoursynth as vs
 from jetpytools import clamp
@@ -217,6 +217,7 @@ class ColorPickerPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
 
         self.main_layout.addStretch()
 
+    @override
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
 
@@ -226,12 +227,14 @@ class ColorPickerPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
             self.groups_layout.setDirection(QBoxLayout.Direction.TopToBottom)
 
     # Plugin hooks
+    @override
     def on_current_voutput_changed(self, voutput: VideoOutputProxy, tab_index: int) -> None:
         if voutput not in self.outputs:
             self.outputs[voutput] = cache_clip(voutput.vs_output.clip, 10)
 
         super().on_current_voutput_changed(voutput, tab_index)
 
+    @override
     def on_current_frame_changed(self, n: int) -> None:
         if self.api.is_playing:
             return None
@@ -246,21 +249,25 @@ class ColorPickerPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
             self.update_labels()
         return None
 
+    @override
     def on_view_context_menu(self, event: QContextMenuEvent) -> None:
         if self.tracking == TrackingState.DEACTIVATING or self.eyedropper_btn.isChecked():
             self.eyedropper_btn.setChecked(False)
             event.ignore()
 
+    @override
     def on_view_mouse_moved(self, event: QMouseEvent) -> None:
         if self.tracking == TrackingState.ACTIVE and not self.api.is_playing:
             self.update_labels(event.position().toPoint())
 
+    @override
     def on_view_mouse_pressed(self, event: QMouseEvent) -> None:
         if self.tracking == TrackingState.ACTIVE and event.button() == Qt.MouseButton.RightButton:
             self.tracking = TrackingState.DEACTIVATING
             self.api.current_view.viewport.set_cursor(Qt.CursorShape.OpenHandCursor)
             event.accept()
 
+    @override
     def on_view_mouse_released(self, event: QMouseEvent) -> None:
         if self.tracking == TrackingState.ACTIVE and event.button() == Qt.MouseButton.LeftButton:
             self.api.current_view.viewport.set_cursor(Qt.CursorShape.CrossCursor)

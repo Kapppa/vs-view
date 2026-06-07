@@ -172,6 +172,7 @@ extra_checks = false
 # Misc
 warn_unreachable = true
 
+enable_error_code = ["explicit-override"]
 allow_redefinition_new = true
 local_partial_types = true
 implicit_reexport = false

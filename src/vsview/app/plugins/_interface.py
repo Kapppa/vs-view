@@ -5,7 +5,7 @@ from itertools import zip_longest
 from logging import getLogger
 from pathlib import Path
 from types import get_original_bases
-from typing import TYPE_CHECKING, Any, get_args, get_origin
+from typing import TYPE_CHECKING, Any, get_args, get_origin, override
 from weakref import WeakKeyDictionary
 
 import vapoursynth as vs
@@ -49,6 +49,7 @@ class _SettingsProxy[T: BaseModel]:
         attr = getattr(self._model, name)
         return _SettingsProxy(attr, lambda _, __: self._on_update(name, attr)) if isinstance(attr, BaseModel) else attr
 
+    @override
     def __setattr__(self, name: str, value: Any) -> None:
         if name in self.__slots__:
             object.__setattr__(self, name, value)
@@ -61,9 +62,11 @@ class _SettingsProxy[T: BaseModel]:
         else:
             raise AttributeError(f"{type(self._model).__name__!r} object has no attribute {name!r}")
 
+    @override
     def __repr__(self) -> str:
         return repr(self._model)
 
+    @override
     def __eq__(self, other: object) -> bool:
         return self._model == other._model if isinstance(other, _SettingsProxy) else self._model == other
 

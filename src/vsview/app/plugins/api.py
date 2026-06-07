@@ -11,7 +11,7 @@ from datetime import timedelta
 from logging import getLogger
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, TypeVar, cast, override
 
 import vapoursynth as vs
 from jetpytools import copy_signature, to_arr
@@ -441,11 +441,13 @@ class PluginAPI(_PluginAPI):
     if TYPE_CHECKING:
 
         @property
+        @override
         def voutputs(self) -> list[VideoOutputProxy]:
             """Return a dictionary of VideoOutputProxy objects for all tabs."""
             ...
 
         @property
+        @override
         def current_voutput(self) -> VideoOutputProxy:
             """Return the VideoOutput for the currently selected tab."""
             ...

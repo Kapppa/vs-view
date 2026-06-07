@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from logging import getLogger
-from typing import Annotated
+from typing import Annotated, override
 
 from pydantic import BaseModel
 from vapoursynth import AudioNode, core
@@ -62,6 +62,7 @@ class AudioConvert(NodeProcessor[AudioNode, GlobalSettings]):
     identifier = "jet_vsview_audioconvert"
     display_name = "Audio Convert"
 
+    @override
     def prepare(self, audio: AudioNode) -> AudioNode:
         if hasattr(core, "ares"):
             logger.debug("Using ares.Resample on audio %r", audio)

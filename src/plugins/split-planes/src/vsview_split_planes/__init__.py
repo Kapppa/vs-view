@@ -1,5 +1,5 @@
 from math import copysign
-from typing import Annotated, Any, Literal, assert_never
+from typing import Annotated, Any, Literal, assert_never, override
 
 from jetpytools import fallback
 from pydantic import BaseModel
@@ -169,12 +169,14 @@ class SplitPlanesView(PluginGraphicsView):
         if self.settings.local_.autofit:
             self.autofit_action.trigger()
 
+    @override
     def parent(self) -> SplitPlanesPlugin:
         if isinstance(parent := super().parent(), SplitPlanesPlugin):
             return parent
 
         raise NotImplementedError
 
+    @override
     def get_node(self, clip: VideoNode) -> VideoNode:
         if (offset_chroma := self.settings.local_.offset_chroma) is None:
             offset = False
@@ -230,6 +232,7 @@ class SplitPlanesView(PluginGraphicsView):
             self.parent().update_local_settings(offset_chroma=value)
             self.refresh()
 
+    @override
     def _on_autofit_action(self) -> None:
         super()._on_autofit_action()
 

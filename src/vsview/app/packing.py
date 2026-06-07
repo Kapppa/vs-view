@@ -7,7 +7,7 @@ from abc import ABC
 from collections.abc import Mapping
 from enum import IntEnum
 from logging import Filter, LogRecord, getLogger
-from typing import Any, Literal
+from typing import Any, Literal, override
 
 import vapoursynth as vs
 from PySide6.QtGui import QImage
@@ -28,6 +28,7 @@ class FramePropsFilter(Filter):
         super().__init__(name)
         self.msgs = set[str]()
 
+    @override
     def filter(self, record: LogRecord) -> bool | LogRecord:
         logged = super().filter(record)
 

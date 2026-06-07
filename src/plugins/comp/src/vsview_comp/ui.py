@@ -9,7 +9,7 @@ from enum import StrEnum
 from functools import partial
 from logging import getLogger
 from pathlib import Path
-from typing import Any, NamedTuple, Self
+from typing import Any, NamedTuple, Self, override
 
 import jinja2
 from jetpytools import cachedproperty
@@ -103,6 +103,7 @@ class PaddedCheckBox(QWidget):
     def isChecked(self) -> bool:
         return self.checkbox.isChecked()
 
+    @override
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self.checkbox.toggle()
@@ -141,6 +142,7 @@ class OutputItemWidget(QWidget):
         layout.addWidget(self.info_label)
 
     # Accept all clicks so they don't propagate to the menu and close it.
+    @override
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         event.accept()
 
@@ -301,6 +303,7 @@ class FrameThumbnailList(QListWidget):
         self.api.register_on_destroy(lambda: cachedproperty.clear_cache(self))
         self.api.register_on_destroy(lambda: setattr(self, "included_outputs", []))
 
+    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Delete:
             self.remove_selected()
@@ -508,6 +511,7 @@ class AnchoredListPopup(QListWidget):
         self._target.destroyed.connect(self._on_target_destroyed)
         self.destroyed.connect(self._cleanup_event_filters)
 
+    @override
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if event.type() == QEvent.Type.MouseButtonPress and isinstance(event, QMouseEvent):
             self._handle_app_click(event.globalPosition().toPoint())
@@ -579,6 +583,7 @@ class TMDBListPopup(AnchoredListPopup):
         self._poster_loader = QNetworkAccessManager(self)
         self._poster_loader.finished.connect(self._on_poster_downloaded)
 
+    @override
     def wheelEvent(self, event: QWheelEvent) -> None:
         if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
             delta = event.angleDelta().y() or event.angleDelta().x()
@@ -699,6 +704,7 @@ class TMDBListPopup(AnchoredListPopup):
             overview=title.tooltip_data.overview,
         )
 
+    @override
     def _cleanup_event_filters(self, *_: Any) -> None:
         self._cancel_poster_requests()
         super()._cleanup_event_filters()
@@ -735,39 +741,49 @@ class FlowLayout(QLayout):
         if margin >= 0:
             self.setContentsMargins(margin, margin, margin, margin)
 
+    @override
     def addItem(self, item: QLayoutItem) -> None:
         self._items.append(item)
         self.invalidate()
 
+    @override
     def count(self) -> int:
         return len(self._items)
 
+    @override
     def itemAt(self, index: int) -> QLayoutItem | None:
         if 0 <= index < len(self._items):
             return self._items[index]
         return None
 
+    @override
     def takeAt(self, index: int) -> QLayoutItem | None:
         if 0 <= index < len(self._items):
             return self._items.pop(index)
         return None
 
+    @override
     def expandingDirections(self) -> Qt.Orientation:
         return Qt.Orientation(0)
 
+    @override
     def hasHeightForWidth(self) -> bool:
         return True
 
+    @override
     def heightForWidth(self, width: int) -> int:
         return self._do_layout(QRect(0, 0, width, 0), test_only=True)
 
+    @override
     def setGeometry(self, rect: QRect) -> None:
         super().setGeometry(rect)
         self._do_layout(rect, test_only=False)
 
+    @override
     def sizeHint(self) -> QSize:
         return self.minimumSize()
 
+    @override
     def minimumSize(self) -> QSize:
         size = QSize()
         for item in self._items:
@@ -884,6 +900,7 @@ class TagsLineEdit(QWidget):
 
         self.tagsChanged.connect(self._on_tags_changed)
 
+    @override
     def paintEvent(self, event: QPaintEvent) -> None:
         super().paintEvent(event)
 
@@ -899,6 +916,7 @@ class TagsLineEdit(QWidget):
 
             self.style().drawPrimitive(QStyle.PrimitiveElement.PE_PanelLineEdit, option, painter, self)
 
+    @override
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if watched is self._input:
             if event.type() == QEvent.Type.FocusIn:
@@ -1036,6 +1054,7 @@ class PlaceholderLineEdit(QLineEdit):
         self._completer.setWidget(self)
         self._completer.activated.connect(self._on_completer_activated)
 
+    @override
     def keyPressEvent(self, e: QKeyEvent) -> None:
         if (
             (p := self._completer.popup())
@@ -1063,5 +1082,6 @@ class PlaceholderLineEdit(QLineEdit):
 
 
 class LineEditCompleter(LineEdit):
+    @override
     def create_widget(self, parent: QWidget | None = None) -> QLineEdit:
         return PlaceholderLineEdit([*TMDBTitle.format_hints, "vs_names"], parent)

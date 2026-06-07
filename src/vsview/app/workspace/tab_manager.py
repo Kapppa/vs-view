@@ -6,7 +6,7 @@ from enum import IntEnum
 from functools import partial
 from itertools import cycle
 from logging import getLogger
-from typing import TYPE_CHECKING, Self, overload
+from typing import TYPE_CHECKING, Self, overload, override
 
 from jetpytools import fallback
 from PySide6.QtCore import QSignalBlocker, QSize, Qt, QTimer, Signal
@@ -73,6 +73,7 @@ class PlayHeadToolButton(QToolButton, IconReloadMixin):
         self.rightClicked.connect(lambda clicked: self.set_state(clicked, (self.state - 1) % len(self.State)))
         self._update_tooltip()
 
+    @override
     def mouseReleaseEvent(self, e: QMouseEvent) -> None:
         if e.button() == Qt.MouseButton.RightButton:
             self.rightClicked.emit(True)
@@ -241,6 +242,7 @@ class TabManager(QWidget, IconReloadMixin):
     def is_sync_scroll_enabled(self) -> bool:
         return self.sync_scroll_btn.isChecked()
 
+    @override
     def deleteLater(self) -> None:
         self.tabs.blockSignals(True)
         self.tabs.deleteLater()

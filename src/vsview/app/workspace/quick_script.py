@@ -6,7 +6,7 @@ from functools import cache
 from importlib.util import find_spec
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 from uuid import uuid4
 
 from jetpytools import SPath
@@ -53,6 +53,7 @@ class PygmentsHighlighter(QSyntaxHighlighter):
         self._formats: dict[_TokenType, QTextCharFormat] = {}
         self._style: type[Style]
 
+    @override
     def highlightBlock(self, text: str) -> None:
         for index, token_type, value in self.lexer.get_tokens_unprocessed(text):
             token_t: _TokenType | None = token_type
@@ -98,9 +99,11 @@ class LineNumberArea(QWidget):
         super().__init__(editor)
         self.editor = editor
 
+    @override
     def paintEvent(self, event: QPaintEvent) -> None:
         self.editor.line_number_area_paint_event(event)
 
+    @override
     def sizeHint(self) -> QSize:
         return QSize(self.editor.line_number_area_width, 0)
 
@@ -138,10 +141,12 @@ class CodeEditor(QPlainTextEdit):
         # Left padding (3) + digit width + right padding (6) + separator (1)
         return 3 + self.fontMetrics().horizontalAdvance("9") * max(digits, 2) + 6 + 1
 
+    @override
     def insertFromMimeData(self, source: QMimeData) -> None:
         # Insert only plain text when pasting
         self.insertPlainText(source.text())
 
+    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Tab:
             self.insertPlainText("    ")
@@ -149,11 +154,13 @@ class CodeEditor(QPlainTextEdit):
 
         return super().keyPressEvent(event)
 
+    @override
     def resizeEvent(self, e: QResizeEvent) -> None:
         super().resizeEvent(e)
         cr = self.contentsRect()
         self.line_number_area.setGeometry(QRect(cr.left(), cr.top(), self.line_number_area_width, cr.height()))
 
+    @override
     def wheelEvent(self, event: QWheelEvent) -> None:
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             delta = event.angleDelta().y()
@@ -262,6 +269,7 @@ def _dim_color(hex_color: str, factor: float) -> str:
 
 
 class DockContainer(QWidget):
+    @override
     def sizeHint(self) -> QSize:
         return QSize(400, 500)
 
@@ -398,9 +406,11 @@ class CodeContent:
     def __len__(self) -> int:
         return len(self.code.splitlines(keepends=False))
 
+    @override
     def __str__(self) -> str:
         return self.code
 
+    @override
     def __repr__(self) -> str:
         return self.filename
 
@@ -432,16 +442,20 @@ class QuickScriptWorkspace(VSEngineWorkspace[CodeContent]):
         ShortcutManager.register_shortcut(ActionID.RUN_QUICK_SCRIPT, self.code_dock.run_btn.click, self)
 
     @property
+    @override
     def _script_content(self) -> Any:
         return self.content.code
 
     @property
+    @override
     def _script_kwargs(self) -> dict[str, Any]:
         return {"filename": self.filename}
 
+    @override
     def get_output_metadata(self) -> dict[int, str]:
         return output_metadata.get(self.content.filename, {})
 
+    @override
     def loader(self) -> None:
         # Register source with linecache so traceback can display source lines for virtual files
         linecache.cache[self.filename] = (
@@ -453,6 +467,7 @@ class QuickScriptWorkspace(VSEngineWorkspace[CodeContent]):
 
         return super().loader()
 
+    @override
     def reload_content(self) -> Future[None]:
         self.content = CodeContent(self.code_dock.editor.toPlainText(), self.filename)
 
@@ -467,12 +482,14 @@ class QuickScriptWorkspace(VSEngineWorkspace[CodeContent]):
         return super().reload_content()
 
     @run_in_loop(return_future=False)
+    @override
     def set_loaded_page(self) -> None:
         self.content_area.setVisible(True)
         self.tbar.setVisible(True)
         self.stack.setCurrentWidget(self.loaded_page)
 
     @run_in_loop(return_future=False)
+    @override
     def set_error_page(self) -> None:
         self.content_area.setVisible(False)
         self.tbar.setVisible(False)

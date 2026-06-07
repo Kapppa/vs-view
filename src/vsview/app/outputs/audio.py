@@ -6,7 +6,7 @@ from enum import Enum, auto
 from fractions import Fraction
 from logging import getLogger
 from math import ceil
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, override
 
 import vapoursynth as vs
 from jetpytools import clamp, cround
@@ -72,6 +72,7 @@ class PrettyChannelsLayout(Enum):
         self.pretty_name = pretty_name
 
     @classmethod
+    @override
     def _missing_(cls, value: object) -> Any:
         return next((member for member in cls if member.value == value), cls.UNKNOWN)
 
@@ -315,6 +316,7 @@ class AudioSink(QAudioSink):
         # Move the sink to the main thread so it can be controlled from LoaderWorkspace._stop_audio
         self.moveToThread(QApplication.instance().thread())  # type: ignore[union-attr]
 
+    @override
     def setVolume(self, volume: float) -> None:
         """Override to handle perceptual to linear volume conversion."""
         super().setVolume(
@@ -331,10 +333,12 @@ class AudioSink(QAudioSink):
             raise RuntimeError("Device not ready")
         return self._iodevice
 
+    @override
     def stop(self) -> None:
         self.ready = False
         super().stop()
 
+    @override
     def reset(self) -> None:
         self.ready = False
         super().reset()

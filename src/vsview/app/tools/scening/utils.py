@@ -5,7 +5,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from random import random
 from types import MethodType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 
 from PySide6.QtGui import QColor
 
@@ -19,6 +19,7 @@ class ColorGenerator(Generator[QColor, QColor | None]):
         self._lock = threading.Lock()
         self._golden_ratio_conjugate = 0.618033988749895
 
+    @override
     def send(self, value: QColor | None) -> QColor:
         with self._lock:
             if value is not None:
@@ -28,6 +29,7 @@ class ColorGenerator(Generator[QColor, QColor | None]):
             self._hue = (self._hue + self._golden_ratio_conjugate) % 1.0
             return res
 
+    @override
     def throw(self, exc: BaseException, /, *_: Any) -> QColor:  # type: ignore[override]
         raise exc
 

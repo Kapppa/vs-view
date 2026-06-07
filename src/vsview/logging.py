@@ -13,7 +13,7 @@ from logging import (
     getLogger,
 )
 from threading import main_thread
-from typing import TypeGuard
+from typing import TypeGuard, override
 
 from jetpytools import fallback
 from PySide6.QtCore import QMessageLogContext, QtMsgType, qInstallMessageHandler
@@ -54,12 +54,14 @@ def _qt_message_handler(mode: QtMsgType, context: QMessageLogContext, message: s
 
 
 class EffectiveLevelFilter(Filter):
+    @override
     def filter(self, record: LogRecord) -> bool:
         """Restores the level check for propagated records which Python skips by default."""
         return record.levelno >= getLogger(record.name).getEffectiveLevel()
 
 
 class CustomHandler(RichHandler):
+    @override
     def format(self, record: LogRecord) -> str:
         if record.args and record.name.startswith("vsview"):
             record.args = tuple(arg() if _is_lambda(arg) else arg for arg in record.args)
@@ -67,6 +69,7 @@ class CustomHandler(RichHandler):
 
 
 class ThreadAwareFormatter(Formatter):
+    @override
     def format(self, record: LogRecord) -> str:
         fmt = "{message}" if record.name.startswith("vsview") else "{name}: {message}"
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from datetime import timedelta
-from typing import Annotated, Any, final
+from typing import Annotated, Any, final, override
 from uuid import UUID, uuid4
 
 from jetpytools import fallback
@@ -18,9 +18,11 @@ from .constants import PLUGIN_IDENTIFIER
 class UUIDModel(BaseModel):
     id: UUID = Field(default_factory=uuid4, repr=False, init=False)
 
+    @override
     def __hash__(self) -> int:
         return hash(self.id)
 
+    @override
     def __eq__(self, other: object) -> bool:
         return self.id == other.id if isinstance(other, UUIDModel) else NotImplemented
 
@@ -110,19 +112,23 @@ class RangeFrame(AbstractRange[int], UUIDModel):
             return {"start": data[0], "end": data[1]}
         return data
 
+    @override
     def as_frames(self, v: VideoOutputProxy) -> tuple[int, int]:
         return self.start, (self.end if self.end is not None else self.start)
 
+    @override
     def as_times(self, v: VideoOutputProxy) -> tuple[Time, Time]:
         s, e = self.as_frames(v)
         return v.frame_to_time(s), v.frame_to_time(e)
 
+    @override
     def from_frames(self, s: int | None, e: int | None, v: VideoOutputProxy) -> None:
         if s is not None:
             self.start = s
         if e is not None:
             self.end = e
 
+    @override
     def from_times(self, s: timedelta | None, e: timedelta | None, v: VideoOutputProxy) -> None:
         if s is not None:
             self.start = v.time_to_frame(s)
@@ -150,22 +156,26 @@ class RangeTime(AbstractRange[timedelta], UUIDModel):
             return {"start": _to_td(data[0]), "end": _to_td(data[1])}
         return data
 
+    @override
     def as_frames(self, v: VideoOutputProxy) -> tuple[int, int]:
         s, e = self.as_times(v)
         return v.time_to_frame(s), v.time_to_frame(e)
 
+    @override
     def as_times(self, v: VideoOutputProxy) -> tuple[Time, Time]:
         s = self.start
         e = self.end if self.end is not None else s
 
         return Time(seconds=s.total_seconds()), Time(seconds=e.total_seconds())
 
+    @override
     def from_frames(self, s: int | None, e: int | None, v: VideoOutputProxy) -> None:
         if s is not None:
             self.start = v.frame_to_time(s)
         if e is not None:
             self.end = v.frame_to_time(e)
 
+    @override
     def from_times(self, s: timedelta | None, e: timedelta | None, v: VideoOutputProxy) -> None:
         if s is not None:
             self.start = s
