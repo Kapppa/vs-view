@@ -1,4 +1,6 @@
-from typing import Any, cast
+from __future__ import annotations
+
+from typing import Any, cast, override
 
 import pytest
 from pydantic import BaseModel
@@ -39,7 +41,8 @@ class MockLocalSettings(LocalSettingsModel):
     attr1: str | None = None
     attr2: int | None = None
 
-    def resolve(self, global_settings: BaseModel) -> "MockLocalSettings":
+    @override
+    def resolve(self, global_settings: BaseModel) -> MockLocalSettings:
         resolved = self.model_copy()
         if resolved.attr1 is None:
             resolved.attr1 = getattr(global_settings, "attr1", "default1")
