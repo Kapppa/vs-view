@@ -108,6 +108,8 @@ class GlobalSettings(BaseModel):
         ),
     ] = Qt.ToolButtonStyle.ToolButtonTextBesideIcon
 
+    last_selected_parser: str = ""
+
     @classproperty
     @classmethod
     def toolbar_styles(cls) -> cycle[Qt.ToolButtonStyle]:
@@ -440,8 +442,10 @@ class SceningPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconReloadM
         files, selected_filter = QFileDialog.getOpenFileNames(
             self,
             "Import scene file(s)",
+            selectedFilter=self.settings.global_.last_selected_parser,
             filter=";;".join(sorted(filters)),
         )
+        self.settings.global_.last_selected_parser = selected_filter
 
         if not files:
             logger.info("No file selected")
