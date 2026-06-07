@@ -38,11 +38,7 @@ class PluginSplitter(QSplitter, IconReloadMixin):
         self.right_corner_layout.setContentsMargins(4, 0, 4, 0)
         self.right_corner_layout.setSpacing(0)
 
-        self.close_btn = self.make_tool_button(
-            IconName.X_CIRCLE,
-            "Collapse Plugin Panel",
-            self.right_corner_container,
-        )
+        self.close_btn = self.make_tool_button(IconName.X_CIRCLE, "Collapse Plugin Panel", self.right_corner_container)
         self.close_btn.clicked.connect(lambda: self.setSizes([1, 0]))
         self.right_corner_layout.addWidget(self.close_btn)
 
@@ -52,6 +48,7 @@ class PluginSplitter(QSplitter, IconReloadMixin):
         # Start with right panel collapsed
         self.right_panel_collapsed = True
         self.setSizes([1, 0])
+        self.last_sizes = [1, 0]
         self.splitterMoved.connect(lambda *_: self.setSizes(self.sizes()))  # for manual drag sync
 
     def setSizes(self, sizes: Sequence[int]) -> None:
@@ -89,8 +86,12 @@ class PluginSplitter(QSplitter, IconReloadMixin):
 
     def toggle_right_panel(self, visible: bool) -> None:
         if visible:
-            self.setSizes([750, 250])
+            if self.last_sizes == [1, 0]:
+                self.setSizes([75, 25])
+            else:
+                self.setSizes(self.last_sizes)
         else:
+            self.last_sizes = self.sizes()
             self.setSizes([1, 0])
 
     def _on_plugin_tab_changed(self, index: int) -> None:
