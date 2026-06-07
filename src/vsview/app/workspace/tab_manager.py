@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Self, overload
 
 from jetpytools import fallback
 from PySide6.QtCore import QSignalBlocker, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QIcon, QImage, QPixmap
+from PySide6.QtGui import QIcon, QImage, QMouseEvent, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QToolButton, QVBoxLayout, QWidget
 from vapoursynth import VideoFrame
 
@@ -48,11 +48,13 @@ class PlayHeadToolButton(QToolButton, IconReloadMixin):
             return obj
 
     stateChanged = Signal(State)
+    rightClicked = Signal(bool)
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
         self.setCheckable(True)
         self.setChecked(True)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
         self.setIconSize(QSize(20, 20))
 
         # Start from LINK_ADAPT
@@ -68,7 +70,13 @@ class PlayHeadToolButton(QToolButton, IconReloadMixin):
         self.register_icon_callback(self.reload_icons)
 
         self.clicked.connect(self.set_state)
+        self.rightClicked.connect(lambda clicked: self.set_state(clicked, (self.state - 1) % len(self.State)))
         self._update_tooltip()
+
+    def mouseReleaseEvent(self, e: QMouseEvent) -> None:
+        if e.button() == Qt.MouseButton.RightButton:
+            self.rightClicked.emit(True)
+        return super().mouseReleaseEvent(e)
 
     def set_state(self, clicked: bool | None = None, state: int | None = None) -> None:
         if state is None:
