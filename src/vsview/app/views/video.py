@@ -384,7 +384,7 @@ class BaseGraphicsView(QGraphicsView):
         self.slider_container = QWidget(self)
         self.slider = QSlider(Qt.Orientation.Horizontal, self.slider_container)
         self.slider.setRange(0, 100)
-        self.slider.setValue(self._zoom_to_slider(1.0))
+        self.slider.setValue(self.zoom_to_slider(1.0))
         self.slider.setMinimumWidth(100)
         self.slider.setToolTip("1.00x")
         self.slider.valueChanged.connect(self._on_slider_value_changed)
@@ -422,7 +422,7 @@ class BaseGraphicsView(QGraphicsView):
 
     def _setup_shortcuts(self) -> None:
         sm = ShortcutManager()
-        sm.register_shortcut(ActionID.RESET_ZOOM, lambda: self.slider.setValue(self._zoom_to_slider(1.0)), self)
+        sm.register_shortcut(ActionID.RESET_ZOOM, lambda: self.slider.setValue(self.zoom_to_slider(1.0)), self)
 
         sm.register_action(ActionID.TOGGLE_SAR, self.apply_sar_action)
         sm.register_action(ActionID.AUTOFIT, self.autofit_action)
@@ -519,7 +519,7 @@ class BaseGraphicsView(QGraphicsView):
         self.set_zoom(new_zoom)
 
         with QSignalBlocker(self.slider):
-            self.slider.setValue(self._zoom_to_slider(new_zoom))
+            self.slider.setValue(self.zoom_to_slider(new_zoom))
 
         return True
 
@@ -558,6 +558,24 @@ class BaseGraphicsView(QGraphicsView):
             return None
 
         return super().wheelEvent(event)
+
+    def slider_to_zoom(self, slider_val: int) -> float:
+        num_factors = len(self.zoom_factors)
+        index = cround(slider_val / 100.0 * (num_factors - 1))
+        index = clamp(index, 0, num_factors - 1)
+        return self.zoom_factors[index]
+
+    def zoom_to_slider(self, zoom: float) -> int:
+        # Find the index of this zoom factor (or closest)
+        try:
+            index = self.zoom_factors.index(zoom)
+        except ValueError:
+            index = min(range(len(self.zoom_factors)), key=lambda i: abs(self.zoom_factors[i] - zoom))
+
+        if (num_factors := len(self.zoom_factors)) <= 1:
+            return 50
+
+        return cround(index / (num_factors - 1) * 100)
 
     def set_zoom(self, value: float, *, animated: bool = True) -> None:
         target_zoom = value
@@ -603,7 +621,7 @@ class BaseGraphicsView(QGraphicsView):
             self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
             self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
             self.slider_container.setDisabled(False)
-            self.set_zoom(self._slider_to_zoom(self.slider.value()), animated=animated)
+            self.set_zoom(self.slider_to_zoom(self.slider.value()), animated=animated)
 
     def clear_scene(self) -> None:
         self.graphics_scene.clear()
@@ -986,32 +1004,14 @@ class BaseGraphicsView(QGraphicsView):
 
         return self._normalize_rect_selection(QRect(x0, y0, x1 - x0, y1 - y0))
 
-    def _slider_to_zoom(self, slider_val: int) -> float:
-        num_factors = len(self.zoom_factors)
-        index = cround(slider_val / 100.0 * (num_factors - 1))
-        index = clamp(index, 0, num_factors - 1)
-        return self.zoom_factors[index]
-
-    def _zoom_to_slider(self, zoom: float) -> int:
-        # Find the index of this zoom factor (or closest)
-        try:
-            index = self.zoom_factors.index(zoom)
-        except ValueError:
-            index = min(range(len(self.zoom_factors)), key=lambda i: abs(self.zoom_factors[i] - zoom))
-
-        if (num_factors := len(self.zoom_factors)) <= 1:
-            return 50
-
-        return cround(index / (num_factors - 1) * 100)
-
     def _on_settings_changed(self) -> None:
         settings = SettingsManager.global_settings.view
         new_factors = settings.zoom_factors.copy()
 
         if new_factors != self.zoom_factors:
-            current_zoom = self._slider_to_zoom(self.slider.value())
+            current_zoom = self.slider_to_zoom(self.slider.value())
             self.zoom_factors = new_factors
-            self.slider.setValue(self._zoom_to_slider(current_zoom))
+            self.slider.setValue(self.zoom_to_slider(current_zoom))
 
         if Shiboken.isValid(self._rect_selection_overlay):
             self._rect_selection_overlay.shade_opacity = settings.shade_opacity
@@ -1024,7 +1024,7 @@ class BaseGraphicsView(QGraphicsView):
         self.set_autofit(not self.autofit)
 
     def _on_slider_value_changed(self, value: int) -> None:
-        zoom = self._slider_to_zoom(value)
+        zoom = self.slider_to_zoom(value)
         zoom_text = f"{zoom:.2f}x"
         self.slider.setToolTip(zoom_text)
         QToolTip.showText(QCursor.pos(), zoom_text, self.slider)

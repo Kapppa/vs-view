@@ -394,7 +394,7 @@ class TabManager(QWidget, IconReloadMixin):
             if view is not self.current_view and not view.autofit:
                 with QSignalBlocker(view), QSignalBlocker(view.slider):
                     view.set_zoom(zoom, animated=False)
-                    view.slider.setValue(view._zoom_to_slider(zoom))
+                    view.slider.setValue(view.zoom_to_slider(zoom))
 
                 self.tabs.get_tab_label(i).zoom = zoom
 
