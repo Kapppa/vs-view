@@ -25,7 +25,7 @@ from pydantic import (
     model_serializer,
 )
 from pygments.styles import get_all_styles as get_pygments_styles
-from PySide6.QtCore import Qt, QTime
+from PySide6.QtCore import QPointF, Qt, QTime
 from PySide6.QtGui import QColor, QKeySequence
 from PySide6.QtWidgets import QColorDialog, QStyleFactory, QWidget
 
@@ -810,6 +810,20 @@ class LayoutSettings(BaseModel):
     """Base64-encoded QMainWindow.saveState() byte array for dock positions"""
 
 
+class LocalViewSettings(BaseModel):
+    """View-specific settings, stored per script."""
+
+    last_zoom: float | None = None
+    """The last zoom factor applied to the view."""
+
+    last_center: Annotated[
+        QPointF | None,
+        PlainValidator(lambda v: QPointF(*v) if v else v),
+        PlainSerializer(lambda v: v.toTuple()),
+    ] = None
+    """The last center position of the view."""
+
+
 class LocalSettings(BaseSettings):
     """
     Per-script settings stored in the .vsjet directory.
@@ -823,8 +837,9 @@ class LocalSettings(BaseSettings):
     last_frame: int = 0
     last_time: timedelta = timedelta()
     last_output_tab_index: Annotated[int, AfterValidator(lambda i: max(0, i))] = 0
-    playback: LocalPlaybackSettings = Field(default_factory=lambda: LocalPlaybackSettings())
-    timeline: LocalTimelineSettings = Field(default_factory=lambda: LocalTimelineSettings())
-    synchronization: SynchronizationSettings = Field(default_factory=lambda: SynchronizationSettings())
-    layout: LayoutSettings = Field(default_factory=lambda: LayoutSettings())
+    playback: LocalPlaybackSettings = Field(default_factory=LocalPlaybackSettings)  # pyright: ignore[reportArgumentType]
+    timeline: LocalTimelineSettings = Field(default_factory=LocalTimelineSettings)  # pyright: ignore[reportArgumentType]
+    synchronization: SynchronizationSettings = Field(default_factory=SynchronizationSettings)
+    layout: LayoutSettings = Field(default_factory=LayoutSettings)
+    view: LocalViewSettings = Field(default_factory=LocalViewSettings)
     plugins: PluginsType = Field(default_factory=dict)

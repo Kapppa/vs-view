@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Concatenate, NamedTuple, overload, override
 
 from jetpytools import cachedproperty, to_arr
-from PySide6.QtCore import QByteArray, Qt, QTimer
+from PySide6.QtCore import QByteArray, QSignalBlocker, Qt, QTimer
 from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
 from PySide6.QtWidgets import QFileDialog, QWidget
 from vapoursynth import VideoNode
@@ -165,6 +165,11 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
 
         self.local_settings.timeline.mode = self.tbar.timeline.mode
 
+        # Save view state
+        view = self.tab_manager.current_view
+        self.local_settings.view.last_zoom = view.current_zoom
+        self.local_settings.view.last_center = view.mapToScene(view.viewport().rect().center())
+
         # Save layout state
         self.local_settings.layout.plugin_splitter_sizes = self.plugin_splitter.sizes()
         self.local_settings.layout.plugin_tab_index = self.plugin_splitter.plugin_tabs.currentIndex()
@@ -220,6 +225,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
     ) -> Future[None]:
         remaining_time = self._stop_autosave()
         future = super().load_content(content, frame, time, tab_index)
+        future.add_done_callback(self._restore_zoom_center)
         future.add_done_callback(lambda f: self._start_autosave(f, remaining_time))
         return future
 
@@ -276,6 +282,18 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
 
         dock_visible = any(not dock.isHidden() for dock in self.docks)
         self.dock_toggle_btn.setChecked(dock_visible)
+
+    def _restore_zoom_center(self, f: Future[None]) -> None:
+        if f.exception():
+            return
+
+        v = self.tab_manager.current_view
+        if (z := self.local_settings.view.last_zoom) and z != 1.0:
+            with QSignalBlocker(v):
+                v.slider.setValue(v.zoom_to_slider(z))
+
+        if c := self.local_settings.view.last_center:
+            v.update_center(c.toTuple())
 
     def _get_supported_drop_file(self, event: QDropEvent) -> Path | None:
         if (mime_data := event.mimeData()).hasUrls():
