@@ -190,7 +190,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.outputs_dropdown = OutputDropdown(self.clip_section)
         self.outputs_dropdown.setToolTip("Select and rename outputs.")
         self.outputs_dropdown.inclusionChanged.connect(self._update_buttons_state)
-        self.outputs_dropdown.inclusionChanged.connect(self.update_included_outputs_frames_list)
         form.addRow(self.outputs_dropdown)
 
         # Current frames + add remove buttons
@@ -512,6 +511,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.outputs_dropdown.shortest_dur_text = f" - {max_total_duration.to_ts()} ({max_total_frames})"
         self.outputs_dropdown.populate(voutputs)
         self.frames_list.clear()
+        self.frames_list.included_outputs = self.comp_voutputs
         self._update_frames_count()
 
         max_frame = max_total_frames - 1
@@ -940,9 +940,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.upload_btn.setEnabled(frames_ready and not needs_extraction)
 
         self._current_outputs = current_outputs
-
-    def update_included_outputs_frames_list(self) -> None:
-        self.frames_list.included_outputs = self.selected_voutputs
 
     def on_url_copy_btn_clicked(self) -> None:
         QApplication.clipboard().setText(self._reported_url)
