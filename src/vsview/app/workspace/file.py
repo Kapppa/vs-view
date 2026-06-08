@@ -220,14 +220,14 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
     ) -> Future[None]:
         remaining_time = self._stop_autosave()
         future = super().load_content(content, frame, time, tab_index)
-        future.add_done_callback(lambda _: self._start_autosave(remaining_time))
+        future.add_done_callback(lambda f: self._start_autosave(f, remaining_time))
         return future
 
     @override
     def reload_content(self) -> Future[None]:
         remaining_time = self._stop_autosave()
         future = super().reload_content()
-        future.add_done_callback(lambda _: self._start_autosave(remaining_time))
+        future.add_done_callback(lambda f: self._start_autosave(f, remaining_time))
         return future
 
     @run_in_loop(return_future=False)
@@ -244,7 +244,10 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
             self._restore_layout()
 
     @run_in_loop(return_future=False)
-    def _start_autosave(self, remaining_time: int) -> None:
+    def _start_autosave(self, f: Future[None], remaining_time: int) -> None:
+        if f.exception():
+            return
+
         autosave = self.global_settings.autosave
         full_interval = (autosave.minute * 60 + autosave.second) * 1000
 
