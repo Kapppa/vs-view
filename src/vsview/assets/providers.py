@@ -40,6 +40,8 @@ class IconName(StrEnum):
     SAVE = "floppy-disk"
     ARROW_LEFT = "arrow-left"
     ARROW_RIGHT = "arrow-right"
+    ARROW_CLOCKWISE = "arrow-clockwise"
+    ARROW_COUNTER_CLOCKWISE = "arrow-counter-clockwise"
     # Audio icons
     VOLUME_HIGH = "speaker-high"
     VOLUME_MID = "speaker-low"
@@ -204,6 +206,8 @@ class MaterialProvider(IconProvider):
         IconName.FRAME_CORNERS: "border-radius",
         IconName.ARROWS_OUT_CARDINAL: "arrow-expand-all",
         IconName.ARROW_U_TOP_LEFT: "arrow-u-left-top",
+        IconName.ARROW_CLOCKWISE: "reload",
+        IconName.ARROW_COUNTER_CLOCKWISE: "restore",
         IconName.X_CIRCLE: "close-circle",
         IconName.FILE_TEXT: "file-document",
         IconName.SAVE: "content-save",
@@ -264,6 +268,8 @@ class LucideProvider(IconProvider):
         IconName.FRAME_CORNERS: "scan",
         IconName.ARROWS_OUT_CARDINAL: "move",
         IconName.ARROW_U_TOP_LEFT: "undo-2",
+        IconName.ARROW_CLOCKWISE: "rotate-cw",
+        IconName.ARROW_COUNTER_CLOCKWISE: "rotate-ccw",
         IconName.X_CIRCLE: "circle-x",
         IconName.FILE_VIDEO: "file-video-camera",
         IconName.SAVE: "save",
