@@ -3,6 +3,7 @@ from __future__ import annotations
 from base64 import b64decode, b64encode
 from collections.abc import Callable, Sequence
 from concurrent.futures import Future
+from contextlib import suppress
 from functools import wraps
 from importlib.util import find_spec
 from logging import getLogger
@@ -166,14 +167,15 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         self.local_settings.timeline.mode = self.tbar.timeline.mode
 
         # Save view state
-        view = self.tab_manager.current_view
-        self.local_settings.view.last_zoom = view.current_zoom
-        self.local_settings.view.last_center = view.mapToScene(view.viewport().rect().center())
+        with suppress(TypeError):
+            view = self.tab_manager.current_view
+            self.local_settings.view.last_zoom = view.current_zoom
+            self.local_settings.view.last_center = view.mapToScene(view.viewport().rect().center())
 
-        # Save layout state
-        self.local_settings.layout.plugin_splitter_sizes = self.plugin_splitter.sizes()
-        self.local_settings.layout.plugin_tab_index = self.plugin_splitter.plugin_tabs.currentIndex()
-        self.local_settings.layout.dock_state = b64encode(self.dock_container.saveState().data()).decode("ascii")
+            # Save layout state
+            self.local_settings.layout.plugin_splitter_sizes = self.plugin_splitter.sizes()
+            self.local_settings.layout.plugin_tab_index = self.plugin_splitter.plugin_tabs.currentIndex()
+            self.local_settings.layout.dock_state = b64encode(self.dock_container.saveState().data()).decode("ascii")
 
     @override
     def init_load(self, frame: int | None = None, time: float | None = None, tab_index: int | None = None) -> None:
