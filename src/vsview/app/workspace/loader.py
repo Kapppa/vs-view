@@ -296,7 +296,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         frame: int | None = None,
         time: float | None = None,
         tab_index: int | None = None,
-    ) -> None:
+    ) -> int:
         logger.debug("load_content called: path=%r, frame=%r, tab_index=%r", content, frame, tab_index)
 
         self.set_loading_page()
@@ -311,7 +311,7 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         if not outputs:
             self.clear_failed_load()
-            return
+            return 1
 
         voutputs, aoutputs = outputs
 
@@ -345,15 +345,17 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         self._on_tab_changed(self.tab_manager.tabs.currentIndex(), cb_render=on_complete)
 
+        return 0
+
     @run_in_background(name="ReloadContent")
-    def reload_content(self) -> None:
+    def reload_content(self) -> int:
         if not self.playback.can_reload:
             logger.warning("Workspace is busy, cannot reload content")
-            return
+            return 2
 
         if self.api.busy:
             logger.warning("At least one plugin is busy, cannot reload content")
-            return
+            return 2
 
         logger.debug("Reloading content: %r", self.content)
 
@@ -390,7 +392,7 @@ class LoaderWorkspace[T](BaseWorkspace):
 
             if not outputs:
                 self.clear_failed_load()
-                return
+                return 1
 
             voutputs, aoutputs = outputs
 
@@ -418,6 +420,8 @@ class LoaderWorkspace[T](BaseWorkspace):
             self._on_tab_changed(current_tab_i, seamless=True, cb_render=on_complete, refresh_plugins=True)
 
             logger.info("Content reloaded successfully: %r", self.content)
+
+            return 0
 
     @run_in_loop(return_future=False)
     def _capture_reload_ui_state(self) -> tuple[ViewState, int, bool]:

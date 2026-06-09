@@ -222,7 +222,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         frame: int | None = None,
         time: float | None = None,
         tab_index: int | None = None,
-    ) -> Future[None]:
+    ) -> Future[int]:
         remaining_time = self._stop_autosave()
         future = super().load_content(content, frame, time, tab_index)
         future.add_done_callback(self._restore_zoom_center)
@@ -230,7 +230,7 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         return future
 
     @override
-    def reload_content(self) -> Future[None]:
+    def reload_content(self) -> Future[int]:
         remaining_time = self._stop_autosave()
         future = super().reload_content()
         future.add_done_callback(lambda f: self._start_autosave(f, remaining_time))
@@ -250,8 +250,8 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
             self._restore_layout()
 
     @run_in_loop(return_future=False)
-    def _start_autosave(self, f: Future[None], remaining_time: int) -> None:
-        if f.exception():
+    def _start_autosave(self, f: Future[int], remaining_time: int) -> None:
+        if f.exception() or f.result() == 1:
             return
 
         autosave = self.global_settings.autosave
@@ -283,8 +283,8 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         dock_visible = any(not dock.isHidden() for dock in self.docks)
         self.dock_toggle_btn.setChecked(dock_visible)
 
-    def _restore_zoom_center(self, f: Future[None]) -> None:
-        if f.exception():
+    def _restore_zoom_center(self, f: Future[int]) -> None:
+        if f.exception() or f.result() > 0:
             return
 
         v = self.tab_manager.current_view

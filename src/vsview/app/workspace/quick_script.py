@@ -468,7 +468,7 @@ class QuickScriptWorkspace(VSEngineWorkspace[CodeContent]):
         return super().loader()
 
     @override
-    def reload_content(self) -> Future[None]:
+    def reload_content(self) -> Future[int]:
         self.content = CodeContent(self.code_dock.editor.toPlainText(), self.filename)
 
         if not self.loaded_once:
