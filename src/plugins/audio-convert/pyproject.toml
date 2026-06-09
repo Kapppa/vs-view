@@ -23,7 +23,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
-dependencies = ["vsview"]
+dependencies = ["vapoursynth-ares>=0.4.0", "vsview"]
 
 [project.entry-points.vsview]
 vsview_audio_convert = "vsview_audio_convert"

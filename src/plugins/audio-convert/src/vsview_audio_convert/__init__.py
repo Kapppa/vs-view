@@ -4,7 +4,7 @@ from logging import getLogger
 from typing import Annotated, override
 
 from pydantic import BaseModel
-from vapoursynth import AudioNode, core
+from vapoursynth import AudioNode
 
 from vsview.api import Dropdown, NodeProcessor, Spin, hookimpl
 
@@ -32,9 +32,7 @@ class GlobalSettings(BaseModel):
             min=-1,
             max=1_000_000,
             suffix=" Hz",
-            tooltip="Target sample rate to convert to.\n"
-            "-1 means no resampling is performed.\n"
-            "If ares is not installed, this option is ignored.",
+            tooltip="Target sample rate to convert to.\n-1 means no resampling is performed.",
             to_ui=lambda v: -1 if v is None else v,
             from_ui=lambda v: None if v < 0 else v,
         ),
@@ -52,8 +50,7 @@ class GlobalSettings(BaseModel):
                 ("Very high", "very_high"),
                 ("Maximum", "max"),
             ],
-            tooltip="The SoX resampler quality. Default is 'very high'.\n"
-            "If ares is not installed, this option is ignored.",
+            tooltip="The SoX resampler quality. Default is 'very high'.",
         ),
     ] = None
 
@@ -64,24 +61,13 @@ class AudioConvert(NodeProcessor[AudioNode, GlobalSettings]):
 
     @override
     def prepare(self, audio: AudioNode) -> AudioNode:
-        if hasattr(core, "ares"):
-            logger.debug("Using ares.Resample on audio %r", audio)
-            return audio.ares.Resample(
-                sample_rate=self.settings.global_.sample_rate,
-                sample_type=self.settings.global_.sample_type,
-                quality=self.settings.global_.quality,
-            )
+        logger.debug("Using ares.Resample on audio %r", audio)
 
-        if hasattr(core, "atools"):
-            logger.debug("Using atools.Convert on audio %r", audio)
-            if self.settings.global_.sample_rate is not None or self.settings.global_.quality is not None:
-                logger.warning("Can't set sample rate and/or quality when ares.Resample isn't installed")
-
-            return audio.atools.Convert(sample_type=self.settings.global_.sample_type)
-
-        logger.error("No audio processing method available. Please install ares or atools.")
-
-        return audio
+        return audio.ares.Resample(
+            sample_rate=self.settings.global_.sample_rate,
+            sample_type=self.settings.global_.sample_type,
+            quality=self.settings.global_.quality,
+        )
 
 
 @hookimpl
