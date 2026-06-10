@@ -72,13 +72,7 @@ logger = getLogger(__name__)
 
 
 class Application(QApplication):
-    def __init__(
-        self,
-        arguments: Sequence[str],
-        /,
-        no_settings: bool,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, arguments: Sequence[str], /, no_settings: bool, **kwargs: Any) -> None:
         super().__init__(arguments, **kwargs)
 
         SettingsManager(noop=no_settings)
