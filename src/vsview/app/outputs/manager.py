@@ -83,7 +83,7 @@ class OutputsManager:
         """
 
         voutputs = list[VideoOutput]()
-        self._packer = Packer(8)
+        self._packer = Packer()
 
         logger.debug("Configured video packer (%s-bit)", self.packer.bit_depth)
 
