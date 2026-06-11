@@ -154,7 +154,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.loaded_layout.addWidget(self.tbar)
         self.stack.addWidget(self.loaded_page)
 
-        self.outputs_manager = OutputsManager()
+        self.outputs_manager = OutputsManager(self.api)
 
         # PlaybackManager - handles video/audio playback logic
         self.playback = PlaybackManager(
@@ -568,7 +568,6 @@ class LoaderWorkspace[T](BaseWorkspace):
                     self.content,
                     self.video_outputs,
                     self.get_output_metadata(),
-                    self.api,
                     last_frame=self.playback.state.current_frame,
                 )
 
@@ -579,7 +578,6 @@ class LoaderWorkspace[T](BaseWorkspace):
                     self.content,
                     self.audio_outputs,
                     self.get_output_metadata(),
-                    self.api,
                     delay_s=self.tbar.playback_container.audio_delay,
                 )
 

@@ -19,6 +19,9 @@ logger = getLogger(__name__)
 class OutputsManager:
     """Manages video and audio outputs."""
 
+    def __init__(self, api: PluginAPI) -> None:
+        self.api = api
+
     @property
     def packer(self) -> Packer:
         return self._packer
@@ -72,7 +75,6 @@ class OutputsManager:
         content: Any,
         vs_vouputs: Mapping[int, VideoOutputTuple],
         metadata: dict[int, Any],
-        api: PluginAPI,
         *,
         last_frame: int = 0,
     ) -> list[VideoOutput]:
@@ -98,7 +100,7 @@ class OutputsManager:
             for i, output in items:
                 voutput = VideoOutput(output, i, self.packer, metadata.get(i))
                 voutput.last_frame = last_frame
-                voutput.prepare_video(api)
+                voutput.prepare_video(self.api)
                 voutputs.append(voutput)
         except Exception:
             for voutput in voutputs:
@@ -115,7 +117,6 @@ class OutputsManager:
         content: Any,
         vs_aouputs: Mapping[int, AudioNode],
         metadata: dict[int, Any],
-        api: PluginAPI,
         *,
         delay_s: float = 0.0,
     ) -> list[AudioOutput]:
@@ -132,7 +133,7 @@ class OutputsManager:
         try:
             for i, output in items:
                 aoutput = AudioOutput(output, i, metadata.get(i))
-                aoutput.prepare_audio(delay_s, api)
+                aoutput.prepare_audio(delay_s, self.api)
                 aoutputs.append(aoutput)
         except Exception:
             for aoutput in aoutputs:
