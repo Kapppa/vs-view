@@ -4,6 +4,7 @@ import ctypes
 from colorsys import rgb_to_hls, rgb_to_hsv
 from enum import Enum, auto
 from functools import partial
+from logging import getLogger
 from math import ceil, floor, log, log10
 from struct import unpack
 from typing import Annotated, Any, override
@@ -44,6 +45,7 @@ from .utils import get_chroma_offsets, scale_value_to_float
 
 type CachedVideoNode = vs.VideoNode
 
+logger = getLogger(__name__)
 
 # ctypes data types for pixel extraction
 DATA_TYPES: dict[vs.SampleType, dict[int, type[ctypes._SimpleCData[Any]]]] = {
@@ -108,8 +110,7 @@ class ColorPickerPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
     COL_LABEL = 0
     COL_VALUES_START = 1
 
-    RGB30_FORMATS: tuple[QImage.Format, ...] = Packer.FORMAT_CONFIG[10][2:]
-    RGBA_FORMATS: tuple[QImage.Format, ...] = tuple(zip(*Packer.FORMAT_CONFIG.values()))[3]
+    RGBA_FORMATS: tuple[QImage.Format, ...] = tuple(p.qt_alpha for p in Packer.FormatConfig)
 
     def __init__(self, parent: QWidget, api: PluginAPI) -> None:
         super().__init__(parent, api)
@@ -229,6 +230,12 @@ class ColorPickerPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
     # Plugin hooks
     @override
     def on_current_voutput_changed(self, voutput: VideoOutputProxy, tab_index: int) -> None:
+        # TODO: Add support for HDR
+        if voutput.packer.hdr:
+            self.setDisabled(True)
+            logger.warning("The ColorPicker tool isn't available on HDR outputs.")
+        else:
+            self.setEnabled(True)
         if voutput not in self.outputs:
             self.outputs[voutput] = cache_clip(voutput.vs_output.clip, 10)
 
@@ -398,9 +405,8 @@ class ColorPickerPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
         img_format = image.format()
         color = image.pixelColor(pos)
 
-        is_rgb30 = img_format in self.RGB30_FORMATS
         has_alpha = img_format in self.RGBA_FORMATS
-        max_val = 1023 if is_rgb30 else 255
+        max_val = 2 ** image.pixelFormat().redSize() - 1
 
         # Rebuild grid if alpha state changed
         required_cols = 4 if has_alpha else 3
@@ -414,7 +420,7 @@ class ColorPickerPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
                 self.current_rgb_cols,
             )
 
-        fmt_name = self.api.packer.vs_format.name
+        fmt_name = self.api.current_voutput.packer.format.vs.name
         self.rgb_group.setTitle(f"Rendered ({fmt_name[:3]}{'A' if has_alpha else ''}{fmt_name[3:]})")
 
         r_f, g_f, b_f, a_f = color.redF(), color.greenF(), color.blueF(), color.alphaF()
@@ -423,7 +429,7 @@ class ColorPickerPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
         self.position_label.cursor_pos = pos
 
         rgb_norm = f"{{:.{self.settings.global_.decimals_nb}f}}"
-        hex_fmt = f"{{:0{3 if is_rgb30 else 2}X}}"
+        hex_fmt = f"{{:0{len(f'{max_val:X}')}X}}"
 
         # Build value lists based on alpha presence
         hex_vals = [hex_fmt.format(r), hex_fmt.format(g), hex_fmt.format(b)]

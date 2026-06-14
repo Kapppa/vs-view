@@ -48,6 +48,7 @@ class CLIConfig(BaseModel):
     verbose: int
     arg: dict[str, str]
     qt_arg: list[str]
+    hdr: bool
 
 
 class SettingsCommand(BaseModel):
@@ -82,21 +83,42 @@ def main(argv: Sequence[str] | None = None) -> None:
         raise SystemExit(0)
 
     # Setup env vars
-    os.environ["JETPYTOOLS_NO_COLOR"] = "1"
+    os.environ["JETPYTOOLS_NO_COLOR"] = "true"
     os.environ["PYDANTIC_ERRORS_INCLUDE_URL"] = "false"
+    if cfg.hdr:
+        os.environ.setdefault("QSG_RHI_HDR", "p3" if sys.platform == "darwin" else "scrgb")
+        os.environ.setdefault("QSG_INFO", "1")
+        os.environ.setdefault("QSG_RHI_DEBUG_LAYER", "1")
+        os.environ.setdefault("QSG_RHI_LEAK_CHECK", "1")
+        os.environ.setdefault("QSG_RHI_PROFILE", "1")
+        if sys.platform == "linux":
+            os.environ.setdefault("QSG_RENDER_LOOP", "basic")
 
     if cfg.settings_roaming:
-        os.environ["VSVIEW_GLOBAL_SETTINGS_ROAMING"] = "1"
+        os.environ["VSVIEW_GLOBAL_SETTINGS_ROAMING"] = "true"
     if cfg.settings_env:
-        os.environ["VSVIEW_GLOBAL_SETTINGS_ENVIRONMENT"] = "1"
+        os.environ["VSVIEW_GLOBAL_SETTINGS_ENVIRONMENT"] = "true"
     if cfg.settings_env_copy:
-        os.environ["VSVIEW_GLOBAL_SETTINGS_ENVIRONMENT_COPY"] = "1"
+        os.environ["VSVIEW_GLOBAL_SETTINGS_ENVIRONMENT_COPY"] = "true"
+    if cfg.hdr:
+        os.environ["VSVIEW_HDR"] = "true"
 
     # -v -> DEBUG, -vv -> DEBUG - 1, -vvv -> DEBUG - 2, etc.
     setup_logging(level=DEBUG - max(0, cfg.verbose - 1) if cfg.verbose else None)
 
     # Set signal handler to default to allow Ctrl+C to work
     signal(SIGINT, SIG_DFL)
+
+    if cfg.hdr:
+        from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
+
+        match sys.platform:
+            case "win32":
+                QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Direct3D12)
+            case "linux":
+                QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Vulkan)
+            case "darwin":
+                QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Metal)
 
     app = Application(
         # TODO: This parsing could  probably be moved to the rust parser
