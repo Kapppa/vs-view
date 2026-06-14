@@ -35,7 +35,7 @@ Install and launch directly from your terminal:
     ```
 
     ```bash title="Install with recommended plugins"
-    pip install "vsview[recommended]"
+    pip install vsview[recommended]
     ```
 
     ```bash title="Open files directly:"
@@ -43,7 +43,7 @@ Install and launch directly from your terminal:
     ```
 === "uv"
     ```bash title="Install and run"
-    uv tool install vsview
+    uv add vsview
     vsview
     ```
 
