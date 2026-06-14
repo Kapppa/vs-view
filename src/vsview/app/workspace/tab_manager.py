@@ -9,8 +9,8 @@ from logging import getLogger
 from typing import TYPE_CHECKING, Self, overload, override
 
 from jetpytools import fallback
-from PySide6.QtCore import QSignalBlocker, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QIcon, QImage, QMouseEvent, QPixmap
+from PySide6.QtCore import QSignalBlocker, QSize, Qt, QTimer, Signal, Slot
+from PySide6.QtGui import QIcon, QImage, QMouseEvent, QPaintDevice, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QToolButton, QVBoxLayout, QWidget
 from vapoursynth import VideoFrame
 
@@ -335,6 +335,7 @@ class TabManager(QWidget, IconReloadMixin):
                 else:
                     tabs.tabBar().show()
 
+    @Slot(QPaintDevice, object, object)
     @run_in_loop(return_future=False)
     def update_current_view(
         self,

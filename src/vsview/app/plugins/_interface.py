@@ -10,7 +10,7 @@ from weakref import WeakKeyDictionary
 
 import vapoursynth as vs
 from pydantic import BaseModel
-from PySide6.QtCore import QMetaObject, QObject, QRect, Signal
+from PySide6.QtCore import QMetaObject, QObject, QRect, Signal, Slot
 from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QMouseEvent
 from PySide6.QtWidgets import QDockWidget, QSplitter, QTabWidget, QWidget
 
@@ -407,36 +407,43 @@ class _PluginAPI(_PluginLimitedApi):
             if self._is_truly_visible(plugin):
                 plugin.on_view_context_menu(event)
 
+    @Slot(QMouseEvent)
     def _on_view_mouse_moved(self, event: QMouseEvent) -> None:
         for plugin in self.__workspace.plugins:
             if self._is_truly_visible(plugin):
                 plugin.on_view_mouse_moved(event)
 
+    @Slot(QMouseEvent)
     def _on_view_mouse_pressed(self, event: QMouseEvent) -> None:
         for plugin in self.__workspace.plugins:
             if self._is_truly_visible(plugin):
                 plugin.on_view_mouse_pressed(event)
 
+    @Slot(QMouseEvent)
     def _on_view_mouse_released(self, event: QMouseEvent) -> None:
         for plugin in self.__workspace.plugins:
             if self._is_truly_visible(plugin):
                 plugin.on_view_mouse_released(event)
 
+    @Slot(QRect)
     def _on_view_rect_selection_changed(self, rect: QRect) -> None:
         for plugin in self.__workspace.plugins:
             if self._is_truly_visible(plugin):
                 plugin.on_view_rect_selection_changed(rect)
 
+    @Slot(QRect)
     def _on_view_rect_selection_finished(self, rect: QRect) -> None:
         for plugin in self.__workspace.plugins:
             if self._is_truly_visible(plugin):
                 plugin.on_view_rect_selection_finished(rect)
 
+    @Slot(QKeyEvent)
     def _on_view_key_press(self, event: QKeyEvent) -> None:
         for plugin in self.__workspace.plugins:
             if self._is_truly_visible(plugin):
                 plugin.on_view_key_press(event)
 
+    @Slot(QKeyEvent)
     def _on_view_key_release(self, event: QKeyEvent) -> None:
         for plugin in self.__workspace.plugins:
             if self._is_truly_visible(plugin):

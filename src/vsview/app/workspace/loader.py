@@ -13,7 +13,7 @@ from types import ModuleType
 from typing import Any, ClassVar, Literal, assert_never, override
 
 from jetpytools import clamp, fallback
-from PySide6.QtCore import QSignalBlocker, Qt, QTimer, Signal
+from PySide6.QtCore import QSignalBlocker, Qt, QTimer, Signal, Slot
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -526,6 +526,7 @@ class LoaderWorkspace[T](BaseWorkspace):
 
         self.playback.state.fps_history = deque(maxlen=clamp(fps_history_size, 1, total_frames))
 
+    @Slot(int)
     @run_in_loop
     def update_timeline_cursor(self, n: int) -> None:
         if not self.outputs_manager.current_voutput:

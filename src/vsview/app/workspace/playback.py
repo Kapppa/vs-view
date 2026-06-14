@@ -431,6 +431,7 @@ class PlaybackManager(QObject):
         self._stop_playback()
         self._start_playback()
 
+    @Slot()
     @run_in_background(name="PlaybackNextFrame")
     def _play_next_frame(self) -> None:
         if not self.state.is_playing:
@@ -630,6 +631,7 @@ class PlaybackManager(QObject):
 
         logger.debug("Audio prepared: interval=%d ns", self.state.audio_frame_interval_ns)
 
+    @Slot()
     @run_in_loop
     def _play_next_audio_frame(self) -> None:
         if (

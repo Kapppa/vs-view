@@ -1112,6 +1112,7 @@ class BaseGraphicsView(QGraphicsView):
         QToolTip.showText(QCursor.pos(), zoom_text, self.slider)
         self.set_zoom(zoom)
 
+    @Slot(int)
     def _on_wheel_scrolled(self, steps: int) -> None:
         # Calculate step size based on number of zoom factors
         num_factors = len(self.zoom_factors)

@@ -25,6 +25,7 @@ from PySide6.QtCore import (
     Qt,
     QTime,
     Signal,
+    Slot,
 )
 from PySide6.QtGui import (
     QColor,
@@ -1090,6 +1091,7 @@ class FrameEdit(QSpinBox):
 
     show_focus_for_user = _show_focus_for_user
 
+    @Slot(int)
     def _on_value_changed(self, value: int) -> None:
         self.frameChanged.emit(Frame(value), Frame(self.old_value))
         self.old_value = value
@@ -1111,6 +1113,7 @@ class TimeEdit(QTimeEdit):
 
     show_focus_for_user = _show_focus_for_user
 
+    @Slot(QTime)
     def _on_time_changed(self, value: QTime) -> None:
         self.valueChanged.emit(self.time(), self.old_time)
         self.old_time = self.time()

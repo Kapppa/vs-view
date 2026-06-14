@@ -4,7 +4,7 @@ from logging import getLogger
 from typing import override
 
 from jetpytools import clamp
-from PySide6.QtCore import QRect, QSignalBlocker, QSize, Qt
+from PySide6.QtCore import QRect, QSignalBlocker, QSize, Qt, Slot
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
     QApplication,
@@ -273,6 +273,7 @@ class RegionSelectorPlugin(WidgetPluginBase[GlobalSettings], IconReloadMixin):
             self.width_spin.setValue(min(values.width, width_max))
             self.height_spin.setValue(min(values.height, height_max))
 
+    @Slot(int)
     def _on_crop_spin_changed(self, value: int) -> None:
         image_size = CustomSize.from_clip(self.api.current_voutput.vs_output.clip)
         image_w = image_size.width()
