@@ -643,7 +643,7 @@ class LoaderWorkspace[T](BaseWorkspace):
 
             logger.debug("Requesting frame %d", target_frame)
             try:
-                self.playback.request_frame(target_frame, on_complete)
+                self.playback.request_frame(target_frame, on_complete, notify_plugins=False)
             except Exception:
                 return False
         else:

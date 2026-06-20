@@ -214,7 +214,12 @@ class PlaybackManager(QObject):
         return self._get_env()
 
     @run_in_loop(return_future=False)
-    def request_frame(self, n: int, cb_render: Callable[[Future[None]], None] | None = None) -> None:
+    def request_frame(
+        self,
+        n: int,
+        cb_render: Callable[[Future[None]], None] | None = None,
+        notify_plugins: bool = True,
+    ) -> None:
         """Request a specific frame to be rendered and displayed."""
         logger.debug("Frame requested: %d", n)
 
@@ -228,7 +233,7 @@ class PlaybackManager(QObject):
         n = clamp(n, 0, voutput.vs_output.clip.num_frames - 1)
 
         self.can_reload = False
-        fut = self._render_frame(n)
+        fut = self._render_frame(n, notify_plugins=notify_plugins)
 
         @run_in_loop(return_future=False)
         def on_complete(f: Future[None]) -> None:
@@ -250,7 +255,7 @@ class PlaybackManager(QObject):
         fut.add_done_callback(on_complete)
 
     @run_in_background(name="RenderFrame")
-    def _render_frame(self, n: int) -> None:
+    def _render_frame(self, n: int, notify_plugins: bool = True) -> None:
         """Render a specific frame and emit for display."""
         logger.debug("Rendering frame %d (background)", n)
 
@@ -283,7 +288,8 @@ class PlaybackManager(QObject):
                 logger.error(error_msg)
                 failed = True
 
-            self._api._on_current_frame_changed(n, None)
+            if notify_plugins:
+                self._api._on_current_frame_changed(n, None)
 
             if not self.state.is_playing:
                 self.statusLoadingFinished.emit("Completed")

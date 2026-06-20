@@ -332,12 +332,6 @@ class _PluginAPI(_PluginLimitedApi):
             logger.exception("on_current_voutput_changed: Failed to initialize plugin %r", plugin)
             return
 
-        try:
-            plugin.on_current_frame_changed(self.__workspace.playback.state.current_frame)
-        except Exception:
-            logger.exception("on_current_frame_changed: Failed to initialize plugin %r", plugin)
-            return
-
         for view in self.__workspace.loop.from_thread(plugin.findChildren, PluginGraphicsView).result():
             try:
                 self._init_view(view, plugin, refresh)
