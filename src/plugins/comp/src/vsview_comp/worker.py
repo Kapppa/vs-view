@@ -29,7 +29,7 @@ from vsview.api import Packer, PluginAPI, PluginSecrets, PluginSettings, Time, r
 from ._metadata import COOKIE_KEY, LOGIN_CONTEXT
 from .models import SlowPicsSources, SlowPicsUploadResponse, TMDBPayload, TMDBTitle, TMDBTitleData
 from .ui import FrameSourceProvider, ProgressBar
-from .utils import LogNiquestsErrors, get_random_number_interval, get_slowpics_headers
+from .utils import LogNiquestsErrors, UploadError, get_random_number_interval, get_slowpics_headers
 
 if TYPE_CHECKING:
     from .plugin import CompPlugin, GlobalSettings
@@ -634,14 +634,26 @@ class SlowPicsWorker:
                         files={"file": (image_path.name, await asyncio.to_thread(image_path.read_bytes), "image/png")},
                     )
                     await client.gather(response)
-                if response.status_code == 429:
-                    wait_time = int(response.headers.get("Retry-After", (retry + 1) * 2))
-                    logger.warning("Rate limited for %s. Waiting %ds...", image_path.name, wait_time)
-                    await asyncio.sleep(wait_time)
-                    continue
+                    if response.status_code == 400:
+                        error_message = response.headers.get("X-Error-Message", "")
+                        # Image exists on the server already
+                        if error_message == "IMAGE_IS_COMPLETE":
+                            logger.warning("Image %s already existed on the server.", image_path.name)
+                            return
+                        # Slowbro said any other errors should stop the upload
+                        logger.warning("Image %s has an unhandled error %s", image_path.name, error_message)
+                        raise UploadError("Upload has an unhandled error, stopping upload")
+                    if response.status_code == 429:
+                        wait_time = int(response.headers.get("Retry-After", (retry + 1) * 2))
+                        logger.warning("Rate limited for %s. Waiting %ds...", image_path.name, wait_time)
+                        await asyncio.sleep(wait_time)
+                        continue
 
                 response.raise_for_status()
                 return
+            except UploadError:
+                self.cancel()
+                raise
             except Exception as e:
                 if retry == 4:
                     raise

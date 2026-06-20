@@ -78,3 +78,7 @@ def get_random_number_interval(min_val: int, max_val: int, count: int, index: in
             return rnum
 
     raise ValueError(f"All {pool_size} values in interval [{lo}, {hi}] are excluded")
+
+
+class UploadError(Exception):
+    pass
