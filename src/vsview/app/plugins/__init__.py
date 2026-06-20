@@ -6,6 +6,7 @@ from .api import (
     PluginSecrets,
     PluginSettings,
     WidgetPluginBase,
+    WorkspaceBlocker,
 )
 from .contracts import AudioOutputProxy, LocalSettingsModel, VideoOutputProxy
 from .specs import hookimpl
@@ -21,5 +22,6 @@ __all__ = [
     "PluginSettings",
     "VideoOutputProxy",
     "WidgetPluginBase",
+    "WorkspaceBlocker",
     "hookimpl",
 ]

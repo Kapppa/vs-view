@@ -10,8 +10,8 @@ from contextlib import contextmanager
 from datetime import timedelta
 from logging import getLogger
 from pathlib import Path
-from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, TypeVar, cast, override
+from types import SimpleNamespace, TracebackType
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, Protocol, TypeVar, cast, override, runtime_checkable
 
 import vapoursynth as vs
 from jetpytools import copy_signature, to_arr
@@ -560,6 +560,10 @@ class PluginAPI(_PluginAPI):
             yield
 
     @contextmanager
+    @deprecated(
+        "This context manager is deprecated. Use `self.api.blocker()`",
+        category=DeprecationWarning,
+    )
     def block_workspace(self, caller: WidgetPluginBase[Any, Any]) -> Generator[None]:
         """
         Mark the workspace as busy for the duration of the context.
@@ -575,6 +579,15 @@ class PluginAPI(_PluginAPI):
             yield
         finally:
             self.__busy_callers.discard(caller)
+
+    if TYPE_CHECKING:
+
+        @override
+        def blocker(self, caller: WidgetPluginBase[Any, Any] | None = None) -> WorkspaceBlocker:
+            """
+            Create a WorkspaceBlocker for this plugin.
+            """
+            ...
 
     def register_action(
         self,
@@ -621,6 +634,47 @@ class PluginAPI(_PluginAPI):
         """
         key = ShortcutManager.get_key(action_id)
         return QKeySequence(key).toString(QKeySequence.SequenceFormat.NativeText) if key else ""
+
+
+@runtime_checkable
+class WorkspaceBlocker(Protocol):
+    """
+    A lock-like context manager to block the workspace.
+
+    When the blocker is acquired, mark the workspace as busy for the duration of the context.
+
+    Specifically, a busy workspace will prevent:
+
+    * Automatic or manual reloading.
+    * Frame requests (via seeking, programmatic calls, or playback start).
+    """
+
+    def __enter__(self) -> None: ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None: ...
+
+    @property
+    def locked(self) -> bool:
+        """
+        Return whether the lock is currently acquired.
+        """
+        ...
+
+    def acquire(self, block: bool = True, timeout: float | None = None) -> bool:
+        """
+        Acquire the lock to block the workspace.
+        """
+        ...
+
+    def release(self) -> None:
+        """
+        Release the lock to unblock the workspace.
+        """
 
 
 if sys.version_info >= (3, 13):

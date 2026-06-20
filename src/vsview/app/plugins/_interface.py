@@ -4,7 +4,8 @@ from collections.abc import Callable
 from itertools import zip_longest
 from logging import getLogger
 from pathlib import Path
-from types import get_original_bases
+from threading import Lock
+from types import TracebackType, get_original_bases
 from typing import TYPE_CHECKING, Any, get_args, get_origin, override
 from weakref import WeakKeyDictionary
 
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
     from vsview.app.workspace import BaseWorkspace, LoaderWorkspace
     from vsview.app.workspace.playback import PlaybackManager
 
-    from .api import PluginGraphicsView, WidgetPluginBase, _PluginBase
+    from .api import PluginGraphicsView, WidgetPluginBase, WorkspaceBlocker, _PluginBase
 
 logger = getLogger(__name__)
 
@@ -219,6 +220,45 @@ class _PluginAPI(_PluginLimitedApi):
 
         # This shouldn't happen
         raise NotImplementedError
+
+    def blocker(self, caller: WidgetPluginBase[Any, Any] | None = None) -> WorkspaceBlocker:
+        """
+        Create a WorkspaceBlocker for this plugin/caller.
+        """
+        api = self
+
+        class WorkspaceBlocker(QObject):
+            def __init__(self) -> None:
+                super().__init__()
+                self._lock = Lock()
+                self.locked = False
+
+            def __enter__(self) -> None:
+                self.acquire(block=True)
+
+            def __exit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc_val: BaseException | None,
+                exc_tb: TracebackType | None,
+            ) -> None:
+                self.release()
+
+            def acquire(self, block: bool = True, timeout: float | None = None) -> bool:
+                t = -1.0 if timeout is None else timeout
+                success = self._lock.acquire(blocking=block, timeout=t)
+                if success and not self.locked:
+                    self.locked = True
+                    getattr(api, "_PluginAPI__busy_callers").add(caller or self)
+                return success
+
+            def release(self) -> None:
+                if self.locked:
+                    self.locked = False
+                    getattr(api, "_PluginAPI__busy_callers").discard(caller or self)
+                    self._lock.release()
+
+        return WorkspaceBlocker()
 
     # PRIVATE API
     @run_in_loop(return_future=False)
