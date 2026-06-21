@@ -44,7 +44,7 @@ class GlobalSettings(BaseModel):
         Dropdown(
             label="Offset chroma",
             items=[("Fixed", 0.0), ("Min", "min"), ("Max", "max")],
-            tooltip="Apply chroma plane offseting\n"
+            tooltip="Apply chroma plane offsetting\n"
             '- "min": match luma minimum\n'
             '- "max": match luma maximum\n'
             "- Fixed: use a custom float value",
