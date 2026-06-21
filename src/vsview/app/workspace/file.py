@@ -273,11 +273,15 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
     def _restore_layout(self) -> None:
         layout = self.local_settings.layout
 
-        if layout.plugin_splitter_sizes:
-            self.plugin_splitter.setSizes(layout.plugin_splitter_sizes)
+        with QSignalBlocker(self.plugin_splitter), QSignalBlocker(self.plugin_splitter.plugin_tabs):
+            if layout.plugin_splitter_sizes:
+                self.plugin_splitter.setSizes(layout.plugin_splitter_sizes)
 
-        if layout.plugin_tab_index is not None:
-            self.plugin_splitter.plugin_tabs.setCurrentIndex(layout.plugin_tab_index)
+            if layout.plugin_tab_index is not None:
+                self.plugin_splitter.plugin_tabs.setCurrentIndex(layout.plugin_tab_index)
+
+        # Sync toolpanel button state manually since signals were blocked
+        self._sync_toolpanel_btn(self.plugin_splitter.is_right_panel_visible)
 
         if layout.dock_state:
             self.dock_container.restoreState(QByteArray(b64decode(layout.dock_state)))
