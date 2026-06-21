@@ -2107,6 +2107,10 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+numba = [
+    { name = "numba" },
+    { name = "numpy" },
+]
 numpy = [
     { name = "numpy" },
 ]
@@ -2119,10 +2123,12 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "numba", marker = "extra == 'numba'", specifier = ">=0.62.1" },
+    { name = "numpy", marker = "extra == 'numba'", specifier = ">=2.0.0" },
     { name = "numpy", marker = "extra == 'numpy'", specifier = ">=2.0.0" },
     { name = "vapoursynth" },
 ]
-provides-extras = ["numpy"]
+provides-extras = ["numba", "numpy"]
 
 [package.metadata.requires-dev]
 dev = [

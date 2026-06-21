@@ -47,6 +47,7 @@ dependencies = ["vapoursynth"]
 
 [project.optional-dependencies]
 numpy = ["numpy>=2.0.0"]
+numba = ["numba>=0.62.1", "numpy>=2.0.0"]
 
 [project.urls]
 "Documentation" = "https://github.com/Jaded-Encoding-Thaumaturgy/vs-view/tree/main/src/vspackrgb"

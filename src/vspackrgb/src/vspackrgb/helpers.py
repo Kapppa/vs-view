@@ -13,7 +13,7 @@ from . import cython, numpy, python
 def packrgb(
     clip: vs.VideoNode,
     alpha: vs.VideoNode | Literal[True] | None = None,
-    backend: Literal["cython", "numpy", "python"] = "cython",
+    backend: Literal["cython", "numba", "numpy", "python"] = "cython",
 ) -> vs.VideoNode:
     """
     Pack a planar RGB clip into a display-ready format.
@@ -29,7 +29,7 @@ def packrgb(
     Args:
         clip: Input clip in RGB24, RGB30, RGB48, RGBH or RGBS format.
         alpha: Optional alpha channel clip or if True, fetch the `_Alpha` prop.
-        backend: Packing backend ("cython", "numpy", "python").
+        backend: Packing backend ("cython", "numba", "numpy", "python").
 
     Returns:
         GRAY32, GRAY16, GRAYH, GRAYS clip with packed pixel data.
@@ -49,6 +49,8 @@ def packrgb(
             module = numpy
         case "python":
             module = python
+        case "numba":
+            from . import numba as module
         case _:
             assert_never(backend)
 

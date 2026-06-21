@@ -5,7 +5,7 @@ from typing import Any, Protocol, cast
 import pytest
 import vapoursynth as vs
 
-from vspackrgb import cython, helpers, numpy, python
+from vspackrgb import cython, helpers, numba, numpy, python
 
 
 class BackendModule(Protocol):
@@ -75,7 +75,7 @@ class BackendModule(Protocol):
     ) -> None: ...
 
 
-BACKENDS = ["python", "numpy", "cython"]
+BACKENDS = ["python", "numpy", "cython", "numba"]
 
 
 def get_backend_module(backend_name: str) -> BackendModule:
@@ -86,6 +86,8 @@ def get_backend_module(backend_name: str) -> BackendModule:
             return cast(BackendModule, numpy)
         case "cython":
             return cast(BackendModule, cython)
+        case "numba":
+            return cast(BackendModule, numba)
         case _:
             raise ValueError(f"Unknown backend: {backend_name}")
 
