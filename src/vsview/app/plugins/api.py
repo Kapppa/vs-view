@@ -547,7 +547,7 @@ class PluginAPI(_PluginAPI):
     def register_on_destroy(self, cb: Callable[[], Any]) -> None:
         """
         Register a callback to be called before the workspace begins a reload or when the workspace is destroyed.
-        This is generaly used to clean up VapourSynth resources.
+        This is generally used to clean up VapourSynth resources.
         """
         self.__workspace.cbs_on_destroy.append(cb)
 
@@ -791,7 +791,7 @@ class WidgetPluginBase(_PluginBase[TGlobalSettings, TLocalSettings], QWidget, me
 
     def on_view_context_menu(self, event: QContextMenuEvent) -> None:
         """
-        Called when a context menu of the current viewis requested.
+        Called when a context menu of the current view is requested.
 
         The event is forwarded BEFORE the view processes it.
 

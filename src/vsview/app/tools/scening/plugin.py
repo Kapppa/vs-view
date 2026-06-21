@@ -259,7 +259,7 @@ class SceningPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconReloadM
 
         self.add_frame_action = self.make_action(
             IconName.FRAME_ADD,
-            "Add current selected frame as range without end boudary",
+            "Add current selected frame as range without end boundary",
             self.range_container,
             icon_states=self.DEFAULT_ICON_STATES,
         )
