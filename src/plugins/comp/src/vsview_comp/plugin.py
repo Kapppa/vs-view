@@ -435,7 +435,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.tmdb_debounce_timer = QTimer(self, singleShot=True, interval=300)
         self.tmdb_debounce_timer.timeout.connect(self.perform_tmdb_search)
 
-        self.tags = TagsLineEdit(section, placeholder_text="Search for additional informations...")
+        self.tags = TagsLineEdit(section, placeholder_text="Search for additional information...")
         self.tags.editingStarted.connect(self.on_tags_editing_started)
         self.tags.inputTextChanged.connect(self.on_tags_input_changed)
         self.tags.tagsChanged.connect(self.on_tags_input_changed)
