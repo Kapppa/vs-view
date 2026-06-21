@@ -298,15 +298,19 @@ class _PluginAPI(_PluginLimitedApi):
 
         return True
 
-    def _register_plugin_nodes_to_buffer(self, buffer: FrameBuffer) -> None:
-        # Register visible plugin nodes with the buffer for pre-fetching during playback.
+    @run_in_loop(return_future=False)
+    def _visible_views(self, plugin: WidgetPluginBase[Any, Any]) -> list[PluginGraphicsView]:
         from .api import PluginGraphicsView
 
+        return [v for v in plugin.findChildren(PluginGraphicsView) if v.isVisible()]
+
+    def _register_plugin_nodes_to_buffer(self, buffer: FrameBuffer) -> None:
+        # Register visible plugin nodes with the buffer for pre-fetching during playback.
         for plugin in self.__workspace.plugins:
             if not self._is_truly_visible(plugin):
                 continue
 
-            for view in self.__workspace.loop.from_thread(plugin.findChildren, PluginGraphicsView).result():
+            for view in self._visible_views(plugin):
                 if view.current_tab in view.outputs:
                     buffer.register_plugin_node(plugin.identifier, view.outputs[view.current_tab])
 
@@ -318,8 +322,6 @@ class _PluginAPI(_PluginLimitedApi):
 
     def _init_plugin(self, plugin: WidgetPluginBase[Any, Any], refresh: bool = False) -> None:
         # Initialize plugin for the current output and render initial frame if needed.
-        from .api import PluginGraphicsView
-
         if not self._is_truly_visible(plugin):
             return
 
@@ -332,7 +334,7 @@ class _PluginAPI(_PluginLimitedApi):
             logger.exception("on_current_voutput_changed: Failed to initialize plugin %r", plugin)
             return
 
-        for view in self.__workspace.loop.from_thread(plugin.findChildren, PluginGraphicsView).result():
+        for view in self._visible_views(plugin):
             try:
                 self._init_view(view, plugin, refresh)
             except Exception:
@@ -394,15 +396,13 @@ class _PluginAPI(_PluginLimitedApi):
         # Notify plugins of frame change.
         # If plugin_frames is provided, uses pre-fetched frames.
         # Otherwise, fetches frames synchronously for each plugin view.
-        from .api import PluginGraphicsView
-
         for plugin in self.__workspace.plugins:
             if not self._is_truly_visible(plugin):
                 continue
 
             plugin.on_current_frame_changed(n)
 
-            for view in self.__workspace.loop.from_thread(plugin.findChildren, PluginGraphicsView).result():
+            for view in self._visible_views(plugin):
                 if view.current_tab == -1 or view.current_tab not in view.outputs:
                     continue
 
