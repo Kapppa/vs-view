@@ -15,8 +15,9 @@ FRAME_COUNTS = {
     "vszip.PackRGB": 20000,
     "libp2p.Pack": 20000,
     "akarin.Expr": 20000,
-    "vspackrgb (cython)": 6000,
-    "vspackrgb (numpy)": 3000,
+    "vspackrgb (cython)": 7000,
+    "vspackrgb (numba)": 7000,
+    "vspackrgb (numpy)": 2000,
     "vspackrgb (python)": 25,
 }
 
@@ -72,6 +73,18 @@ def benchmark_rgb24() -> Table:
     num_frames = FRAME_COUNTS[name]
     clip = get_clip(num_frames, vs.RGB24)
     packed = packrgb(clip, backend="cython")
+    elapsed, fps = benchmark(name, packed, num_frames)
+    table.add_row(name, str(num_frames), f"{elapsed:.3f}s", f"{fps:.2f}")
+
+    # vspackrgb - numba
+    name = "vspackrgb (numba)"
+    num_frames = FRAME_COUNTS[name]
+    clip = get_clip(num_frames, vs.RGB24)
+
+    # Warm up JIT
+    packrgb(get_clip(1, vs.RGB24), backend="numba").get_frame(0).close()
+
+    packed = packrgb(clip, backend="numba")
     elapsed, fps = benchmark(name, packed, num_frames)
     table.add_row(name, str(num_frames), f"{elapsed:.3f}s", f"{fps:.2f}")
 
@@ -134,6 +147,18 @@ def benchmark_rgb30() -> Table:
     elapsed, fps = benchmark(name, packed, num_frames)
     table.add_row(name, str(num_frames), f"{elapsed:.3f}s", f"{fps:.2f}")
 
+    # vspackrgb - numba
+    name = "vspackrgb (numba)"
+    num_frames = FRAME_COUNTS[name]
+    clip = get_clip(num_frames, vs.RGB30)
+
+    # Warm up JIT
+    packrgb(get_clip(1, vs.RGB30), backend="numba").get_frame(0).close()
+
+    packed = packrgb(clip, backend="numba")
+    elapsed, fps = benchmark(name, packed, num_frames)
+    table.add_row(name, str(num_frames), f"{elapsed:.3f}s", f"{fps:.2f}")
+
     # vspackrgb - numpy
     name = "vspackrgb (numpy)"
     num_frames = FRAME_COUNTS[name]
@@ -177,6 +202,18 @@ def benchmark_rgb48() -> Table:
     elapsed, fps = benchmark(name, packed, num_frames)
     table.add_row(name, str(num_frames), f"{elapsed:.3f}s", f"{fps:.2f}")
 
+    # vspackrgb - numba
+    name = "vspackrgb (numba)"
+    num_frames = FRAME_COUNTS[name]
+    clip = get_clip(num_frames, vs.RGB48)
+
+    # Warm up JIT
+    packrgb(get_clip(1, vs.RGB48), backend="numba").get_frame(0).close()
+
+    packed = packrgb(clip, backend="numba")
+    elapsed, fps = benchmark(name, packed, num_frames)
+    table.add_row(name, str(num_frames), f"{elapsed:.3f}s", f"{fps:.2f}")
+
     # vspackrgb - numpy
     name = "vspackrgb (numpy)"
     num_frames = FRAME_COUNTS[name]
@@ -212,6 +249,18 @@ def benchmark_rgbh() -> Table:
     elapsed, fps = benchmark(name, packed, num_frames)
     table.add_row(name, str(num_frames), f"{elapsed:.3f}s", f"{fps:.2f}")
 
+    # vspackrgb - numba
+    name = "vspackrgb (numba)"
+    num_frames = FRAME_COUNTS[name]
+    clip = get_clip(num_frames, vs.RGBH)
+
+    # Warm up JIT
+    packrgb(get_clip(1, vs.RGBH), backend="numba").get_frame(0).close()
+
+    packed = packrgb(clip, backend="numba")
+    elapsed, fps = benchmark(name, packed, num_frames)
+    table.add_row(name, str(num_frames), f"{elapsed:.3f}s", f"{fps:.2f}")
+
     # vspackrgb - numpy
     name = "vspackrgb (numpy)"
     num_frames = FRAME_COUNTS[name]
@@ -244,6 +293,18 @@ def benchmark_rgbs() -> Table:
     num_frames = FRAME_COUNTS[name]
     clip = get_clip(num_frames, vs.RGBS)
     packed = packrgb(clip, backend="cython")
+    elapsed, fps = benchmark(name, packed, num_frames)
+    table.add_row(name, str(num_frames), f"{elapsed:.3f}s", f"{fps:.2f}")
+
+    # vspackrgb - numba
+    name = "vspackrgb (numba)"
+    num_frames = FRAME_COUNTS[name]
+    clip = get_clip(num_frames, vs.RGBS)
+
+    # Warm up JIT
+    packrgb(get_clip(1, vs.RGBS), backend="numba").get_frame(0).close()
+
+    packed = packrgb(clip, backend="numba")
     elapsed, fps = benchmark(name, packed, num_frames)
     table.add_row(name, str(num_frames), f"{elapsed:.3f}s", f"{fps:.2f}")
 
