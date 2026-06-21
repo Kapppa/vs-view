@@ -28,6 +28,7 @@ uv add vspackrgb
 
 ## Benchmarks
 
+- CPU 9800X3D Windows 11 Pro 25H2 (26200.8655)
 - Python 3.12.13
 - VapourSynth R77 (With unlimited `max_cache_size`)
 - vszip 15.0.0

@@ -89,6 +89,7 @@ test = [
     "pytest-mock>=3.15.0",
     "pytest-qt>=4.5.0",
     "pytest-xvfb>=3.1.1",
+    "vspackrgb[numba,numpy]",
 ]
 doc = ["mkdocstrings[python]>=1.0.3", "zensical==0.0.44", "ruff"]
 plugins = [

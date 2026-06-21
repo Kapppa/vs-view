@@ -2225,6 +2225,7 @@ dev = [
     { name = "pytest-xvfb" },
     { name = "ruff" },
     { name = "types-pygments" },
+    { name = "vspackrgb", extra = ["numba", "numpy"] },
     { name = "vsstubs" },
     { name = "vsview-audio-convert" },
     { name = "vsview-comp" },
@@ -2252,6 +2253,7 @@ test = [
     { name = "pytest-mock" },
     { name = "pytest-qt" },
     { name = "pytest-xvfb" },
+    { name = "vspackrgb", extra = ["numba", "numpy"] },
 ]
 
 [package.metadata]
@@ -2291,6 +2293,7 @@ dev = [
     { name = "pytest-xvfb", specifier = ">=3.1.1" },
     { name = "ruff", specifier = ">=0.15.0,<0.16.0" },
     { name = "types-pygments", specifier = ">=2.20.0" },
+    { name = "vspackrgb", extras = ["numba", "numpy"], editable = "src/vspackrgb" },
     { name = "vsstubs", specifier = ">=1.5.0" },
     { name = "vsview-audio-convert", editable = "src/plugins/audio-convert" },
     { name = "vsview-comp", editable = "src/plugins/comp" },
@@ -2318,6 +2321,7 @@ test = [
     { name = "pytest-mock", specifier = ">=3.15.0" },
     { name = "pytest-qt", specifier = ">=4.5.0" },
     { name = "pytest-xvfb", specifier = ">=3.1.1" },
+    { name = "vspackrgb", extras = ["numba", "numpy"], editable = "src/vspackrgb" },
 ]
 
 [[package]]
