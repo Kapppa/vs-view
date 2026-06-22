@@ -74,28 +74,8 @@ class QtEventLoop(QObject, EventLoop):
     @override
     def to_thread[**P, R](self, func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> UnifiedFuture[R]:
         """Run func in Qt's global thread pool."""
-        fut = Future[R]()
+        return self.to_thread_named(func.__name__, func, *args, **kwargs)
 
-        def wrapper() -> None:
-            with self._tasks_lock:
-                self._active_tasks[func.__name__] += 1
-
-            try:
-                if not fut.set_running_or_notify_cancel():
-                    return
-                try:
-                    result = func(*args, **kwargs)
-                except BaseException as e:
-                    _logger.debug(e, exc_info=True)
-                    fut.set_exception(e)
-                else:
-                    fut.set_result(result)
-            finally:
-                with self._tasks_lock:
-                    self._active_tasks[func.__name__] -= 1
-
-        QThreadPool.globalInstance().start(QRunnable.create(wrapper))
-        return fut
     def to_thread_named[**P, R](
         self,
         name: str,
@@ -238,17 +218,7 @@ def run_in_loop(func: Any = None, *, return_future: bool = True) -> Any:
             loop = cast(QtEventLoop, get_loop())
 
             if iscoroutinefunction(fn):
-
-                def run_coro() -> Any:
-                    import asyncio
-
-                    coro = fn(*args, **kwargs)
-                    try:
-                        return asyncio.run(coro)
-                    except RuntimeError:
-                        return asyncio.run_coroutine_threadsafe(coro, asyncio.get_running_loop()).result()
-
-                fut = loop.from_thread(run_coro)
+                fut = loop.from_thread(_run_coro, fn(*args, **kwargs))
             else:
                 # Delegate to from_thread to marshal execution to the main loop
                 fut = loop.from_thread(fn, *args, **kwargs)
@@ -293,24 +263,23 @@ def run_in_background(func: Any = None, *, name: str | None = None) -> Any:
         @wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             loop = cast(QtEventLoop, get_loop())
-
-            if iscoroutinefunction(fn):
-
-                def run_coro() -> Any:
-                    import asyncio
-
-                    coro = fn(*args, **kwargs)
-                    try:
-                        return asyncio.run(coro)
-                    except RuntimeError:
-                        return asyncio.run_coroutine_threadsafe(coro, asyncio.get_running_loop()).result()
-
-                return loop.to_thread(run_coro) if name is None else loop.to_thread_named(name, run_coro)
+            func_name = name or fn.__name__
 
             return (
-                loop.to_thread(fn, *args, **kwargs) if name is None else loop.to_thread_named(name, fn, *args, **kwargs)
+                loop.to_thread_named(func_name, _run_coro, fn(*args, **kwargs))
+                if iscoroutinefunction(fn)
+                else loop.to_thread_named(func_name, fn, *args, **kwargs)
             )
 
         return wrapper
 
     return decorator if func is None else decorator(func)
+
+
+def _run_coro[R](coro: Coroutine[Any, Any, R]) -> R:
+    import asyncio
+
+    try:
+        return asyncio.run(coro)
+    except RuntimeError:
+        return asyncio.run_coroutine_threadsafe(coro, asyncio.get_running_loop()).result()
