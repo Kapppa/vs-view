@@ -217,7 +217,7 @@ class PlaybackManager(QObject):
     def request_frame(
         self,
         n: int,
-        cb_render: Callable[[Future[None]], None] | None = None,
+        cb_render: Callable[[Future[int]], None] | None = None,
         notify_plugins: bool = True,
     ) -> None:
         """Request a specific frame to be rendered and displayed."""
@@ -228,6 +228,10 @@ class PlaybackManager(QObject):
 
         if self._api.busy:
             logger.warning("At least one plugin is busy, cannot request frame")
+            if cb_render:
+                fut = Future[int]()
+                fut.set_result(2)
+                cb_render(fut)
             return
 
         n = clamp(n, 0, voutput.vs_output.clip.num_frames - 1)
@@ -235,7 +239,7 @@ class PlaybackManager(QObject):
         self.can_reload = False
         fut = self._render_frame(n, notify_plugins=notify_plugins)
 
-        def on_success(_: None) -> None:
+        def on_success(res: int) -> None:
             if self._tab_manager.tabs.currentIndex() != -1:
                 voutput.last_frame = n
                 self.state.current_frame = n
@@ -258,12 +262,12 @@ class PlaybackManager(QObject):
         fut.then(on_success, on_error, on_loop=True).add_done_callback(on_finally_done)
 
     @run_in_background(name="RenderFrame")
-    def _render_frame(self, n: int, notify_plugins: bool = True) -> None:
+    def _render_frame(self, n: int, notify_plugins: bool = True) -> int:
         """Render a specific frame and emit for display."""
         logger.debug("Rendering frame %d (background)", n)
 
         if not (voutput := self._outputs_manager.current_voutput):
-            return
+            return 1
 
         failed = False
         error_msg = ""
@@ -317,6 +321,10 @@ class PlaybackManager(QObject):
 
             show_warning()
 
+            return 1
+
+        return 0
+
     @Slot(int)
     def seek_frame(self, delta: int) -> None:
         """Seek by a relative number of frames."""
@@ -355,6 +363,7 @@ class PlaybackManager(QObject):
 
         if self._api.busy:
             logger.warning("At least one plugin is busy, cannot request frame")
+            self._stop_playback()
             return
 
         self._tbar.set_playback_controls_enabled(False)
@@ -779,7 +788,7 @@ class PlaybackManager(QObject):
         self._timeline_rendering = True
 
         @run_in_loop(return_future=False)
-        def on_render_complete(f: Future[None]) -> None:
+        def on_render_complete(f: Future[int]) -> None:
             self._render_pending_frame()
 
         self.request_frame(frame, cb_render=on_render_complete)

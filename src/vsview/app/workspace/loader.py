@@ -328,7 +328,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         self.load_plugins()
 
         @run_in_loop(return_future=False)
-        def on_complete(f: Future[None]) -> None:
+        def on_complete(f: Future[int]) -> None:
             if f.exception():
                 logger.error("Failed to load content: %r", self.content)
                 self.clear_failed_load()
@@ -403,7 +403,7 @@ class LoaderWorkspace[T](BaseWorkspace):
             self.tbar.playback_container.set_audio_outputs(aoutputs, self.outputs_manager.current_audio_index)
 
             @run_in_loop(return_future=False)
-            def on_complete(f: Future[None]) -> None:
+            def on_complete(f: Future[int]) -> None:
                 if f.exception():
                     logger.error("Failed to reload content: %r", self.content)
                     self.clear_failed_load()
@@ -591,7 +591,7 @@ class LoaderWorkspace[T](BaseWorkspace):
         self,
         index: int,
         seamless: bool = False,
-        cb_render: Callable[[Future[None]], None] | None = None,
+        cb_render: Callable[[Future[int]], None] | None = None,
         refresh_plugins: bool = False,
     ) -> bool:
         self.playback.stop()
@@ -628,15 +628,16 @@ class LoaderWorkspace[T](BaseWorkspace):
                     timer_disable.start(50)
                     self.tab_manager.update_current_view(prev_pixmap)
 
-            def on_complete(f: Future[None]) -> None:
+            def on_complete(f: Future[int]) -> None:
                 if not f.exception():
                     if timer_disable:
                         timer_disable.stop()
                     self.loaded_page.setEnabled(True)
                     self.set_loaded_page()
 
-                    with self.env.use():
-                        self.api._on_current_voutput_changed(refresh_plugins)
+                    if f.result() == 0:
+                        with self.env.use():
+                            self.api._on_current_voutput_changed(refresh_plugins)
 
                 if cb_render:
                     cb_render(f)
