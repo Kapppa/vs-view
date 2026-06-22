@@ -15,6 +15,7 @@ from PySide6.QtCore import QByteArray, QSignalBlocker, Qt, QTimer
 from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
 from PySide6.QtWidgets import QFileDialog, QWidget
 from vapoursynth import VideoNode
+from vsengine.futures import UnifiedFuture
 
 from ...api._helpers import output_metadata
 from ...assets import IconName
@@ -224,19 +225,19 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
         frame: int | None = None,
         time: float | None = None,
         tab_index: int | None = None,
-    ) -> Future[int]:
+    ) -> UnifiedFuture[int]:
         remaining_time = self._stop_autosave()
-        future = super().load_content(content, frame, time, tab_index)
-        future.add_done_callback(self._restore_zoom_center)
-        future.add_done_callback(lambda f: self._start_autosave(f, remaining_time))
-        return future
+        return (
+            super()
+            .load_content(content, frame, time, tab_index)
+            .add_loop_callback(self._restore_zoom_center)
+            .add_loop_callback(lambda f: self._start_autosave(f, remaining_time))
+        )
 
     @override
-    def reload_content(self) -> Future[int]:
+    def reload_content(self) -> UnifiedFuture[int]:
         remaining_time = self._stop_autosave()
-        future = super().reload_content()
-        future.add_done_callback(lambda f: self._start_autosave(f, remaining_time))
-        return future
+        return super().reload_content().add_loop_callback(lambda f: self._start_autosave(f, remaining_time))
 
     @run_in_loop(return_future=False)
     @override
@@ -251,7 +252,6 @@ class GenericFileWorkspace(LoaderWorkspace[Path]):
             super().load_plugins()
             self._restore_layout()
 
-    @run_in_loop(return_future=False)
     def _start_autosave(self, f: Future[int], remaining_time: int) -> None:
         if f.exception() or f.result() == 1:
             return

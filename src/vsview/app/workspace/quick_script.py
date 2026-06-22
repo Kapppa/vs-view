@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import linecache
-from concurrent.futures import Future
 from functools import cache
 from importlib.util import find_spec
 from logging import getLogger
@@ -27,6 +26,7 @@ from PySide6.QtGui import (
     QWheelEvent,
 )
 from PySide6.QtWidgets import QDockWidget, QFileDialog, QHBoxLayout, QPlainTextEdit, QTextEdit, QVBoxLayout, QWidget
+from vsengine.futures import UnifiedFuture
 
 from ...api._helpers import output_metadata
 from ...assets import IconName
@@ -468,7 +468,7 @@ class QuickScriptWorkspace(VSEngineWorkspace[CodeContent]):
         return super().loader()
 
     @override
-    def reload_content(self) -> Future[int]:
+    def reload_content(self) -> UnifiedFuture[int]:
         self.content = CodeContent(self.code_dock.editor.toPlainText(), self.filename)
 
         if not self.loaded_once:

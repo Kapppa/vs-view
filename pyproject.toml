@@ -45,7 +45,7 @@ classifiers = [
 dependencies = [
     "vapoursynth>=75,!=76",
     "vapoursynth-bestsource>=17.0",
-    "vsjetengine>=1.3.0",
+    "vsjetengine>=1.4.0",
     "vspackrgb>=1.2.1",
     "vsview-cli>=1.1.0",
     "pyside6>=6.11.0",

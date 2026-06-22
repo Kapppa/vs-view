@@ -1,20 +1,32 @@
 from __future__ import annotations
 
-import threading
 from collections.abc import Generator, Sequence
-from concurrent.futures import Future
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import StrEnum
 from functools import partial
 from logging import getLogger
 from pathlib import Path
+from threading import Semaphore
 from typing import Any, NamedTuple, Self, override
 from uuid import uuid4
 
 import jinja2
+import vsengine.video
 from jetpytools import cachedproperty
-from PySide6.QtCore import QBuffer, QCoreApplication, QEvent, QIODevice, QObject, QPoint, QRect, QSize, Qt, Signal
+from PySide6.QtCore import (
+    QBuffer,
+    QCoreApplication,
+    QEvent,
+    QIODevice,
+    QObject,
+    QPoint,
+    QRect,
+    QSize,
+    Qt,
+    QThreadPool,
+    Signal,
+)
 from PySide6.QtGui import QCursor, QIcon, QImage, QKeyEvent, QMouseEvent, QPainter, QPaintEvent, QPixmap, QWheelEvent
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (
@@ -46,6 +58,7 @@ from PySide6.QtWidgets import (
 )
 from shiboken6 import Shiboken
 from vapoursynth import VideoFrame, VideoNode
+from vsengine import get_loop
 from vstools import core, get_prop
 
 from vsview.api import (
@@ -292,6 +305,7 @@ class FrameThumbnailList(QListWidget):
         super().__init__(parent)
         self.api = api
         self.included_outputs = list[VideoOutputProxy]()
+        self._sema = Semaphore(QThreadPool.globalInstance().maxThreadCount() // 2)
 
         self.setViewMode(QListWidget.ViewMode.IconMode)
         self.setFlow(QListWidget.Flow.LeftToRight)
@@ -402,40 +416,35 @@ class FrameThumbnailList(QListWidget):
 
     @run_in_background(name="FetchThumbnail")
     def fetch_thumbnail(self, item: ThumbnailItem) -> None:
-        def on_frame_rendered(f: Future[VideoFrame], idx: int) -> None:
-            threading.current_thread().name = "FetchThumbnail"
-            if f.exception():
-                remove_item()
+        voutputs = {v.vs_index: v for v in self.included_outputs}
 
-                logger.warning(
-                    "Failed to fetch thumbnail for output %d at frame %d: %s",
-                    idx,
-                    item.frame,
-                    f.exception(),
-                )
+        def on_success(frame: VideoFrame, idx: int) -> None:
+            if not (voutput := voutputs.get(idx)):
                 return
-
-            with f.result() as frame:
-                image = self.api.current_voutput.packer_sdr.frame_to_qimage(frame).copy()
+            with frame:
+                image = voutput.packer_sdr.frame_to_qimage(frame).copy()
                 pict_type = (
                     get_prop(frame, "_PictType", str, default="?", func=self.fetch_thumbnail)
                     if item.get_pict_type
                     else "?"
                 )
-                item.metadata[idx] = ThumbnailItem.Metadata(image, pict_type)
+            item.metadata[idx] = ThumbnailItem.Metadata(image, pict_type)
 
-                if idx == self.api.current_voutput.vs_index:
-                    item.update_metadata(idx)
+            if idx == self.api.current_voutput.vs_index:
+                get_loop().from_thread(item.update_metadata, idx)
 
-        @run_in_loop(return_future=False)
-        def remove_item() -> None:
+        def on_error(e: BaseException, idx: int) -> None:
             if (row := self.row(item)) != -1:
                 self.takeItem(row)
+            logger.warning("Failed to fetch thumbnail for output %d at frame %d: %s", idx, item.frame, e)
 
-        with self.api.vs_context():
+        with self._sema, self.api.vs_context():
             for i, tclip in self.thumbnail_clips.items():
-                frame_fut = tclip.get_frame_async(item.frame)
-                frame_fut.add_done_callback(partial(on_frame_rendered, idx=i))
+                s = partial(on_success, idx=i)
+                e = partial(on_error, idx=i)
+                f = vsengine.video.frame(tclip, item.frame).map(s).catch(e, on_loop=True)
+                f.add_done_callback(lambda _: get_loop().next_cycle())
+                f.result()
 
     @run_in_loop(return_future=False)
     def update_thumbnails(self, idx: int) -> None:

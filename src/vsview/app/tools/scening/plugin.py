@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from bisect import bisect_left, bisect_right
-from concurrent.futures import Future
 from enum import StrEnum
 from functools import cache
 from itertools import count, cycle, islice
@@ -39,7 +38,6 @@ from vsview.api import (
     VideoOutputProxy,
     WidgetPluginBase,
     run_in_background,
-    run_in_loop,
 )
 
 from . import specs
@@ -452,15 +450,11 @@ class SceningPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconReloadM
             logger.info("No file selected")
             return
 
-        fscenes = self.parse_imported_files(files, filters[selected_filter])
+        def on_success(result: list[SceneRow]) -> None:
+            self.scenes_model.add_scene(result)
+            self.api.statusMessage.emit(f"Importing {', '.join(files)} completed")
 
-        @run_in_loop
-        def on_completed(f: Future[list[SceneRow]]) -> None:
-            if not f.exception():
-                self.scenes_model.add_scene(f.result())
-                self.api.statusMessage.emit(f"Importing {', '.join(files)} completed")
-
-        fscenes.add_done_callback(on_completed)
+        self.parse_imported_files(files, filters[selected_filter]).map(on_success, on_loop=True)
 
     @run_in_background(name="ParseImportedFiles")
     def parse_imported_files(self, files: list[str], parser: Parser) -> list[SceneRow]:
@@ -499,14 +493,7 @@ class SceningPlugin(WidgetPluginBase[GlobalSettings, LocalSettings], IconReloadM
             return
 
         f = self.serialize_exported_scene(file, filters[selected_filter])
-
-        @run_in_loop
-        def on_completed(f: Future[None]) -> None:
-            if not f.exception():
-                self.api.statusMessage.emit(f"Exporting {file} completed")
-                return
-
-        f.add_done_callback(on_completed)
+        f.map(lambda _: self.api.statusMessage.emit(f"Exporting {file} completed"), on_loop=True)
 
     @run_in_background(name="SerializeExportedCcene")
     def serialize_exported_scene(self, file: str, serializer: Serializer) -> None:

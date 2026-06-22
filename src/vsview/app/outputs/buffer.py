@@ -3,11 +3,13 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Future, wait
+from functools import partial
 from itertools import cycle, islice
 from logging import getLogger
 from typing import TYPE_CHECKING, NamedTuple
 
 import vapoursynth as vs
+from vsengine import UnifiedFuture
 from vsengine.policy import ManagedEnvironment
 
 from ...vsenv import gc_collect, run_in_background
@@ -146,32 +148,20 @@ class FrameBuffer:
         bundles = list(self._bundles)
         self._bundles.clear()
 
-        frames_to_close = list[vs.VideoFrame]()
+        def on_error(e: BaseException, msg: str) -> None:
+            logger.error(msg)
+            logger.debug("Full traceback:", exc_info=e)
 
         for bundle in bundles:
-            try:
-                frame = bundle.main_future.result()
-                frames_to_close.append(frame)
-            except Exception:
-                logger.error("Failed to get main frame %d for cleanup", bundle.n)
-                logger.debug("Full traceback:", exc_info=True)
+            fail_get = partial(on_error, msg=f"Failed to get main frame {bundle.n} for cleanup")
+            fail_close = partial(on_error, msg=f"Failed to close frame {bundle.n} during cleanup")
+            UnifiedFuture.from_future(bundle.main_future).then(lambda frame: frame.close(), fail_get).catch(fail_close)
 
-            for identifier, fut in bundle.plugin_futures.items():
-                try:
-                    frame = fut.result()
-                    frames_to_close.append(frame)
-                except Exception:
-                    logger.error("Failed to get plugin frame %s:%d for cleanup", identifier, bundle.n)
-                    logger.debug("Full traceback:", exc_info=True)
+            for ns, pf in bundle.plugin_futures.items():
+                fail_get = partial(on_error, msg=f"Failed to get plugin frame {ns}:{bundle.n} for cleanup")
+                fail_close = partial(on_error, msg=f"Failed to close frame {ns}:{bundle.n} during cleanup")
+                UnifiedFuture.from_future(pf).then(lambda frame: frame.close(), fail_get).catch(fail_close)
 
-        for frame in frames_to_close:
-            try:
-                frame.close()
-            except Exception:
-                logger.error("Failed to close frame during cleanup")
-                logger.debug("Full traceback:", exc_info=True)
-
-        del frames_to_close
         del bundles
         gc_collect()
 
@@ -289,24 +279,15 @@ class AudioBuffer:
         bundles = list(self._bundles)
         self._bundles.clear()
 
-        frames_to_close = list[vs.AudioFrame]()
+        def on_error(e: BaseException, msg: str) -> None:
+            logger.error(msg)
+            logger.debug("Full traceback:", exc_info=e)
 
         for bundle in bundles:
-            try:
-                frame = bundle.future.result()
-                frames_to_close.append(frame)
-            except Exception:
-                logger.error("Failed to get audio frame for cleanup")
-                logger.debug("Full traceback:", exc_info=True)
+            fail_get = partial(on_error, msg=f"Failed to get audio frame {bundle.n} for cleanup")
+            fail_close = partial(on_error, msg=f"Failed to close audio frame {bundle.n} during cleanup")
+            UnifiedFuture.from_future(bundle.future).then(lambda frame: frame.close(), fail_get).catch(fail_close)
 
-        for frame in frames_to_close:
-            try:
-                frame.close()
-            except Exception:
-                logger.error("Failed to close audio frame during cleanup")
-                logger.debug("Full traceback:", exc_info=True)
-
-        del frames_to_close
         del bundles
         gc_collect()
 

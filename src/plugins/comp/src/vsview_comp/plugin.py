@@ -1,13 +1,14 @@
 import ast
 import asyncio
 from collections.abc import Sequence
-from concurrent.futures import CancelledError, Future
+from concurrent.futures import CancelledError
 from functools import cache
 from logging import getLogger
 from pathlib import Path
 from typing import Annotated, Any, override
 from uuid import uuid4
 
+from jetpytools import SupportsString
 from pydantic import BaseModel, Field
 from PySide6.QtCore import QEvent, QObject, QSignalBlocker, Qt, QTime, QTimer
 from PySide6.QtGui import QCursor
@@ -33,6 +34,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from vsengine.futures import UnifiedFuture
 
 from vsview.api import (
     Accordion,
@@ -122,10 +124,10 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
     def __init__(self, parent: QWidget, api: PluginAPI) -> None:
         super().__init__(parent, api)
 
-        self._pending_select_frames: Future[Any] | None = None
-        self._pending_extract_frames: Future[list[tuple[int, Path]]] | None = None
-        self._pending_upload: Future[str] | Future[None] | None = None
-        self._pending_tags: Future[list[Tag]] | None = None
+        self._pending_select_frames: UnifiedFuture[Any] | None = None
+        self._pending_extract_frames: UnifiedFuture[list[tuple[int, Path]]] | None = None
+        self._pending_upload: UnifiedFuture[str] | UnifiedFuture[None] | None = None
+        self._pending_tags: UnifiedFuture[Any] | None = None
         self._select_frames_worker: SelectFrameWorker | None = None
         self._extract_frames_worker: ExtractFramesWorker | None = None
         self._is_upload_cancelled = False
@@ -660,24 +662,14 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             if result == QMessageBox.StandardButton.Cancel:
                 return
 
-        @run_in_loop
-        def on_finished(future: Future[list[tuple[Time, FrameSourceProvider]]]) -> None:
+        def on_done(_: Any) -> None:
             self.progress_bar.reset_progress()
             self.progress_stack.hide()
 
             self._pending_select_frames = None
             self._select_frames_worker = None
 
-            if exc := future.exception():
-                if isinstance(exc, CancelledError):
-                    logger.info("Frame selection cancelled.")
-                else:
-                    logger.error("Error during frame selection: %s", exc)
-                self._update_buttons_state()
-                return
-
-            times = future.result()
-
+        def on_success(times: list[tuple[Time, FrameSourceProvider]]) -> None:
             v = self.api.current_voutput
             for t, src_provider in times:
                 self.frames_list.add_item(
@@ -686,47 +678,56 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                     src_provider=src_provider,
                 )
 
-            self._update_buttons_state()
+        def on_error(exc: BaseException) -> None:
+            if isinstance(exc, CancelledError):
+                logger.info("Frame selection cancelled.")
+            else:
+                logger.error("Error during frame selection: %s", exc)
 
         self._select_frames_worker = worker
-        self._pending_select_frames = worker.run()
-        self._pending_select_frames.add_done_callback(on_finished)
+        self._pending_select_frames = (
+            worker.run()
+            .add_loop_callback(on_done)
+            .then(on_success, on_error, on_loop=True)
+            .add_loop_callback(lambda _: self._update_buttons_state())
+        )
         self._update_buttons_state()
 
     def on_extract_btn_clicked(self) -> None:
-        @run_in_loop
-        def prepare_and_extract(future: Future[Any] | None = None) -> None:
-            if future and future.exception():
-                return
-
-            worker = ExtractFramesWorker(self.api, self)
-            self._extract_frames_worker = worker
-            self._pending_extract_frames = worker.run()
-
-            @run_in_loop
-            def on_finished(f: Future[list[tuple[int, Path]]]) -> None:
+        def prepare_and_extract() -> None:
+            def on_done(_: Any) -> None:
                 self.clip_section.setEnabled(True)
                 self.progress_bar.reset_progress()
                 self.progress_stack.hide()
                 self._pending_extract_frames = None
                 self._extract_frames_worker = None
-                if exc := f.exception():
-                    if isinstance(exc, CancelledError):
-                        logger.info("Frame extraction cancelled.")
-                    else:
-                        logger.error("Error during frame extraction: %s", exc)
-                else:
-                    self._extract_paths = f.result()
-                    self._extraction_finished = True
-                self._update_buttons_state()
 
-            self._pending_extract_frames.add_done_callback(on_finished)
+            def on_success(paths: list[tuple[int, Path]]) -> list[tuple[int, Path]]:
+                self._extract_paths = paths
+                self._extraction_finished = True
+                return paths
+
+            def on_error(exc: BaseException) -> list[tuple[int, Path]]:
+                if isinstance(exc, CancelledError):
+                    logger.info("Frame extraction cancelled.")
+                else:
+                    logger.error("Error during frame extraction: %s", exc)
+                return []
+
+            worker = ExtractFramesWorker(self.api, self)
+            self._extract_frames_worker = worker
+            self._pending_extract_frames = (
+                worker.run()
+                .add_loop_callback(on_done)
+                .then(on_success, on_error, on_loop=True)
+                .add_loop_callback(lambda _: self._update_buttons_state())
+            )
             self._update_buttons_state()
 
         self.clip_section.setDisabled(True)
 
         if self._pending_select_frames:
-            self._pending_select_frames.add_done_callback(prepare_and_extract)
+            self._pending_select_frames.map(lambda _: prepare_and_extract(), on_loop=True)
         else:
             prepare_and_extract()
 
@@ -761,26 +762,24 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
             self.tmdb_popup.hide()
             return
 
-        @run_in_loop
-        def on_finished(future: Future[list[TMDBTitle]]) -> None:
-            QApplication.restoreOverrideCursor()
-            if future.exception():
-                self.tmdb_popup.hide()
-                return
-
+        def on_success(results: list[TMDBTitle]) -> None:
             if self.tmdb_name.text().strip() != query:
                 return
-
-            results = future.result()
 
             if not results:
                 self.tmdb_popup.show_no_results()
             else:
                 self.tmdb_popup.show_results(results)
 
+        def on_error(_: BaseException) -> None:
+            self.tmdb_popup.hide()
+
         QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
-        future = self.tmdb_worker.search(query)
-        future.add_done_callback(on_finished)
+        (
+            self.tmdb_worker.search(query)
+            .add_loop_callback(lambda _: QApplication.restoreOverrideCursor())
+            .then(on_success, on_error, on_loop=True)
+        )
 
     def on_tmdb_item_selected(self, item: QListWidgetItem) -> None:
         title: TMDBTitle = item.data(Qt.ItemDataRole.UserRole)
@@ -806,20 +805,23 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         if self._pending_tags:
             return
 
-        @run_in_loop
-        def on_finished(future: Future[list[Tag]]) -> None:
-            QApplication.restoreOverrideCursor()
+        def on_done(_: Any) -> None:
             self._pending_tags = None
-            if future.exception():
-                self.tags_popup.hide()
-                return
 
-            self.tags_popup.set_tags(future.result())
+        def on_success(tags: list[Tag]) -> None:
+            self.tags_popup.set_tags(tags)
             self.on_tags_input_changed()
 
+        def on_error(_: BaseException) -> None:
+            self.tags_popup.hide()
+
         QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
-        self._pending_tags = self.slowpics_worker.get_tags()
-        self._pending_tags.add_done_callback(on_finished)
+        self._pending_tags = (
+            self.slowpics_worker.get_tags()
+            .add_loop_callback(on_done)
+            .then(on_success, on_error, on_loop=True)
+            .add_loop_callback(lambda _: QApplication.restoreOverrideCursor())
+        )
 
     def on_tags_input_changed(self, *_: Any) -> None:
         self.tags_popup.show_filtered(self.tags.input_text(), set(self.tags.selected_tags()))
@@ -842,15 +844,12 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
     def on_do_all_btn_clicked(self) -> None:
         self.on_extract_btn_clicked()
 
-        @run_in_loop
-        def after_extract(future: Future[Any] | None = None) -> None:
-            if future and future.exception():
-                return
+        def after_extract() -> None:
             if self._extraction_finished:
                 self.on_upload_btn_clicked()
 
         if self._pending_extract_frames:
-            self._pending_extract_frames.add_done_callback(after_extract)
+            self._pending_extract_frames.map(lambda _: after_extract(), on_loop=True)
         else:
             after_extract()
 
@@ -912,9 +911,8 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         # Run the upload
         self._is_upload_cancelled = False
 
-        @run_in_loop
-        def on_cookies(future: Future[dict[str, str]]) -> None:
-            if self._is_upload_cancelled or future.exception():
+        def on_cookies_success(cookies: dict[str, str]) -> None:
+            if self._is_upload_cancelled:
                 self._on_upload_error()
                 return
 
@@ -928,46 +926,50 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                 remove_after=self.remove_after.value(),
                 tags=self.tags.selected_tags(),
             )
-            self._pending_upload = self.slowpics_worker.upload(src=src, cookies=future.result())
+            self._pending_upload = self.slowpics_worker.upload(src=src, cookies=cookies)
 
             # Once the upload is finished, reset the progress bar and update the buttons state
-            @run_in_loop
-            def on_upload_finished(f: Future[str]) -> None:
+            def on_done(_: Any) -> None:
                 self.progress_bar.reset_progress()
                 self.progress_stack.hide()
                 self._pending_upload = None
 
-                if exc := f.exception():
-                    if isinstance(exc, asyncio.CancelledError):
-                        logger.info("Upload cancelled.")
-                    else:
-                        logger.error("Error during upload: %s", exc)
-                else:
-                    url = f.result()
-                    logger.info("Upload complete: %s", url)
-                    self._reported_url = url
-                    self.url_label.setText(f'<a href="{url}">{url}</a>')
-                    self.set_url_on_top()
+            def on_upload_success(url: str) -> None:
+                logger.info("Upload complete: %s", url)
+                self._reported_url = url
+                self.url_label.setText(f'<a href="{url}">{url}</a>')
+                self.set_url_on_top()
 
+            def on_upload_error(exc: BaseException) -> None:
+                if isinstance(exc, asyncio.CancelledError):
+                    logger.info("Upload cancelled.")
+                else:
+                    logger.error("Error during upload: %s", exc)
+
+            def finally_done(_: Any) -> None:
                 self._update_buttons_state()
                 self.upload_btn.setDisabled(True)
 
-            self._pending_upload.add_done_callback(on_upload_finished)
+            self._pending_upload = (
+                self.slowpics_worker.upload(src=src, cookies=cookies)
+                .add_loop_callback(on_done)
+                .then(on_upload_success, on_upload_error, on_loop=True)
+                .add_loop_callback(finally_done)
+            )
 
         # Get the cookies and then upload
-        cookies_future = self.slowpics_worker.get_cookies()
-        cookies_future.add_done_callback(on_cookies)
+        self.slowpics_worker.get_cookies().then(on_cookies_success, self._on_upload_error, on_loop=True)
 
     @run_in_loop(return_future=False)
-    def _on_upload_error(self, message: str | None = None) -> None:
+    def _on_upload_error(self, message: SupportsString | None = None) -> None:
         # Helper to cleanup UI on failure from background
         self.progress_bar.reset_progress()
         self.progress_stack.hide()
         self.clip_section.setEnabled(True)
         self._pending_upload = None
         self._update_buttons_state()
-        if message:
-            QMessageBox.critical(self, "Upload Error", message)
+        if message is not None:
+            QMessageBox.critical(self, "Upload Error", str(message))
 
     def _update_buttons_state(self) -> None:
         current_outputs = self.outputs_dropdown.included_outputs

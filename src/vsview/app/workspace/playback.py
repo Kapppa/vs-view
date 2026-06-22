@@ -5,7 +5,7 @@ from collections.abc import Callable
 from concurrent.futures import Future, wait
 from logging import getLogger
 from time import perf_counter_ns
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from jetpytools import clamp, cround
 from PySide6.QtCore import QObject, QPoint, Qt, QTime, QTimer, Signal, Slot
@@ -235,24 +235,27 @@ class PlaybackManager(QObject):
         self.can_reload = False
         fut = self._render_frame(n, notify_plugins=notify_plugins)
 
-        @run_in_loop(return_future=False)
-        def on_complete(f: Future[None]) -> None:
-            if f.exception():
-                logger.error("Frame render failed with the message: %r", f.exception())
-            elif self._tab_manager.tabs.currentIndex() != -1:
+        def on_success(_: None) -> None:
+            if self._tab_manager.tabs.currentIndex() != -1:
                 voutput.last_frame = n
                 self.state.current_frame = n
                 self.state.current_time = voutput.frame_to_time(n)
 
             if cb_render:
-                cb_render(f)
+                cb_render(fut)
 
-            if f.exception():
-                self.loadFailed.emit()
+        def on_error(exc: BaseException) -> None:
+            logger.error("Frame render failed with the message: %r", exc)
 
+            if cb_render:
+                cb_render(fut)
+
+            self.loadFailed.emit()
+
+        def on_finally_done(_: Any) -> None:
             self.can_reload = True
 
-        fut.add_done_callback(on_complete)
+        fut.then(on_success, on_error, on_loop=True).add_done_callback(on_finally_done)
 
     @run_in_background(name="RenderFrame")
     def _render_frame(self, n: int, notify_plugins: bool = True) -> None:
