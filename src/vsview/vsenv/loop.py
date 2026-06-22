@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Callable, Coroutine
-from concurrent.futures import Future
 from functools import wraps
 from inspect import iscoroutinefunction
 from logging import getLogger
@@ -11,6 +10,7 @@ from typing import Any, Literal, Protocol, cast, overload, override
 
 from PySide6.QtCore import QObject, QRunnable, QThread, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import QApplication
+from vsengine.futures import UnifiedFuture
 from vsengine.loops import EventLoop, get_loop
 
 type _CoroutineFunc[**P, R] = Callable[P, Coroutine[Any, Any, R]]
@@ -47,9 +47,9 @@ class QtEventLoop(QObject, EventLoop):
             wrapper()
 
     @override
-    def from_thread[**P, R](self, func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> Future[R]:
+    def from_thread[**P, R](self, func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> UnifiedFuture[R]:
         """Schedule func to run on the main Qt thread."""
-        fut = Future[R]()
+        fut = UnifiedFuture[R]()
 
         def wrapper() -> None:
             if not fut.set_running_or_notify_cancel():
@@ -72,7 +72,7 @@ class QtEventLoop(QObject, EventLoop):
         return fut
 
     @override
-    def to_thread[**P, R](self, func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> Future[R]:
+    def to_thread[**P, R](self, func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> UnifiedFuture[R]:
         """Run func in Qt's global thread pool."""
         fut = Future[R]()
 
@@ -96,10 +96,15 @@ class QtEventLoop(QObject, EventLoop):
 
         QThreadPool.globalInstance().start(QRunnable.create(wrapper))
         return fut
-
-    def to_thread_named[**P, R](self, name: str, func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> Future[R]:
+    def to_thread_named[**P, R](
+        self,
+        name: str,
+        func: Callable[P, R],
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> UnifiedFuture[R]:
         """Run func in Qt's global thread pool with a custom thread name."""
-        fut = Future[R]()
+        fut = UnifiedFuture[R]()
 
         def wrapper() -> None:
             with self._tasks_lock:
@@ -181,9 +186,9 @@ class _DecoratorFuture(Protocol):
     """Protocol for decorators that wrap a function and return a Future."""
 
     @overload
-    def __call__[**P, R](self, func: _CoroutineFunc[P, R]) -> Callable[P, Future[R]]: ...
+    def __call__[**P, R](self, func: _CoroutineFunc[P, R]) -> Callable[P, UnifiedFuture[R]]: ...
     @overload
-    def __call__[**P, R](self, func: _Func[P, R]) -> Callable[P, Future[R]]: ...
+    def __call__[**P, R](self, func: _Func[P, R]) -> Callable[P, UnifiedFuture[R]]: ...
 
 
 class _DecoratorDirect(Protocol):
@@ -196,9 +201,9 @@ class _DecoratorDirect(Protocol):
 
 
 @overload
-def run_in_loop[**P, R](func: _CoroutineFunc[P, R]) -> Callable[P, Future[R]]: ...
+def run_in_loop[**P, R](func: _CoroutineFunc[P, R]) -> Callable[P, UnifiedFuture[R]]: ...
 @overload
-def run_in_loop[**P, R](func: _Func[P, R]) -> Callable[P, Future[R]]: ...
+def run_in_loop[**P, R](func: _Func[P, R]) -> Callable[P, UnifiedFuture[R]]: ...
 @overload
 def run_in_loop(*, return_future: Literal[True]) -> _DecoratorFuture: ...
 @overload
@@ -256,9 +261,9 @@ def run_in_loop(func: Any = None, *, return_future: bool = True) -> Any:
 
 
 @overload
-def run_in_background[**P, R](func: _CoroutineFunc[P, R]) -> Callable[P, Future[R]]: ...
+def run_in_background[**P, R](func: _CoroutineFunc[P, R]) -> Callable[P, UnifiedFuture[R]]: ...
 @overload
-def run_in_background[**P, R](func: _Func[P, R]) -> Callable[P, Future[R]]: ...
+def run_in_background[**P, R](func: _Func[P, R]) -> Callable[P, UnifiedFuture[R]]: ...
 @overload
 def run_in_background(*, name: str) -> _DecoratorFuture: ...
 def run_in_background(func: Any = None, *, name: str | None = None) -> Any:
