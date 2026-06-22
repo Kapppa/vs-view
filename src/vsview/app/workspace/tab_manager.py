@@ -201,11 +201,9 @@ class TabManager(QWidget, IconReloadMixin):
 
         # The actual tabs widget
         self.tabs = TabViewWidget(self)
-        self.tabs.setDocumentMode(True)
         self.tabs.currentChanged.connect(self._on_tab_changed)
-        self.current_layout.addWidget(self.tabs)
-
         self.tabs.setCornerWidget(self.sync_container, Qt.Corner.TopRightCorner)
+        self.current_layout.addWidget(self.tabs)
 
         self.disable_switch = True
 
@@ -251,7 +249,6 @@ class TabManager(QWidget, IconReloadMixin):
     @run_in_loop(return_future=False)
     def create_tabs(self, video_outputs: Sequence[VideoOutput], enabled: bool = True) -> TabViewWidget:
         new_tabs = TabViewWidget(self)
-        new_tabs.setDocumentMode(True)
 
         for voutput in video_outputs:
             view = GraphicsView(self)
@@ -365,6 +362,12 @@ class TabManager(QWidget, IconReloadMixin):
     # SIGNALS
     def _on_tab_changed(self, index: int) -> None:
         if index < 0:
+            return
+
+        if self.api.busy:
+            logger.warning("Workspace is busy, cannot switch output")
+            with QSignalBlocker(self.tabs):
+                self.tabs.setCurrentIndex(self.tabs.previous_tab_index)
             return
 
         new_view = self.tabs.view(index)
