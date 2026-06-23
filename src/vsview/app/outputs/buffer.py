@@ -225,20 +225,14 @@ class AudioBuffer:
 
         logger.debug("Allocating audio buffer: %s, buffering up to %d frames", play_range, self._size)
 
-        with self.env.use():
-            for _ in range(self._size):
-                if self._invalidated:
-                    break
+        for _ in range(self._size):
+            if self._invalidated:
+                break
 
-                if (next_frame := next(self._play_frames, None)) is None:
-                    break
+            if (next_frame := next(self._play_frames, None)) is None:
+                break
 
-                self._bundles.appendleft(
-                    AudioBundle(
-                        next_frame,
-                        self.audio_output.playback_audio.get_frame_async(next_frame),
-                    )
-                )
+            self._bundles.appendleft(self._request_bundle(next_frame))
 
     def wait_for_first_frame(self, timeout: float | None = None, stall_cb: Callable[[], None] | None = None) -> None:
         if self._invalidated or not self._bundles:
@@ -261,27 +255,22 @@ class AudioBuffer:
         """
         Get the next buffered audio frame and request a new one at the front.
 
-        Returns None if the buffer is empty.
+        Returns None if the buffer is empty or the next frame is not ready.
         """
-        if self._invalidated or not self._bundles:
+        if self._invalidated or not self._bundles or not self._bundles[-1].future.done():
             return None
 
         bundle = self._bundles.pop()
 
+        # Request next frame at the front of the buffer
+        if not self._invalidated and self._play_frames and (next_frame := next(self._play_frames, None)) is not None:
+            self._bundles.appendleft(self._request_bundle(next_frame))
+
         try:
-            frame = bundle.future.result()
+            return bundle.n, bundle.future.result()
         except Exception:
             logger.exception("Failed to get audio frame %d", bundle.n)
             return None
-
-        # Request next frame at the front of the buffer
-        if not self._invalidated and self._play_frames and (next_frame := next(self._play_frames, None)) is not None:
-            with self.env.use():
-                self._bundles.appendleft(
-                    AudioBundle(next_frame, self.audio_output.playback_audio.get_frame_async(next_frame))
-                )
-
-        return bundle.n, frame
 
     @run_in_background(name="ClearAudioBuffer")
     def clear(self) -> None:
@@ -306,6 +295,11 @@ class AudioBuffer:
         gc_collect()
 
         logger.debug("Audio buffer cleared")
+
+    def _request_bundle(self, n: int) -> AudioBundle:
+        with self.env.use():
+            future = self.audio_output.playback_audio.get_frame_async(n)
+        return AudioBundle(n, future)
 
     @staticmethod
     def _create_play_frames(play_range: Iterable[int], loop: bool) -> Generator[int]:
