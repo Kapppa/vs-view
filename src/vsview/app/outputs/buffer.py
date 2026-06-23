@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Generator, Iterable
 from concurrent.futures import Future, wait
 from functools import partial
 from itertools import cycle, islice
@@ -52,7 +52,7 @@ class FrameBuffer:
 
         self._size = SettingsManager.global_settings.playback.buffer_size
         self._bundles = deque[FrameBundle]()
-        self._play_frames: Iterator[int] | None = None
+        self._play_frames: Generator[int] | None = None
         self._invalidated = False
         self._plugin_nodes = dict[str, vs.VideoNode]()
 
@@ -145,6 +145,10 @@ class FrameBuffer:
         """Clear all buffered frames and trigger garbage collection."""
         self._plugin_nodes.clear()
 
+        if self._play_frames is not None:
+            self._play_frames.close()
+            self._play_frames = None
+
         bundles = list(self._bundles)
         self._bundles.clear()
 
@@ -179,7 +183,7 @@ class FrameBuffer:
         return FrameBundle(n, main_future, plugin_futures)
 
     @staticmethod
-    def _create_play_frames(play_range: Iterable[int], loop: bool) -> Iterator[int]:
+    def _create_play_frames(play_range: Iterable[int], loop: bool) -> Generator[int]:
         # Skip the first frame (already displayed)
         play_range = islice(play_range, 1, None)
 
@@ -207,7 +211,7 @@ class AudioBuffer:
 
         self._size = SettingsManager.global_settings.playback.audio_buffer_size
         self._bundles = deque[AudioBundle]()
-        self._play_frames: Iterator[int] | None = None
+        self._play_frames: Generator[int] | None = None
         self._invalidated = False
 
     def allocate(self, play_range: range, loop: bool = False) -> None:
@@ -276,6 +280,10 @@ class AudioBuffer:
     @run_in_background(name="ClearAudioBuffer")
     def clear(self) -> None:
         """Clear all buffered frames and trigger garbage collection."""
+        if self._play_frames is not None:
+            self._play_frames.close()
+            self._play_frames = None
+
         bundles = list(self._bundles)
         self._bundles.clear()
 
@@ -294,7 +302,7 @@ class AudioBuffer:
         logger.debug("Audio buffer cleared")
 
     @staticmethod
-    def _create_play_frames(play_range: Iterable[int], loop: bool) -> Iterator[int]:
+    def _create_play_frames(play_range: Iterable[int], loop: bool) -> Generator[int]:
         # Do NOT skip the first frame
         if loop:
             play_range = cycle(play_range)
