@@ -437,7 +437,6 @@ class SlowPicsWorker:
         self.secrets = secrets
         self.progress_bar = progress_bar
         self.headers = get_slowpics_headers()
-        self.sema = asyncio.Semaphore(self.MAX_CONCURRENT_REQUESTS)
         self.is_cancelled = False
         self._upload_task: asyncio.Task[Any] | None = None
         self._upload_loop: asyncio.AbstractEventLoop | None = None
@@ -488,6 +487,7 @@ class SlowPicsWorker:
         self.is_cancelled = False
         self._upload_task = asyncio.current_task()
         self._upload_loop = asyncio.get_running_loop()
+        self._sema = asyncio.Semaphore(self.MAX_CONCURRENT_REQUESTS)
 
         try:
             async with (
@@ -627,7 +627,7 @@ class SlowPicsWorker:
             if self.is_cancelled:
                 raise asyncio.CancelledError("Slowpics upload cancelled")
             try:
-                async with self.sema:
+                async with self._sema:
                     response = await client.post(
                         url,
                         data=data,
