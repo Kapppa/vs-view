@@ -926,7 +926,6 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                 remove_after=self.remove_after.value(),
                 tags=self.tags.selected_tags(),
             )
-            self._pending_upload = self.slowpics_worker.upload(src=src, cookies=cookies)
 
             # Once the upload is finished, reset the progress bar and update the buttons state
             def on_done(_: Any) -> None:
