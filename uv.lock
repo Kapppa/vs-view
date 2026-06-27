@@ -15,6 +15,7 @@ members = [
     "vsview-comp",
     "vsview-fftspectrum",
     "vsview-frameprops-extended",
+    "vsview-histogram",
     "vsview-split-planes",
 ]
 
@@ -2231,6 +2232,7 @@ dev = [
     { name = "vsview-comp" },
     { name = "vsview-fftspectrum" },
     { name = "vsview-frameprops-extended" },
+    { name = "vsview-histogram" },
     { name = "vsview-nativeres" },
     { name = "vsview-split-planes" },
 ]
@@ -2244,6 +2246,7 @@ plugins = [
     { name = "vsview-comp" },
     { name = "vsview-fftspectrum" },
     { name = "vsview-frameprops-extended" },
+    { name = "vsview-histogram" },
     { name = "vsview-nativeres" },
     { name = "vsview-split-planes" },
 ]
@@ -2299,6 +2302,7 @@ dev = [
     { name = "vsview-comp", editable = "src/plugins/comp" },
     { name = "vsview-fftspectrum", editable = "src/plugins/fftspectrum" },
     { name = "vsview-frameprops-extended", editable = "src/plugins/frameprops-extended" },
+    { name = "vsview-histogram", editable = "src/plugins/histogram" },
     { name = "vsview-nativeres" },
     { name = "vsview-split-planes", editable = "src/plugins/split-planes" },
 ]
@@ -2312,6 +2316,7 @@ plugins = [
     { name = "vsview-comp", editable = "src/plugins/comp" },
     { name = "vsview-fftspectrum", editable = "src/plugins/fftspectrum" },
     { name = "vsview-frameprops-extended", editable = "src/plugins/frameprops-extended" },
+    { name = "vsview-histogram", editable = "src/plugins/histogram" },
     { name = "vsview-nativeres" },
     { name = "vsview-split-planes", editable = "src/plugins/split-planes" },
 ]
@@ -2411,6 +2416,24 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "vsjetpack", specifier = ">=1.4.0" },
+    { name = "vsview", editable = "." },
+]
+
+[[package]]
+name = "vsview-histogram"
+source = { editable = "src/plugins/histogram" }
+dependencies = [
+    { name = "numba" },
+    { name = "numpy" },
+    { name = "vsjetpack" },
+    { name = "vsview" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "numba", specifier = ">=0.65.1" },
+    { name = "numpy", specifier = ">=2.4.6" },
+    { name = "vsjetpack", specifier = ">=1.5.0" },
     { name = "vsview", editable = "." },
 ]
 
