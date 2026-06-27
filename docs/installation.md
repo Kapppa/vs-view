@@ -6,7 +6,7 @@ icon: lucide/download
 
 Choose your preferred package manager to install `vsview`.
 
-We recommend the **[recommended](https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/second-party/#installation)** bundle for most users
+We recommend the **[recommended](plugins/second-party.md#installation)** or **[full](plugins/second-party.md#installation)** bundle for most users
 so that useful plugins are available out of the box.
 
 === "pip"
@@ -17,6 +17,10 @@ so that useful plugins are available out of the box.
     ```bash title="Install with recommended plugins"
     pip install vsview[recommended]
     ```
+
+    ```bash title="Install with all plugins"
+    pip install vsview[full]
+    ```
 === "uv"
     ```bash title="Minimal installation"
     uv add vsview
@@ -24,6 +28,10 @@ so that useful plugins are available out of the box.
 
     ```bash title="Install with recommended plugins"
     uv add vsview --extra recommended
+    ```
+
+    ```bash title="Install with all plugins"
+    uv add vsview --extra full
     ```
 
 ## Development Installation

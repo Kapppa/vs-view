@@ -38,6 +38,10 @@ Install and launch directly from your terminal:
     pip install vsview[recommended]
     ```
 
+    ```bash title="Install with all plugins (full)"
+    pip install vsview[full]
+    ```
+
     ```bash title="Open files directly:"
     vsview script.vpy video.mkv
     ```
@@ -49,6 +53,10 @@ Install and launch directly from your terminal:
 
     ```bash title="Install with recommended plugins"
     uv add vsview --extra recommended
+    ```
+
+    ```bash title="Install with all plugins (full)"
+    uv add vsview --extra full
     ```
 
     ```bash title="Open files directly:"

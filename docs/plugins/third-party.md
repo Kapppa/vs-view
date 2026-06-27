@@ -34,6 +34,18 @@ Third-party plugins are maintained by independent developers.
     uv add vsview-nativeres
     ```
 
+!!! tip "Installation via Bundle"
+    `vsview-nativeres` is also included in the **full** bundle. You can install it along with all other plugins by using:
+
+    === "pip"
+        ```bash
+        pip install vsview[full]
+        ```
+    === "uv"
+        ```bash
+        uv add vsview --extra full
+        ```
+
 `vsview-nativeres` provides a frontend for [nativeres](https://github.com/Jaded-Encoding-Thaumaturgy/nativeres), allowing resolution analysis within VSView.
 
 ### Features

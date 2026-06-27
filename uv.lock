@@ -2203,6 +2203,15 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+full = [
+    { name = "vsview-audio-convert" },
+    { name = "vsview-comp" },
+    { name = "vsview-fftspectrum" },
+    { name = "vsview-frameprops-extended" },
+    { name = "vsview-histogram" },
+    { name = "vsview-nativeres" },
+    { name = "vsview-split-planes" },
+]
 recommended = [
     { name = "vsview-comp" },
     { name = "vsview-fftspectrum" },
@@ -2275,13 +2284,20 @@ requires-dist = [
     { name = "vapoursynth-bestsource", specifier = ">=17.0" },
     { name = "vsjetengine", specifier = ">=1.4.0" },
     { name = "vspackrgb", editable = "src/vspackrgb" },
+    { name = "vsview-audio-convert", marker = "extra == 'full'", editable = "src/plugins/audio-convert" },
     { name = "vsview-cli", editable = "src/vsview-cli" },
+    { name = "vsview-comp", marker = "extra == 'full'", editable = "src/plugins/comp" },
     { name = "vsview-comp", marker = "extra == 'recommended'", editable = "src/plugins/comp" },
+    { name = "vsview-fftspectrum", marker = "extra == 'full'", editable = "src/plugins/fftspectrum" },
     { name = "vsview-fftspectrum", marker = "extra == 'recommended'", editable = "src/plugins/fftspectrum" },
+    { name = "vsview-frameprops-extended", marker = "extra == 'full'", editable = "src/plugins/frameprops-extended" },
     { name = "vsview-frameprops-extended", marker = "extra == 'recommended'", editable = "src/plugins/frameprops-extended" },
+    { name = "vsview-histogram", marker = "extra == 'full'", editable = "src/plugins/histogram" },
+    { name = "vsview-nativeres", marker = "extra == 'full'" },
+    { name = "vsview-split-planes", marker = "extra == 'full'", editable = "src/plugins/split-planes" },
     { name = "vsview-split-planes", marker = "extra == 'recommended'", editable = "src/plugins/split-planes" },
 ]
-provides-extras = ["recommended", "secrets"]
+provides-extras = ["full", "recommended", "secrets"]
 
 [package.metadata.requires-dev]
 dev = [

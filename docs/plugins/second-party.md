@@ -67,18 +67,27 @@ Second-party plugins are officially maintained but distributed as separate packa
 
 Second-party plugins are officially maintained but distributed as separate Python packages. Note that many of these also require specific **native VapourSynth plugins** to be installed in your VapourSynth environment.
 
-You can start with the **Recommended Bundle**.
+You can install plugins individually or choose one of the pre-configured bundles.
 
-!!! tip "Optional: Recommended Bundle"
-    The `recommended` bundle includes **Split Planes**, **FrameProps Extended**, and **Comparison**.
-    
+!!! tip "Optional: Recommended & Full Bundles"
+    * The **recommended** bundle includes **Split Planes**, **FrameProps Extended**, and **Comparison**.
+    * The **full** bundle includes everything in the **recommended** bundle, plus **Audio Convert**, **Histogram**, and the third-party [**Native Resolution**](third-party.md#native-resolution) plugin.
+
     === "pip"
         ```bash title="Install recommended bundle"
-        pip install "vsview[recommended]"
+        pip install vsview[recommended]
+        ```
+
+        ```bash title="Install full bundle"
+        pip install vsview[full]
         ```
     === "uv"
         ```bash title="Add recommended bundle"
         uv add vsview --extra recommended
+        ```
+
+        ```bash title="Add full bundle"
+        uv add vsview --extra full
         ```
 
 Detailed installation for individual packages can be found in their respective sections below.
