@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ctypes
+from collections.abc import Callable
+from functools import wraps
 from logging import getLogger
 from typing import override
 
@@ -15,6 +17,18 @@ from ..settings import GlobalSettings
 logger = getLogger(__name__)
 
 
+def set_props_on_output[**P](function: Callable[P, vs.VideoNode]) -> Callable[P, vs.VideoNode]:
+    @wraps(function)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> vs.VideoNode:
+        return function(*args, **kwargs).std.SetFrameProps(
+            _Matrix=vs.MATRIX_BT709,
+            _Primaries=vs.PRIMARIES_BT709,
+            _Transfer=vs.TRANSFER_BT709,
+        )
+
+    return wrapper
+
+
 class LumaView(PluginGraphicsView):
     def __init__(self, parent: QWidget, api: PluginAPI, settings: PluginSettings[GlobalSettings, None]) -> None:
         super().__init__(parent, api)
@@ -27,14 +41,11 @@ class LumaView(PluginGraphicsView):
             super().on_current_frame_changed(n, f)
 
     @override
+    @set_props_on_output
     def get_node(self, clip: vs.VideoNode) -> vs.VideoNode:
         if (cfam := clip.format.color_family) not in (vs.GRAY, vs.YUV):
             logger.warning("%s input - no luma data", cfam.name)
-            return (
-                clip.std.BlankClip(format=vs.GRAY8)
-                .std.SetFrameProps(_Matrix=vs.MATRIX_BT709, _Primaries=vs.PRIMARIES_BT709, _Transfer=vs.TRANSFER_BT709)
-                .text.Text(f"{cfam.name} input - no luma data", 5, 4)
-            )
+            return clip.std.BlankClip(format=vs.GRAY8, keep=True).text.Text(f"{cfam.name} input - no luma data", 5, 4)
 
         bits = clip.format.bits_per_sample
         shift_in = self.settings.global_.luma.shift
