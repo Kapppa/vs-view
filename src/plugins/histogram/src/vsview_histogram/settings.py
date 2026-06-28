@@ -29,6 +29,17 @@ class LumaSettings(BaseModel):
     sawtooth: bool = False
 
 
+class CIEDiagramSettings(BaseModel):
+    mode: Literal["cie1931", "cie1976"] = "cie1931"
+    render_mode: Literal["density", "chroma_wheel", "pixel_color"] = "pixel_color"
+    res: Literal[0, 256, 512, 1024] = 0
+    show_rec709: bool = True
+    show_rec601: bool = False
+    show_dcip3: bool = True
+    show_rec2020: bool = True
+    luma: float = 1.0
+
+
 class GlobalSettings(BaseModel):
     selected_tab: int = 0
 
@@ -36,3 +47,4 @@ class GlobalSettings(BaseModel):
     waveform: WaveformSettings = Field(default_factory=WaveformSettings)
     vectorscope: VectorscopeSettings = Field(default_factory=VectorscopeSettings)
     luma: LumaSettings = Field(default_factory=LumaSettings)
+    cie: CIEDiagramSettings = Field(default_factory=CIEDiagramSettings)

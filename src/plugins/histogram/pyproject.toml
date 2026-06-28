@@ -23,12 +23,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
-dependencies = [
-    "vsview",
-    "vsjetpack>=1.5.0",
-    "numpy>=2.4.6",
-    "numba>=0.65.1",
-]
+dependencies = ["vsview", "vsjetpack>=2.0.0", "numpy>=2.4.6", "numba>=0.65.1"]
 
 [project.entry-points.vsview]
 vsview_histogram = "vsview_histogram"

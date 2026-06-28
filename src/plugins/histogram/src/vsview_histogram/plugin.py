@@ -17,9 +17,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from vsengine import UnifiedFuture
+from vstools import Primaries, Transfer, core, vs
 
-from vsview.api import PluginAPI, WidgetPluginBase, run_in_background, run_in_loop
+from vsview.api import PluginAPI, VideoOutputProxy, WidgetPluginBase, run_in_background, run_in_loop
 
+from .cie import CIEDiagramContainerWidget
 from .levels import HistogramContainerWidget
 from .luma import LumaContainerWidget
 from .settings import GlobalSettings
@@ -44,6 +46,7 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
         self.setup_luma()
         self.setup_vectorscope()
         self.setup_waveform()
+        self.setup_cie()
 
         # Set default tab
         self.tab_widget.setCurrentIndex(self.settings.global_.selected_tab)
@@ -59,6 +62,9 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
             if HistogramPlugin.numba_prewarm_worker is None:
                 HistogramPlugin.numba_prewarm_worker = prewarm_numba()
         HistogramPlugin.numba_prewarm_worker.map(lambda _: self._notify_numba_ready(), on_loop=True)
+
+        self.cie_nodes = dict[VideoOutputProxy, tuple[vs.VideoNode, vs.VideoNode]]()
+        self.api.register_on_destroy(self.cie_nodes.clear)
 
     def setup_levels(self) -> None:
         container = QWidget(self)
@@ -313,6 +319,97 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
 
         self.tab_widget.addTab(container, "Waveform")
 
+    def setup_cie(self) -> None:
+        container = QWidget(self)
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        controls_layout = QHBoxLayout()
+        controls_layout.setContentsMargins(8, 8, 8, 4)
+
+        mode_label = QLabel("CIE Mode:", container)
+        controls_layout.addWidget(mode_label)
+
+        self.cie_mode_combo = QComboBox(container)
+        self.cie_mode_combo.addItem("CIE 1931 (xy)", "cie1931")
+        self.cie_mode_combo.addItem("CIE 1976 (u'v')", "cie1976")
+        self.cie_mode_combo.setCurrentIndex(self.cie_mode_combo.findData(self.settings.global_.cie.mode))
+        self.cie_mode_combo.currentIndexChanged.connect(self.on_cie_mode_changed)
+        controls_layout.addWidget(self.cie_mode_combo)
+
+        render_mode_label = QLabel("Render Mode:", container)
+        controls_layout.addWidget(render_mode_label)
+
+        self.cie_render_mode_combo = QComboBox(container)
+        self.cie_render_mode_combo.addItem("Density", "density")
+        self.cie_render_mode_combo.addItem("Chroma Wheel", "chroma_wheel")
+        self.cie_render_mode_combo.addItem("Pixel Color", "pixel_color")
+        self.cie_render_mode_combo.setToolTip(
+            "Display mode for CIE diagram plots:\n"
+            "- Density: logarithmic heat-map with phosphor color table\n"
+            "- Chroma Wheel: density map drawn over a full-color background diagram\n"
+            "- Pixel Color: each pixel plotted at its actual RGB color"
+        )
+        self.cie_render_mode_combo.setCurrentIndex(
+            self.cie_render_mode_combo.findData(self.settings.global_.cie.render_mode)
+        )
+        self.cie_render_mode_combo.currentIndexChanged.connect(self.on_cie_render_mode_changed)
+        controls_layout.addWidget(self.cie_render_mode_combo)
+
+        res_label = QLabel("Resolution:", container)
+        controls_layout.addWidget(res_label)
+
+        self.cie_res_combo = QComboBox(container)
+        self.cie_res_combo.addItem("Native", 0)
+        self.cie_res_combo.addItem("256x256", 256)
+        self.cie_res_combo.addItem("512x512", 512)
+        self.cie_res_combo.addItem("1024x1024", 1024)
+        self.cie_res_combo.setCurrentIndex(self.cie_res_combo.findData(self.settings.global_.cie.res))
+        self.cie_res_combo.currentIndexChanged.connect(self.on_cie_resolution_changed)
+        controls_layout.addWidget(self.cie_res_combo)
+
+        luma_label = QLabel("Luma:", container)
+        controls_layout.addWidget(luma_label)
+
+        self.cie_luma_spin = QDoubleSpinBox(
+            container,
+            decimals=2,
+            minimum=0.01,
+            maximum=2.0,
+            singleStep=0.01,
+            value=self.settings.global_.cie.luma,
+        )
+        self.cie_luma_spin.setToolTip("Luma / brightness scaling factor for the colored points cloud.")
+        self.cie_luma_spin.valueChanged.connect(self.on_cie_luma_changed)
+        controls_layout.addWidget(self.cie_luma_spin)
+
+        self.cie_rec709_checkbox = QCheckBox("Rec. 709", container)
+        self.cie_rec709_checkbox.setChecked(self.settings.global_.cie.show_rec709)
+        self.cie_rec709_checkbox.stateChanged.connect(self.on_cie_rec709_changed)
+        controls_layout.addWidget(self.cie_rec709_checkbox)
+
+        self.cie_rec601_checkbox = QCheckBox("Rec. 601", container)
+        self.cie_rec601_checkbox.setChecked(self.settings.global_.cie.show_rec601)
+        self.cie_rec601_checkbox.stateChanged.connect(self.on_cie_rec601_changed)
+        controls_layout.addWidget(self.cie_rec601_checkbox)
+
+        self.cie_dcip3_checkbox = QCheckBox("DCI-P3", container)
+        self.cie_dcip3_checkbox.setChecked(self.settings.global_.cie.show_dcip3)
+        self.cie_dcip3_checkbox.stateChanged.connect(self.on_cie_dcip3_changed)
+        controls_layout.addWidget(self.cie_dcip3_checkbox)
+
+        self.cie_rec2020_checkbox = QCheckBox("Rec. 2020", container)
+        self.cie_rec2020_checkbox.setChecked(self.settings.global_.cie.show_rec2020)
+        self.cie_rec2020_checkbox.stateChanged.connect(self.on_cie_rec2020_changed)
+        controls_layout.addWidget(self.cie_rec2020_checkbox)
+        controls_layout.addStretch()
+
+        self.cie_container = CIEDiagramContainerWidget(self, self.settings)
+        layout.addLayout(controls_layout)
+        layout.addWidget(self.cie_container)
+
+        self.tab_widget.addTab(container, "CIE Chromaticity")
+
     @override
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
@@ -332,13 +429,13 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
             return
 
         n = fallback(n, self.api.current_frame)
-
         active_tab = self.tab_widget.currentIndex()
+        voutput = self.api.current_voutput
 
         with (
             self.api.blocker(self),
             self.api.vs_context(),
-            self.api.current_voutput.vs_output.clip.get_frame(n) as frame,
+            voutput.vs_output.clip.get_frame(n) as frame,
         ):
             if active_tab == 0:
                 self.levels_container.update_histogram(frame)
@@ -348,6 +445,27 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
                 self.vectorscope_container.update_histogram(frame)
             elif active_tab == 3:
                 self.waveform_container.update_histogram(frame)
+            elif active_tab == 4:
+                if (clip := voutput.vs_output.clip).format.color_family != vs.RGB:
+                    self.cie_container.cie_diagram.paint_error("CIE Chromaticity Diagram requires RGB input.")
+                    return
+
+                if not (prims := get_fmtc_primaries(frame)):
+                    self.cie_container.cie_diagram.paint_error(
+                        "CIE Chromaticity Diagram requires a valid primaries frame property."
+                    )
+                    return
+
+                if voutput not in self.cie_nodes:
+                    linear = core.resize.Point(clip, format=vs.RGBS, transfer=Transfer.LINEAR)
+                    xyz = core.fmtc.primaries(linear, prims=prims, primd="ciexyz", wconv=True)
+                    self.cie_nodes[voutput] = (linear, xyz)
+
+                with (
+                    self.cie_nodes[voutput][0].get_frame(n) as linear_frame,
+                    self.cie_nodes[voutput][1].get_frame(n) as xyz_frame,
+                ):
+                    self.cie_container.update_histogram(linear_frame, xyz_frame)
 
     def on_tab_changed(self, index: int) -> None:
         self.settings.global_.selected_tab = index
@@ -411,6 +529,38 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
         self.settings.global_.luma.sawtooth = self.luma_sawtooth_checkbox.isChecked()
         self.luma_container.view.refresh()
 
+    def on_cie_mode_changed(self, index: int) -> None:
+        self.settings.global_.cie.mode = self.cie_mode_combo.currentData()
+        self.update_histogram()
+
+    def on_cie_render_mode_changed(self, index: int) -> None:
+        self.settings.global_.cie.render_mode = self.cie_render_mode_combo.currentData()
+        self.update_histogram()
+
+    def on_cie_resolution_changed(self, index: int) -> None:
+        self.settings.global_.cie.res = self.cie_res_combo.currentData()
+        self.update_histogram()
+
+    def on_cie_rec709_changed(self, state: int) -> None:
+        self.settings.global_.cie.show_rec709 = self.cie_rec709_checkbox.isChecked()
+        self.update_histogram()
+
+    def on_cie_rec601_changed(self, state: int) -> None:
+        self.settings.global_.cie.show_rec601 = self.cie_rec601_checkbox.isChecked()
+        self.update_histogram()
+
+    def on_cie_dcip3_changed(self, state: int) -> None:
+        self.settings.global_.cie.show_dcip3 = self.cie_dcip3_checkbox.isChecked()
+        self.update_histogram()
+
+    def on_cie_rec2020_changed(self, state: int) -> None:
+        self.settings.global_.cie.show_rec2020 = self.cie_rec2020_checkbox.isChecked()
+        self.update_histogram()
+
+    def on_cie_luma_changed(self, value: int) -> None:
+        self.settings.global_.cie.luma = value
+        self.update_histogram()
+
     def _notify_numba_ready(self) -> None:
         self.luma_container.view.numba_ready = True
         if self.tab_widget.currentIndex() == 1:
@@ -439,3 +589,29 @@ def prewarm_numba() -> None:
         process_luma_numba(dummy_src_nc, dummy_dst, bits, 4, sawtooth, is_limited)
 
         logger.debug("Pre-warm numba process_luma_numba is completed")
+
+
+def get_fmtc_primaries(frame: vs.VideoFrame) -> str | None:
+    match frame.props.get("_Primaries", vs.PRIMARIES_UNSPECIFIED):
+        case Primaries.BT709:
+            return "709"
+        case Primaries.BT470_M:
+            return "470m"
+        case Primaries.BT470_BG:
+            return "470bg"
+        case Primaries.ST170_M | Primaries.ST240_M:
+            return "170m"
+        case Primaries.FILM:
+            return "filmc"
+        case Primaries.BT2020:
+            return "2020"
+        case Primaries.ST428:
+            return "ciexyz"
+        case Primaries.ST431_2:
+            return "p3dci"
+        case Primaries.ST432_1:
+            return "p3d65"
+        case Primaries.EBU3213_E:
+            return "3213"
+        case _:
+            return None
