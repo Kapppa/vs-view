@@ -222,7 +222,7 @@ that automatically adjust based on the clip's color matrix (supporting Rec. 601,
 | **Mode**       | Density, Chroma Wheel, Pixel Color     | **Density**: logarithmic heat-map with a phosphor color table.<br>**Chroma Wheel**: density map drawn over a full-color UV background wheel.<br>**Pixel Color**: each pixel plotted at its actual RGB-converted color. |
 | **Resolution** | Auto, 256, 512, 1024                   | Size of the internal scope image (square). Auto caps to the bit depth limit.                                                                           |
 | **Matrix**     | Auto, BT.709, BT.601, BT.2020, ST 240M | Color matrix coefficients used for target graticules and signal conversion. Auto detects from clip properties or resolution.                            |
-| **Luma**       | 0 – 255                                | Fixed luma value used for color reconstruction in Chroma Wheel mode. Only active in that mode.                                                         |
+| **Luma**       | 0.01 – 2.00                            | Brightness scaling factor applied to the point cloud/glow. Only active in `Chroma Wheel` mode.                                                      |
 
 RGB input is not supported and shows a warning. GRAY input plots all pixels at neutral chroma.
 
@@ -236,8 +236,23 @@ Plots pixel values column-by-column as a waveform. Logarithmic density scaling i
 | **Resolution**   | Auto, 256, 512, 1024 | Vertical resolution of the scope. Auto caps to the bit depth limit.                                                     |
 | **Show zones**   | on / off             | Overlays the neutral line and broadcast-limit lines (16/235 for luma, 16/240 for chroma) with shaded unsafe regions.    |
 | **Dynamic gain** | on / off             | When on, scales brightness relative to the densest column. When off, scales relative to frame height.                   |
-| **Gain**         | 0.1× – 10.0×         | Multiplier applied on top of the logarithmic scale.                                                                     |
+| **Gain**         | 0.1x – 10.0x         | Multiplier applied on top of the logarithmic scale.                                                                     |
 
+### CIE Chromaticity
+
+Plots the chromaticity coordinates of the frame pixels onto a standard CIE chromaticity diagram (CIE 1931 xy or CIE 1976 u'v'). This allows visualizing the gamut coverage and color distribution of the video.
+
+Graticules show the boundary triangles for common color gamuts (**Rec. 709**, **Rec. 601**, **DCI-P3**, and **Rec. 2020**) and a reference crosshair for the **D65** white point.
+
+| Control        | Options                               | Description                                                                                                                                                                                                                                                |
+| :------------- | :------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CIE Mode**   | CIE 1931 (xy), CIE 1976 (u'v')        | Toggles between the CIE 1931 standard color space representation and the CIE 1976 Uniform Chromaticity Scale (UCS) representation.                                                                                                                         |
+| **Render Mode**| Density, Chroma Wheel, Pixel Color    | **Density**: logarithmic heat-map showing pixel density using a phosphor color table.<br>**Chroma Wheel**: density map drawn as a white glow over a full-color background chromaticity diagram.<br>**Pixel Color**: each pixel plotted at its actual RGB color, scaled by density and luma settings. |
+| **Resolution** | Native, 256x256, 512x512, 1024x1024   | Size of the internal scope image. `Native` uses the height of the frame.                                                                                                                                                   |
+| **Luma**       | 0.01 – 2.00                           | Brightness scaling factor applied to the point cloud/glow. Only active in `Pixel Color` and `Chroma Wheel` modes.                                                                                                                                          |
+| **Gamuts**     | Rec. 709, Rec. 601, DCI-P3, Rec. 2020 | Checkboxes to toggle the display of the target gamut boundary triangles and labels on the diagram.                                                                                                                                                         |
+
+Only RGB input is supported. Other formats, or clips without a valid `_Primaries` frame property, will display an error overlay.
 
 ---
 
