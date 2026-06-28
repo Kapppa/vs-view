@@ -17,7 +17,7 @@ from vstools import Matrix, Range, get_lowest_value, get_peak_value
 from vsview.api import PluginAPI, PluginSettings
 
 from ..settings import GlobalSettings
-from ..utils import CustomContextMenu
+from ..utils import CustomContextMenu, write_to_qimage
 
 logger = getLogger(__name__)
 
@@ -302,7 +302,7 @@ class VectorscopeWidget(QWidget):
             grid = np.zeros((size, size, 4), dtype=np.uint8)
             grid[y_coords, x_coords, :3] = rgb
 
-            self.scope_image = QImage(grid, size, size, size * 4, QImage.Format.Format_RGBX8888).copy()  # type: ignore[call-overload]
+            self.scope_image = write_to_qimage(self.scope_image, grid, QImage.Format.Format_RGBX8888)
             self.update()
             return
 
@@ -337,11 +337,15 @@ class VectorscopeWidget(QWidget):
             rgb = np.zeros((size, size, 4), dtype=np.uint8)
             rgb[y_idx, x_idx, :3] = colored
 
-            self.scope_image = QImage(rgb, size, size, size * 4, QImage.Format.Format_RGBX8888).copy()  # type: ignore[call-overload]
+            self.scope_image = write_to_qimage(self.scope_image, rgb, QImage.Format.Format_RGBX8888)
         else:
             # Density mode
-            self.scope_image = QImage(grid_img, size, size, size, QImage.Format.Format_Indexed8).copy()  # type: ignore[arg-type]
-            self.scope_image.setColorTable(self.color_table)
+            self.scope_image = write_to_qimage(
+                self.scope_image,
+                grid_img,
+                QImage.Format.Format_Indexed8,
+                self.color_table,
+            )
 
         self.update()
 

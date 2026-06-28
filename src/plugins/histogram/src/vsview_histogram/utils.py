@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from logging import getLogger
 
+import numpy as np
+import numpy.typing as npt
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QWidget
@@ -9,6 +12,24 @@ from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QWidget
 from vsview.api import PluginAPI, run_in_background
 
 logger = getLogger(__name__)
+
+
+def write_to_qimage(
+    image: QImage,
+    data: npt.NDArray[np.uint8],
+    target_format: QImage.Format,
+    color_table: Sequence[int] | None = None,
+) -> QImage:
+    h, w = data.shape[:2]
+    if image.width() != w or image.height() != h or image.format() != target_format:
+        image = QImage(w, h, target_format)
+        if color_table is not None:
+            image.setColorTable(color_table)
+
+    img_data = np.frombuffer(image.bits(), dtype=np.uint8)
+    img_data = img_data.reshape((h, w) if target_format == QImage.Format.Format_Indexed8 else (h, w, 4))
+    img_data[:] = data
+    return image
 
 
 class CustomContextMenu(QMenu):

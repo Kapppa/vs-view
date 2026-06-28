@@ -16,7 +16,7 @@ from vstools import Range, get_lowest_value, get_peak_value
 from vsview.api import PluginAPI, PluginSettings
 
 from ..settings import GlobalSettings
-from ..utils import CustomContextMenu
+from ..utils import CustomContextMenu, write_to_qimage
 
 
 class ColorName(StrEnum):
@@ -39,7 +39,7 @@ class ColorName(StrEnum):
         return [ColorName.Y, ColorName.U, ColorName.V]
 
     @cachedproperty
-    def table(self) -> npt.NDArray[np.uint32]:
+    def table_list(self) -> list[int]:
         table = list[int]()
         for i in range(256):
             match self:
@@ -56,8 +56,7 @@ class ColorName(StrEnum):
                 case ColorName.V:
                     c = QColor(i, 0, int(i * 0.8), 255)
             table.append(c.rgba())
-
-        return np.asarray(table, dtype=np.uint32)
+        return table
 
 
 class WaveformWidget(QWidget):
@@ -209,11 +208,12 @@ class WaveformWidget(QWidget):
         if scale > 0.0:
             grid = np.log1p(grid) * scale * self.settings.global_.waveform.gain
 
-        # Map the index values (0-255) to the RGB32 color table to enable smooth scaling in Qt
-        grid_rgba = self.color_name.table[grid.clip(0, 255).astype(np.uint8)]
-
-        # Update QImage as RGB32
-        self.scope_image = QImage(grid_rgba, actual_w, target_h, actual_w * 4, QImage.Format.Format_RGB32).copy()  # type: ignore[arg-type]
+        self.scope_image = write_to_qimage(
+            self.scope_image,
+            grid.clip(0, 255).astype(np.uint8),
+            QImage.Format.Format_Indexed8,
+            self.color_name.table_list,
+        )
         self.update()
 
     def clear(self) -> None:
