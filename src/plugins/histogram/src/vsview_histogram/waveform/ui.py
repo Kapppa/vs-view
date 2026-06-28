@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from enum import StrEnum
+from logging import getLogger
 from typing import Any, override
 
 import numpy as np
@@ -17,6 +18,8 @@ from vsview.api import PluginAPI, PluginSettings
 
 from ..settings import GlobalSettings
 from ..utils import CustomContextMenu, write_to_qimage
+
+logger = getLogger(__name__)
 
 
 class ColorName(StrEnum):
@@ -97,6 +100,11 @@ class WaveformWidget(QWidget):
         painter.fillRect(self.rect(), self.BACKGROUND_COLOR)
 
         if self.scope_image.isNull():
+            painter.setPen(QPen(QColor(220, 80, 80), 1))
+            font = painter.font()
+            font.setPointSize(20)
+            painter.setFont(font)
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "Luma mode requires GRAY or YUV input.")
             return
 
         # Scale QImage to fill widget
@@ -240,6 +248,7 @@ class WaveformContainerWidget(QFrame):
         match self.settings.global_.waveform.mode:
             case "luma" if frame.format.color_family == vs.RGB:
                 self.waveforms[0].clear()
+                logger.warning("RGB input — no luma data")
             case "luma":
                 self.waveforms[0].update_data(np.asarray(frame[0]), frame)
             case "parade":
