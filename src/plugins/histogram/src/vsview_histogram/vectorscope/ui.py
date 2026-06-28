@@ -395,4 +395,6 @@ def background_image(matrix: VectorScopeMatrix, size: int = 1024) -> QImage:
     rgba = np.zeros((size, size, 4), dtype=np.uint8)
     rgba[..., :3] = rgb
 
-    return QImage(rgba, size, size, size * 4, QImage.Format.Format_RGBX8888).copy()  # type: ignore[call-overload]
+    qimg = QImage(size, size, QImage.Format.Format_RGBX8888)
+
+    return write_to_qimage(qimg, rgba, qimg.format())
