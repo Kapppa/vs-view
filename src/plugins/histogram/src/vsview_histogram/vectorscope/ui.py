@@ -330,7 +330,7 @@ class VectorscopeWidget(QWidget):
             v_val = (np.clip(size - y_idx, 0, size - 1).astype(np.float32) - neutral) / scale_factor
 
             # Use fixed moderate luma for accurate hue, then scale by density for brightness
-            luma = np.full_like(density, self.settings.global_.vectorscope.luma)
+            luma = np.full_like(density, self.settings.global_.vectorscope.luma * 128)
             base_rgb = (np.column_stack([luma, u_val, v_val]) @ self._resolved_matrix.yuv_to_rgb_mat).clip(0, 255)
             colored = (base_rgb * density[:, np.newaxis]).clip(0, 255).astype(np.uint8)
 

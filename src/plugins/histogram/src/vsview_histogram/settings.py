@@ -20,7 +20,7 @@ class WaveformSettings(BaseModel):
 class VectorscopeSettings(BaseModel):
     mode: Literal["density", "chroma_wheel", "pixel_color"] = "density"
     res: Literal[0, 256, 512, 1024] = 0
-    luma: int = 192
+    luma: float = 1.5
     matrix: Literal["auto", "bt709", "bt601", "bt2020", "st240m"] = "auto"
 
 

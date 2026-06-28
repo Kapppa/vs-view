@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QHBoxLayout,
     QLabel,
-    QSpinBox,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -215,10 +214,11 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
         luma_label = QLabel("Luma:", container)
         controls_layout.addWidget(luma_label)
 
-        self.vectorscope_luma_spin = QSpinBox(
+        self.vectorscope_luma_spin = QDoubleSpinBox(
             container,
-            minimum=0,
-            maximum=255,
+            decimals=2,
+            minimum=0.01,
+            maximum=2.0,
             value=self.settings.global_.vectorscope.luma,
         )
         self.vectorscope_luma_spin.setToolTip(
