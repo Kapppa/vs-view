@@ -9,13 +9,13 @@ import numpy as np
 import vapoursynth as vs
 from jetpytools import cachedproperty
 from PySide6.QtCore import QPointF, QRect, Qt
-from PySide6.QtGui import QColor, QImage, QPainter, QPainterPath, QPaintEvent, QPen, QPolygonF
+from PySide6.QtGui import QColor, QContextMenuEvent, QImage, QPainter, QPainterPath, QPaintEvent, QPen, QPolygonF
 from PySide6.QtWidgets import QFrame, QVBoxLayout, QWidget
 
-from vsview.api import PluginSettings
+from vsview.api import PluginAPI, PluginSettings
 
 from ..settings import GlobalSettings
-from ..utils import write_to_qimage
+from ..utils import CustomContextMenu, write_to_qimage
 
 logger = getLogger(__name__)
 
@@ -199,13 +199,17 @@ class Gamut(enum.StrEnum):
 
 
 class CIEDiagramWidget(QWidget):
-    def __init__(self, parent: QWidget | None, settings: PluginSettings[GlobalSettings, None]) -> None:
+    def __init__(self, parent: QWidget | None, api: PluginAPI, settings: PluginSettings[GlobalSettings, None]) -> None:
         super().__init__(parent)
+        self.api = api
         self.settings = settings
         self.setMinimumSize(128, 128)
 
         self.scope_image = QImage(128, 128, QImage.Format.Format_RGBA8888)
         self.scope_image.fill(0)
+
+        self.context_menu = CustomContextMenu(self, self.api)
+
         self._error_reason: str | None = None
 
     @cachedproperty
@@ -218,6 +222,10 @@ class CIEDiagramWidget(QWidget):
             b = min(255, int(i * 1.3))
             colors.append(QColor(r, g, b).rgba())
         return colors
+
+    @override
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+        self.context_menu.exec(event.globalPos())
 
     @override
     def paintEvent(self, event: QPaintEvent) -> None:
@@ -433,15 +441,14 @@ class CIEDiagramWidget(QWidget):
 
 
 class CIEDiagramContainerWidget(QFrame):
-    def __init__(self, parent: QWidget, settings: PluginSettings[GlobalSettings, None]) -> None:
+    def __init__(self, parent: QWidget, api: PluginAPI, settings: PluginSettings[GlobalSettings, None]) -> None:
         super().__init__(parent)
-        self.settings = settings
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
 
         self.current_layout = QVBoxLayout(self)
         self.current_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.cie_diagram = CIEDiagramWidget(self, self.settings)
+        self.cie_diagram = CIEDiagramWidget(self, api, settings)
         self.current_layout.addWidget(self.cie_diagram)
 
     def update_histogram(self, linear_frame: vs.VideoFrame, xyz_frame: vs.VideoFrame) -> None:

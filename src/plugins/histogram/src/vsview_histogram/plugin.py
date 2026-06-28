@@ -404,7 +404,7 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
         controls_layout.addWidget(self.cie_rec2020_checkbox)
         controls_layout.addStretch()
 
-        self.cie_container = CIEDiagramContainerWidget(self, self.settings)
+        self.cie_container = CIEDiagramContainerWidget(self, self.api, self.settings)
         layout.addLayout(controls_layout)
         layout.addWidget(self.cie_container)
 
