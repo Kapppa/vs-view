@@ -59,7 +59,7 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
         with self.lock:
             if HistogramPlugin.numba_prewarm_worker is None:
                 HistogramPlugin.numba_prewarm_worker = prewarm_numba()
-        HistogramPlugin.numba_prewarm_worker.map(lambda _: self._notify_numba_ready())
+        HistogramPlugin.numba_prewarm_worker.map(lambda _: self._notify_numba_ready(), on_loop=True)
 
     def setup_levels(self) -> None:
         container = QWidget(self)
@@ -342,9 +342,8 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
         ):
             if active_tab == 0:
                 self.levels_container.update_histogram(frame)
-            # The API does the update for us
             elif active_tab == 1:
-                pass
+                self.luma_container.view.refresh()
             elif active_tab == 2:
                 self.vectorscope_container.update_histogram(frame)
             elif active_tab == 3:
@@ -352,10 +351,7 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
 
     def on_tab_changed(self, index: int) -> None:
         self.settings.global_.selected_tab = index
-        if index == 1:
-            self.luma_container.view.refresh()
-        else:
-            self.update_histogram()
+        self.update_histogram()
 
     def on_levels_bin_resolution_changed(self, index: int) -> None:
         self.settings.global_.levels.bin_res = self.levels_bin_combo.currentData()
@@ -417,7 +413,8 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
 
     def _notify_numba_ready(self) -> None:
         self.luma_container.view.numba_ready = True
-        self.luma_container.view.refresh()
+        if self.tab_widget.currentIndex() == 1:
+            self.luma_container.view.refresh()
 
 
 @run_in_background(name="NumbaPreWarm")
