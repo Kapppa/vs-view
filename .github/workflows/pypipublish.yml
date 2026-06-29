@@ -17,6 +17,7 @@ on:
           - comp
           - fftspectrum
           - frameprops-extended
+          - histogram
           - split-planes
 
 env:
