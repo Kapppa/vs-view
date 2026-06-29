@@ -382,30 +382,35 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
         self.cie_luma_spin.setToolTip("Luma / brightness scaling factor for the colored points cloud.")
         self.cie_luma_spin.valueChanged.connect(self.on_cie_luma_changed)
         controls_layout.addWidget(self.cie_luma_spin)
+        controls_layout.addStretch()
+
+        gammut_layout = QHBoxLayout()
+        gammut_layout.setContentsMargins(8, 0, 0, 0)
 
         self.cie_rec709_checkbox = QCheckBox("Rec. 709", container)
         self.cie_rec709_checkbox.setChecked(self.settings.global_.cie.show_rec709)
         self.cie_rec709_checkbox.stateChanged.connect(self.on_cie_rec709_changed)
-        controls_layout.addWidget(self.cie_rec709_checkbox)
+        gammut_layout.addWidget(self.cie_rec709_checkbox)
 
         self.cie_rec601_checkbox = QCheckBox("Rec. 601", container)
         self.cie_rec601_checkbox.setChecked(self.settings.global_.cie.show_rec601)
         self.cie_rec601_checkbox.stateChanged.connect(self.on_cie_rec601_changed)
-        controls_layout.addWidget(self.cie_rec601_checkbox)
+        gammut_layout.addWidget(self.cie_rec601_checkbox)
 
         self.cie_dcip3_checkbox = QCheckBox("DCI-P3", container)
         self.cie_dcip3_checkbox.setChecked(self.settings.global_.cie.show_dcip3)
         self.cie_dcip3_checkbox.stateChanged.connect(self.on_cie_dcip3_changed)
-        controls_layout.addWidget(self.cie_dcip3_checkbox)
+        gammut_layout.addWidget(self.cie_dcip3_checkbox)
 
         self.cie_rec2020_checkbox = QCheckBox("Rec. 2020", container)
         self.cie_rec2020_checkbox.setChecked(self.settings.global_.cie.show_rec2020)
         self.cie_rec2020_checkbox.stateChanged.connect(self.on_cie_rec2020_changed)
-        controls_layout.addWidget(self.cie_rec2020_checkbox)
-        controls_layout.addStretch()
+        gammut_layout.addWidget(self.cie_rec2020_checkbox)
+        gammut_layout.addStretch()
 
         self.cie_container = CIEDiagramContainerWidget(self, self.api, self.settings)
         layout.addLayout(controls_layout)
+        layout.addLayout(gammut_layout)
         layout.addWidget(self.cie_container)
 
         self.tab_widget.addTab(container, "CIE Chromaticity")
