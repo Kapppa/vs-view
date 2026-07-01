@@ -7,7 +7,7 @@ from typing import Literal, Protocol, assert_never, overload
 
 import vapoursynth as vs
 
-from . import cython, numpy, python
+from . import cython, python
 
 core = vs.core
 
@@ -46,7 +46,7 @@ def packrgb[V: (vs.VideoNode, vs.VideoFrame)](
         case "cython":
             module = cython
         case "numpy":
-            module = numpy
+            from . import numpy as module
         case "python":
             module = python
         case "numba":

@@ -2,6 +2,8 @@
 
 import ctypes
 
+import numpy as np
+
 
 def pack_bgra_8bit(
     b_data: ctypes.Array[ctypes.c_uint8],
@@ -15,8 +17,6 @@ def pack_bgra_8bit(
     dest_stride: int,
 ) -> None:
     """Pack planar 8-bit RGB to interleaved BGRA with straight alpha."""
-    import numpy as np
-
     b_arr = np.frombuffer(b_data, dtype=np.uint8).reshape((height, src_stride))[:, :width]
     g_arr = np.frombuffer(g_data, dtype=np.uint8).reshape((height, src_stride))[:, :width]
     r_arr = np.frombuffer(r_data, dtype=np.uint8).reshape((height, src_stride))[:, :width]
@@ -50,8 +50,6 @@ def pack_rgb30_10bit(
     dest_stride: int,
 ) -> None:
     """Pack planar 10-bit RGB to A2R10G10B10 with premultiplied alpha."""
-    import numpy as np
-
     r_arr = np.frombuffer(r_data, dtype=np.uint16).reshape((height, samples_per_row))[:, :width]
     g_arr = np.frombuffer(g_data, dtype=np.uint16).reshape((height, samples_per_row))[:, :width]
     b_arr = np.frombuffer(b_data, dtype=np.uint16).reshape((height, samples_per_row))[:, :width]
@@ -109,8 +107,6 @@ def pack_rgba64_16bit(
     dest_stride: int,
 ) -> None:
     """Pack planar 16-bit RGB to interleaved RGBA64."""
-    import numpy as np
-
     r_arr = np.frombuffer(r_data, dtype=np.uint16).reshape((height, samples_per_row))[:, :width]
     g_arr = np.frombuffer(g_data, dtype=np.uint16).reshape((height, samples_per_row))[:, :width]
     b_arr = np.frombuffer(b_data, dtype=np.uint16).reshape((height, samples_per_row))[:, :width]
@@ -145,8 +141,6 @@ def pack_rgba16f_16bit(
     dest_stride: int,
 ) -> None:
     """Pack planar 16-bit RGB to interleaved float16 RGBA."""
-    import numpy as np
-
     r_arr = np.frombuffer(r_data, dtype=np.float16).reshape((height, samples_per_row))[:, :width]
     g_arr = np.frombuffer(g_data, dtype=np.float16).reshape((height, samples_per_row))[:, :width]
     b_arr = np.frombuffer(b_data, dtype=np.float16).reshape((height, samples_per_row))[:, :width]
@@ -180,8 +174,6 @@ def pack_rgba32f_32bit(
     dest_stride: int,
 ) -> None:
     """Pack planar 32-bit RGB to interleaved float32 RGBA."""
-    import numpy as np
-
     r_arr = np.frombuffer(r_data, dtype=np.float32).reshape((height, samples_per_row))[:, :width]
     g_arr = np.frombuffer(g_data, dtype=np.float32).reshape((height, samples_per_row))[:, :width]
     b_arr = np.frombuffer(b_data, dtype=np.float32).reshape((height, samples_per_row))[:, :width]
