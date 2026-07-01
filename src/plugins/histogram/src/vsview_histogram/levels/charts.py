@@ -27,6 +27,8 @@ from vsview.api import PluginAPI
 
 from ..utils import CustomContextMenu
 
+RNG = np.random.default_rng(seed=333)
+
 
 class LevelsChartView(QChartView):
     UNSAFE_LEFT_COLOR = QColor(0, 0, 0, 50)
@@ -313,19 +315,13 @@ def create_dithered_brush(stops: Sequence[tuple[float, QColor]], width: int, hei
     b_1d = np.interp(t, xp, b_stops)
     a_1d = np.interp(t, xp, a_stops)
 
-    # Expand to 2D
-    r = np.tile(r_1d, (height, 1))
-    g = np.tile(g_1d, (height, 1))
-    b = np.tile(b_1d, (height, 1))
-    a = np.tile(a_1d, (height, 1))
+    noise = RNG.uniform(-2.0, 2.0, size=(height, width))
 
-    noise = np.random.uniform(-2.0, 2.0, size=(height, width))
-
-    r_dithered = (r + noise).clip(0, 255).astype(np.uint8)
-    g_dithered = (g + noise).clip(0, 255).astype(np.uint8)
-    b_dithered = (b + noise).clip(0, 255).astype(np.uint8)
-    a_dithered = (a + noise).clip(0, 255).astype(np.uint8)
+    r_dithered = (r_1d + noise).clip(0, 255).astype(np.uint8)
+    g_dithered = (g_1d + noise).clip(0, 255).astype(np.uint8)
+    b_dithered = (b_1d + noise).clip(0, 255).astype(np.uint8)
+    a_dithered = (a_1d + noise).clip(0, 255).astype(np.uint8)
 
     rgba = np.dstack([r_dithered, g_dithered, b_dithered, a_dithered])
-    img = QImage(rgba, width, height, width * 4, QImage.Format.Format_RGBA8888).copy()  # type: ignore[call-overload]
+    img = QImage(rgba.data, width, height, width * 4, QImage.Format.Format_RGBA8888).copy()
     return QBrush(img)
