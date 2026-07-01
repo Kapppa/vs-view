@@ -340,3 +340,73 @@ def test_helpers_packrgb_rgbs(backend_name: str) -> None:
     assert out[1] == to_bits(0.5)  # G
     assert out[2] == to_bits(0.0)  # B
     assert out[3] == to_bits(1.0)  # A
+
+
+@pytest.mark.parametrize("backend_name", BACKENDS)
+def test_helpers_packrgb_frame_no_alpha(backend_name: str) -> None:
+    width, height = 16, 16
+    src = vs.core.std.BlankClip(width=width, height=height, format=vs.RGB24, color=[10, 20, 30])
+
+    with src.get_frame(0) as src_frame:
+        packed_frame = helpers.packrgb(src_frame, backend=cast(Any, backend_name))
+
+    with packed_frame:
+        assert isinstance(packed_frame, vs.VideoFrame)
+        assert packed_frame.format.id == vs.GRAY32
+        assert packed_frame.width == width
+        assert packed_frame.height == height
+
+        stride = packed_frame.get_stride(0)
+        ptr = packed_frame.get_read_ptr(0)
+        assert ptr.value is not None
+        out = (ctypes.c_uint8 * stride).from_address(ptr.value)
+        assert out[0] == 30  # B
+        assert out[1] == 20  # G
+        assert out[2] == 10  # R
+        assert out[3] == 255  # A
+
+
+@pytest.mark.parametrize("backend_name", BACKENDS)
+def test_helpers_packrgb_frame_explicit_alpha(backend_name: str) -> None:
+    width, height = 16, 16
+    src = vs.core.std.BlankClip(width=width, height=height, format=vs.RGB24, color=[10, 20, 30])
+    alpha = vs.core.std.BlankClip(width=width, height=height, format=vs.GRAY8, color=[150])
+
+    with src.get_frame(0) as src_frame, alpha.get_frame(0) as alpha_frame:
+        packed_frame_alpha = helpers.packrgb(src_frame, alpha=alpha_frame, backend=cast(Any, backend_name))
+
+    assert isinstance(packed_frame_alpha, vs.VideoFrame)
+
+    stride = packed_frame_alpha.get_stride(0)
+    ptr_alpha = packed_frame_alpha.get_read_ptr(0)
+    assert ptr_alpha.value is not None
+
+    out_alpha = (ctypes.c_uint8 * stride).from_address(ptr_alpha.value)
+    assert out_alpha[0] == 30
+    assert out_alpha[1] == 20
+    assert out_alpha[2] == 10
+    assert out_alpha[3] == 150
+
+
+@pytest.mark.parametrize("backend_name", BACKENDS)
+def test_helpers_packrgb_frame_alpha_prop(backend_name: str) -> None:
+    width, height = 16, 16
+    src = vs.core.std.BlankClip(width=width, height=height, format=vs.RGB24, color=[10, 20, 30])
+    alpha = vs.core.std.BlankClip(width=width, height=height, format=vs.GRAY8, color=[150])
+    src_with_alpha = src.std.ClipToProp(alpha, prop="_Alpha")
+
+    with src_with_alpha.get_frame(0) as src_frame_with_alpha:
+        packed_frame_prop = helpers.packrgb(src_frame_with_alpha, alpha=True, backend=cast(Any, backend_name))
+
+    assert isinstance(packed_frame_prop, vs.VideoFrame)
+
+    stride = packed_frame_prop.get_stride(0)
+    ptr_prop = packed_frame_prop.get_read_ptr(0)
+    assert ptr_prop.value is not None
+
+    out_prop = (ctypes.c_uint8 * stride).from_address(ptr_prop.value)
+    assert out_prop[0] == 30
+    assert out_prop[1] == 20
+    assert out_prop[2] == 10
+    assert out_prop[3] == 150
+    assert "_Alpha" not in packed_frame_prop.props
