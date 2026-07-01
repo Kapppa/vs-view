@@ -441,7 +441,7 @@ class FramePropPreviewGraphicsView(BaseGraphicsView):
                 fmt = QImage.Format.Format_Grayscale8
             case vs.GRAY16:
                 fmt = QImage.Format.Format_Grayscale16
-            case _ if frame.format.id in (vs.RGB24, vs.RGB30):
+            case vs.RGB24 | vs.RGB30:
                 fmt = self._packer.FormatConfig((frame.format.bits_per_sample, frame.format.sample_type)).qt
                 with self.api.vs_context():
                     frame = packrgb(frame, alpha)
