@@ -46,7 +46,7 @@ dependencies = [
     "vapoursynth>=75,!=76",
     "vapoursynth-bestsource>=17.0",
     "vsjetengine>=1.4.0",
-    "vspackrgb>=1.2.1",
+    "vspackrgb>=1.4.0",
     "vsview-cli>=1.1.0",
     "pyside6>=6.11.0",
     "jetpytools>=2.2.7",

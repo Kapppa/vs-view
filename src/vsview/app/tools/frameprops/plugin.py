@@ -7,7 +7,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import suppress
 from logging import getLogger
-from typing import Annotated, Any, ClassVar, NamedTuple, override
+from typing import Annotated, Any, ClassVar, Literal, NamedTuple, override
 
 import pluggy
 import vapoursynth as vs
@@ -34,7 +34,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from vspackrgb.helpers import get_plane_buffer
+from vspackrgb.helpers import get_plane_buffer, packrgb
 
 from vsview.api import (
     AnimatedToggle,
@@ -426,7 +426,7 @@ class FramePropPreviewGraphicsView(BaseGraphicsView):
         self.api.register_on_destroy(self._f2c_cache.clear)
 
     def set_frame(self, frame: vs.VideoFrame) -> None:
-        with frame:
+        with self.api.blocker(), frame:
             qimage = self.frame_to_qimage(frame)
 
         self.pixmap_item.setPixmap(QPixmap.fromImage(qimage))
@@ -435,14 +435,19 @@ class FramePropPreviewGraphicsView(BaseGraphicsView):
             self.set_zoom(0)
 
     def frame_to_qimage(self, frame: vs.VideoFrame) -> QImage:
+        alpha: Literal[True] | None = True if "_Alpha" in frame.props else None
         match frame.format.id:
             case vs.GRAY8:
                 fmt = QImage.Format.Format_Grayscale8
             case vs.GRAY16:
                 fmt = QImage.Format.Format_Grayscale16
+            case _ if frame.format.id in (vs.RGB24, vs.RGB30):
+                fmt = self._packer.FormatConfig((frame.format.bits_per_sample, frame.format.sample_type)).qt
+                with self.api.vs_context():
+                    frame = packrgb(frame, alpha)
             case _:
                 with self.api.vs_context():
-                    packed_clip = self._packer.pack_clip(self.frame2clip(frame))
+                    packed_clip = self._packer.pack_clip(self.frame2clip(frame), alpha)
 
                     with packed_clip.get_frame(0) as packed:
                         return self._packer.frame_to_qimage(packed).copy()
