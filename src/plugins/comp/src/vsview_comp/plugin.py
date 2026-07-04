@@ -335,12 +335,14 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         self.dark_frame_count.setValue(0)
         self.dark_frame_count.setFixedWidth(80)
         self.dark_frame_count.setToolTip("Number of random darkest frames to include")
+        self.dark_frame_count.frameChanged.connect(self.on_random_frame_count_changed)
 
         self.light_frame_count = FrameEdit(frame_count_widget)
         self.light_frame_count.setMaximum(9999)
         self.light_frame_count.setValue(0)
         self.light_frame_count.setFixedWidth(80)
         self.light_frame_count.setToolTip("Number of random lightest frames to include")
+        self.light_frame_count.frameChanged.connect(self.on_random_frame_count_changed)
 
         frame_count_layout.addWidget(self.random_frame_count)
         frame_count_layout.addWidget(self.curve_btn)
@@ -1026,7 +1028,14 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         # Needs extraction if it's not finished, OR if the outputs have changed since last time
         needs_extraction = not self._extraction_finished or (current_outputs != self._current_outputs)
 
-        self.select_frames_btn.setEnabled(can_operate and self.random_frame_count.value() > 0)
+        self.select_frames_btn.setEnabled(
+            can_operate
+            and (
+                self.random_frame_count.value() > 0
+                or self.dark_frame_count.value() > 0
+                or self.light_frame_count.value() > 0
+            )
+        )
 
         # Extract and Do All share the exact same requirements
         can_extract = frames_ready and needs_extraction
