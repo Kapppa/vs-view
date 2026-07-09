@@ -7,7 +7,7 @@ os.environ["NUMBA_COLOR_SCHEME"] = "no_color"
 from logging import INFO, getLogger
 from typing import Any
 
-import numba  # type: ignore[import-untyped]
+import numba
 import numpy as np
 import numpy.typing as npt
 
@@ -15,7 +15,7 @@ numba_logger = getLogger("numba")
 numba_logger.setLevel(INFO)
 
 
-@numba.njit(nogil=True, parallel=True, fastmath=True, cache=True)  # type: ignore[untyped-decorator]
+@numba.jit(nopython=True, nogil=True, parallel=True, fastmath=True, cache=True)
 def process_luma_numba(
     src: npt.NDArray[np.integer[Any] | np.floating[Any]],
     dst: npt.NDArray[np.uint8],
@@ -45,7 +45,7 @@ def process_luma_numba(
     modulo_limit = max_val + 1
 
     if use_sawtooth:
-        for y in numba.prange(h):
+        for y in numba.prange(h):  # type: ignore[attr-defined,no-untyped-call]
             for x in range(w):
                 if is_float:
                     p_val = round((src[y, x] * scale + offset) * max_val)
@@ -57,7 +57,7 @@ def process_luma_numba(
                 val = p_shifted & max_val
                 dst[y, x] = val >> shift_out
     else:
-        for y in numba.prange(h):
+        for y in numba.prange(h):  # type: ignore[attr-defined,no-untyped-call]
             for x in range(w):
                 if is_float:
                     p_val = round((src[y, x] * scale + offset) * max_val)

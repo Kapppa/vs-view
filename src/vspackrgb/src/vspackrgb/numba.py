@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ctypes
 
-import numba  # type: ignore[import-untyped]
+import numba
 import numpy as np
 
 
@@ -127,7 +127,7 @@ def pack_rgba32f_32bit(
     _pack_rgba32f_32bit_jit(r_arr, g_arr, b_arr, a_arr, out_arr, width, height)
 
 
-@numba.njit(cache=True, fastmath=True, nogil=True)  # type: ignore[untyped-decorator]
+@numba.jit(nopython=True, cache=True, fastmath=True, nogil=True)
 def _pack_bgra_8bit_jit(
     b_arr: np.ndarray[tuple[int, int], np.dtype[np.uint8]],
     g_arr: np.ndarray[tuple[int, int], np.dtype[np.uint8]],
@@ -149,7 +149,7 @@ def _pack_bgra_8bit_jit(
                 out_arr[y, dst_idx + 3] = 255
 
 
-@numba.njit(cache=True, fastmath=True, nogil=True)  # type: ignore[untyped-decorator]
+@numba.jit(nopython=True, cache=True, fastmath=True, nogil=True)
 def _pack_rgb30_10bit_jit(
     r_arr: np.ndarray[tuple[int, int], np.dtype[np.uint16]],
     g_arr: np.ndarray[tuple[int, int], np.dtype[np.uint16]],
@@ -183,7 +183,7 @@ def _pack_rgb30_10bit_jit(
                 out_arr[y, x] = 0xC0000000 | (r << 20) | (g << 10) | b
 
 
-@numba.njit(cache=True, fastmath=True, nogil=True)  # type: ignore[untyped-decorator]
+@numba.jit(nopython=True, cache=True, fastmath=True, nogil=True)
 def _pack_rgba64_16bit_jit(
     r_arr: np.ndarray[tuple[int, int], np.dtype[np.uint16]],
     g_arr: np.ndarray[tuple[int, int], np.dtype[np.uint16]],
@@ -205,7 +205,7 @@ def _pack_rgba64_16bit_jit(
                 out_arr[y, dst_idx + 3] = 65535
 
 
-@numba.njit(cache=True, fastmath=True, nogil=True)  # type: ignore[untyped-decorator]
+@numba.jit(nopython=True, cache=True, fastmath=True, nogil=True)
 def _pack_rgba16f_16bit_jit(
     r_arr: np.ndarray[tuple[int, int], np.dtype[np.uint16]],
     g_arr: np.ndarray[tuple[int, int], np.dtype[np.uint16]],
@@ -227,7 +227,7 @@ def _pack_rgba16f_16bit_jit(
                 out_arr[y, dst_idx + 3] = 0x3C00
 
 
-@numba.njit(cache=True, fastmath=True, nogil=True)  # type: ignore[untyped-decorator]
+@numba.jit(nopython=True, cache=True, fastmath=True, nogil=True)
 def _pack_rgba32f_32bit_jit(
     r_arr: np.ndarray[tuple[int, int], np.dtype[np.uint32]],
     g_arr: np.ndarray[tuple[int, int], np.dtype[np.uint32]],
