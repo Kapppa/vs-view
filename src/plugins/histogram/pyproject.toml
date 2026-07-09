@@ -28,6 +28,7 @@ dependencies = [
     "vsjetpack>=2.0.0",
     "numpy>=2.4.0",
     "numba>=0.62.1",
+    "vapoursynth-fmtconv>=31",
 ]
 
 [project.entry-points.vsview]
