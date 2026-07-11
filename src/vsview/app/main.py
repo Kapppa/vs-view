@@ -265,7 +265,7 @@ class MainWindow(QMainWindow):
 
         self.help_doc_act = QAction("Documentation", self)
         self.help_doc_act.triggered.connect(
-            lambda: QDesktopServices.openUrl("https://jaded-encoding-thaumaturgy.github.io/vs-view/usage/")
+            lambda: QDesktopServices.openUrl("https://jaded-encoding-thaumaturgy.github.io/vs-view/usage/overview/")
         )
         self.help_menu.addAction(self.help_doc_act)
 
@@ -274,7 +274,9 @@ class MainWindow(QMainWindow):
 
         self.help_usage_workspace_act = QAction("Workspaces", self)
         self.help_usage_workspace_act.triggered.connect(
-            lambda: QDesktopServices.openUrl("https://jaded-encoding-thaumaturgy.github.io/vs-view/usage/workspaces/")
+            lambda: QDesktopServices.openUrl(
+                "https://jaded-encoding-thaumaturgy.github.io/vs-view/usage/workspaces/workspace/"
+            )
         )
         self.help_usage_submenu.addAction(self.help_usage_workspace_act)
 
@@ -296,7 +298,7 @@ class MainWindow(QMainWindow):
 
         self.help_usage_plugins_act = QAction("Plugins", self)
         self.help_usage_plugins_act.triggered.connect(
-            lambda: QDesktopServices.openUrl("https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/")
+            lambda: QDesktopServices.openUrl("https://jaded-encoding-thaumaturgy.github.io/vs-view/plugins/overview/")
         )
         self.help_menu.addAction(self.help_usage_plugins_act)
 
