@@ -8,7 +8,8 @@ description: How VSView handles color space conversion and frame properties.
 
 When displaying VapourSynth clips, **VSView** must convert the output to packed RGB for rendering on the screen.
 
-By default, this conversion targets the **BT.709** color space (primaries and transfer characteristics) for standard dynamic range (SDR) rendering.
+By default, this conversion targets the **BT.709** color space (primaries and transfer characteristics) for standard dynamic range (SDR) rendering,
+but this can be configured globally or overridden per-clip.
 
 If you are working with high dynamic range content (HDR), VSView supports native end-to-end HDR rendering on HDR-capable displays.
 
@@ -16,12 +17,34 @@ If you are working with high dynamic range content (HDR), VSView supports native
 
     VSView does not perform any tone mapping of HDR content in either SDR or HDR modes.
 
-    - **In SDR mode**: HDR content and out-of-range values will be clipped to the standard BT.709 gamut.
+    - **In SDR mode**: HDR content and out-of-range values will be clipped to the target SDR gamut (which defaults to BT.709).
     - **In HDR mode**: Native linear PQ values are converted directly to linear scRGB and passed to the OS compositor.
 
         Any tone mapping or luminance mapping (to fit the display's peak brightness) is handled entirely by the OS and the display hardware.
 
     This behavior affects preview only. It does not change the source clip in your script.
+
+## SDR Output Target
+
+Configure the target color space for SDR rendering.
+
+### Global Settings
+
+Under **Settings** > **View**:
+
+- **Output Transfer**: Target transfer characteristics (default: `BT709`).
+- **Output Primaries**: Target color primaries (default: `BT709`).
+
+### Script Override
+
+Pass `transfer` and/or `primaries` to `set_output()` to override settings per-clip:
+
+```python title="script.vpy"
+import vapoursynth as vs
+from vsview import set_output
+
+set_output(clip, transfer=vs.TRANSFER_BT2020_10, primaries=vs.PRIMARIES_BT2020)
+```
 
 ## Required Properties
 

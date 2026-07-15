@@ -182,7 +182,7 @@ def set_output(
             If passing `--hdr`, this flag can be used to disable HDR conversion for this output.
         downmix: if None (default), follows the global settings downmix of vsview if previewed
             through vsview. Otherwise True or False forces the behavior.
-        **kwargs: Additional metadata passed to VSView plugins for custom configuration of this output.
+        **kwargs: Additional metadata for custom configuration of this output.
     """
     if isinstance(index_or_name, (str, bool)):
         index = None

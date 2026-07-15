@@ -11,6 +11,7 @@ from operator import attrgetter
 from pathlib import Path
 from typing import Annotated, Any, Literal, NamedTuple, get_args, get_origin, get_type_hints, override
 
+import vapoursynth as vs
 from jetpytools import SPath, classproperty
 from platformdirs import user_config_path
 from pydantic import (
@@ -438,6 +439,41 @@ class ViewSettings(BaseModel):
             ),
         ),
     ] = "error"
+
+    output_transfer: Annotated[
+        vs.TransferCharacteristics,
+        Dropdown(
+            label="Output Transfer",
+            items=[
+                ("BT709", vs.TransferCharacteristics.TRANSFER_BT709),
+                ("Linear", vs.TransferCharacteristics.TRANSFER_LINEAR),
+                ("BT2020_10", vs.TransferCharacteristics.TRANSFER_BT2020_10),
+                ("ST2084 (PQ)", vs.TransferCharacteristics.TRANSFER_ST2084),
+                ("ARIB_B67 (HLG)", vs.TransferCharacteristics.TRANSFER_ARIB_B67),
+            ],
+            tooltip=(
+                "The target transfer characteristics used when converting SDR content to RGB.\n"
+                "Can be overridden on a per-clip basis via set_output() keyword arguments."
+            ),
+        ),
+    ] = vs.TransferCharacteristics.TRANSFER_BT709
+
+    output_primaries: Annotated[
+        vs.ColorPrimaries,
+        Dropdown(
+            label="Output Primaries",
+            items=[
+                ("BT709", vs.ColorPrimaries.PRIMARIES_BT709),
+                ("BT2020", vs.ColorPrimaries.PRIMARIES_BT2020),
+                ("DCI-P3 (ST432_1)", vs.ColorPrimaries.PRIMARIES_ST432_1),
+                ("DCI-P3 (ST431_2)", vs.ColorPrimaries.PRIMARIES_ST431_2),
+            ],
+            tooltip=(
+                "The target color primaries used when converting SDR content to RGB.\n"
+                "Can be overridden on a per-clip basis via set_output() keyword arguments."
+            ),
+        ),
+    ] = vs.ColorPrimaries.PRIMARIES_BT709
 
     zoom_factors: Annotated[
         list[float],

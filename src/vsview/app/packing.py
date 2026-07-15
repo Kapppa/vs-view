@@ -11,7 +11,7 @@ from typing import Any, Literal, assert_never, override
 import vapoursynth
 import vapoursynth as vs
 from jetpytools import CustomValueError
-from PySide6.QtGui import QImage
+from PySide6.QtGui import QColorSpace, QImage
 from vspackrgb.helpers import get_plane_buffer, packrgb
 
 from .settings import SettingsManager
@@ -154,8 +154,8 @@ class Packer(ABC):
             resample_filter_uv=SettingsManager.global_settings.view.chroma_resizer.vs_func,
             filter_param_a_uv=SettingsManager.global_settings.view.chroma_resizer.param_a,
             filter_param_b_uv=SettingsManager.global_settings.view.chroma_resizer.param_b,
-            transfer=vs.TRANSFER_BT709,
-            primaries=vs.PRIMARIES_BT709,
+            transfer=SettingsManager.global_settings.view.output_transfer,
+            primaries=SettingsManager.global_settings.view.output_primaries,
         )
 
         if self.hdr:
@@ -186,7 +186,12 @@ class Packer(ABC):
         """Converts planar VapourSynth RGB to interleaved/packed Qt format."""
         return packrgb(clip, alpha, "cython")
 
-    def pack_clip(self, clip: vs.VideoNode, alpha: vs.VideoNode | Literal[True] | None = None) -> vs.VideoNode:
+    def pack_clip(
+        self,
+        clip: vs.VideoNode,
+        alpha: vs.VideoNode | Literal[True] | None = None,
+        **kwargs: Any,
+    ) -> vs.VideoNode:
         """Converts a planar VideoNode and an optional alpha mask to a packed RGB/RGBA VideoNode."""
         if isinstance(alpha, vs.VideoNode):
             alpha = alpha.resize.Point(
@@ -194,7 +199,7 @@ class Packer(ABC):
                 dither_type=SettingsManager.global_settings.view.dither_type,
             )
 
-        planar = self.to_rgb_planar(clip)
+        planar = self.to_rgb_planar(clip, **kwargs)
         packed = self.to_rgb_packed(planar, alpha)
 
         return packed.std.SetFrameProp("VSViewHasAlpha", True) if alpha else packed
@@ -231,6 +236,22 @@ class Packer(ABC):
             params.pop("format"),
             **params,
         )
+
+        match frame.props.get("_Primaries"), frame.props.get("_Transfer"):
+            case vs.PRIMARIES_BT2020, vs.TRANSFER_ST2084:
+                cs = QColorSpace.NamedColorSpace.Bt2100Pq
+            case vs.PRIMARIES_BT2020, vs.TRANSFER_ARIB_B67:
+                cs = QColorSpace.NamedColorSpace.Bt2100Hlg
+            case vs.PRIMARIES_BT2020, _:
+                cs = QColorSpace.NamedColorSpace.Bt2020
+            case vs.PRIMARIES_ST431_2 | vs.PRIMARIES_ST432_1, _:
+                cs = QColorSpace.NamedColorSpace.DisplayP3
+            case vs.PRIMARIES_BT709, vs.TRANSFER_LINEAR:
+                cs = QColorSpace.NamedColorSpace.SRgbLinear
+            case _:
+                cs = QColorSpace.NamedColorSpace.SRgb
+
+        img.setColorSpace(cs)
 
         # If we are in HDR/(16/32)-bit mode, we must copy the image
         if self.format.bitdepth >= 16 or SettingsManager.global_settings.view.copy_qimage:

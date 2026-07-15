@@ -10,7 +10,7 @@ from logging import getLogger
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 import vapoursynth as vs
-from jetpytools import cround
+from jetpytools import KwargsNotNone, cround
 
 from ...types import Frame, Time
 from ..packing import Packer
@@ -116,7 +116,11 @@ class VideoOutput:
             self.prepared_clip = clip
         else:
             try:
-                self.prepared_clip = self.packer.pack_clip(clip, self.vs_output.alpha or self._alpha_prop)
+                self.prepared_clip = self.packer.pack_clip(
+                    clip,
+                    self.vs_output.alpha or self._alpha_prop,
+                    **KwargsNotNone(transfer=self.kwargs.get("transfer"), primaries=self.kwargs.get("primaries")),
+                )
             except Exception as e:
                 raise RuntimeError(f"Failed to pack clip with the message: '{e}'") from e
 
