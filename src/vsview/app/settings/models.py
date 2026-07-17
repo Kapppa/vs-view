@@ -687,6 +687,22 @@ class GlobalSettings(BaseSettings):
         ),
     ] = False
 
+    loaded_page_disable_duration: Annotated[
+        int,
+        Spin(
+            label="Loaded page disable duration",
+            min=0,
+            max=500,
+            suffix=" ms",
+            min_text="Immediately",
+            max_text="∞",
+            tooltip=(
+                "The duration in milliseconds to wait before disabling the page if a frame takes too long to render.\n"
+                "Values of 500 ms or more will not disable the page at all."
+            ),
+        ),
+    ] = 50
+
     appearance: AppearanceSettings = AppearanceSettings()
     timeline: TimelineSettings = TimelineSettings()
     playback: PlaybackSettings = PlaybackSettings()

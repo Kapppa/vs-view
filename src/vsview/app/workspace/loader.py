@@ -622,17 +622,19 @@ class LoaderWorkspace[T](BaseWorkspace):
                 if (prev_pixmap := self.tab_manager.previous_view.pixmap_item.pixmap()).isNull():
                     self.set_loading_page()
                 else:
-                    # Disable the loaded page if the frame takes too much time (50 ms) to render
                     self.loaded_page.blocked = True
-                    timer_disable = QTimer(self, singleShot=True, timerType=Qt.TimerType.PreciseTimer)
-                    timer_disable.timeout.connect(lambda: self.loaded_page.setDisabled(True))
-                    timer_disable.start(50)
+                    if (duration := self.global_settings.loaded_page_disable_duration) < 500:
+                        # Disable the loaded page if the frame takes too much time to render
+                        timer_disable = QTimer(self, singleShot=True, timerType=Qt.TimerType.PreciseTimer)
+                        timer_disable.timeout.connect(lambda: self.loaded_page.setDisabled(True))
+                        timer_disable.start(duration)
                     self.tab_manager.update_current_view(prev_pixmap)
 
             def on_complete(f: Future[int]) -> None:
                 if not f.exception():
                     if timer_disable:
                         timer_disable.stop()
+                        timer_disable.deleteLater()
                     self.loaded_page.setEnabled(True)
                     self.set_loaded_page()
 
