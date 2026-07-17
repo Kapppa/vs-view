@@ -515,7 +515,7 @@ def get_default_script() -> str:
     basic_import += "\nfrom vsview import set_output"
 
     script = """
-clip = core.std.BlankClip()
+clip = core.std.BlankClip().std.SetFrameProp("_Matrix", vs.MATRIX_RGB)
 set_output(clip)
 """
     return basic_import + "\n\n" + script
