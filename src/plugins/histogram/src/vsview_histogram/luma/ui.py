@@ -53,7 +53,11 @@ class LumaView(PluginGraphicsView):
         sample_type = clip.format.sample_type
         fp16 = (sample_type, bits) == (vs.FLOAT, 16)
 
-        from .numba_backend import process_luma_numba
+        try:
+            from .numba_backend import process_luma_numba
+        except ImportError as e:
+            logger.error("Numba import failed with the message: '%s'", e)
+            return clip.std.BlankClip(format=vs.GRAY8, keep=True).text.Text(str(e), 5, 4)
 
         def modify_frame_func(n: int, f: list[vs.VideoFrame]) -> vs.VideoFrame:
             arr = np.asarray(f[1][0], np.float32 if fp16 else None)

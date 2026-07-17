@@ -60,7 +60,7 @@ class HistogramPlugin(WidgetPluginBase[GlobalSettings]):
         # Start Numba JIT background warming thread
         with self.lock:
             if HistogramPlugin.numba_prewarm_worker is None:
-                HistogramPlugin.numba_prewarm_worker = prewarm_numba()
+                HistogramPlugin.numba_prewarm_worker = prewarm_numba().catch(lambda e: logger.error(e))
         HistogramPlugin.numba_prewarm_worker.map(lambda _: self._notify_numba_ready(), on_loop=True)
 
         self.cie_nodes = dict[VideoOutputProxy, tuple[vs.VideoNode, vs.VideoNode]]()
