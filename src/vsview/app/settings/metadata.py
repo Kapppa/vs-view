@@ -24,7 +24,14 @@ from PySide6.QtWidgets import (
 )
 
 from .secrets import SecretsManager
-from .widgets import ColorPickerInput, FilePickerWidget, ListEditWidget, LoginCredentialsInput, PathListEditWidget
+from .widgets import (
+    ColorPickerInput,
+    CustomSpinBox,
+    FilePickerWidget,
+    ListEditWidget,
+    LoginCredentialsInput,
+    PathListEditWidget,
+)
 
 logger = getLogger(__name__)
 
@@ -269,9 +276,22 @@ class Spin(WidgetMetadata[QSpinBox]):
     min: int = 0
     max: int = 100
     suffix: str = ""
+    min_text: str | None = None
+    max_text: str | None = None
 
     @override
     def create_widget(self, parent: QWidget | None = None) -> QSpinBox:
+        if self.min_text is not None or self.max_text is not None:
+            widget = CustomSpinBox(
+                parent,
+                min_text=self.min_text,
+                max_text=self.max_text,
+                custom_suffix=self.suffix,
+            )
+            widget.setMinimum(self.min)
+            widget.setMaximum(self.max)
+            return widget
+
         widget = QSpinBox(parent)
         widget.setMinimum(self.min)
         widget.setMaximum(self.max)

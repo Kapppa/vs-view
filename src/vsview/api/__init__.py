@@ -33,6 +33,7 @@ from ..app.settings.metadata import (
 )
 from ..app.settings.widgets import (
     ColorPickerInput,
+    CustomSpinBox,
     FilePickerWidget,
     ListEditWidget,
     LoginCredentialsInput,
@@ -57,6 +58,7 @@ __all__ = [
     "Checkbox",
     "ColorPicker",
     "ColorPickerInput",
+    "CustomSpinBox",
     "DoubleSpin",
     "Dropdown",
     "FilePicker",

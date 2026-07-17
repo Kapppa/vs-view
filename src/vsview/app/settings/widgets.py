@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QSizePolicy,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -331,3 +332,46 @@ class FilePickerWidget(QWidget, IconReloadMixin):
     @file_path.setter
     def file_path(self, value: str) -> None:
         self.line_edit.setText(value)
+
+
+class CustomSpinBox(QSpinBox):
+    """A spinbox that supports rendering special strings for min and/or max values."""
+
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        min_text: str | None = None,
+        max_text: str | None = None,
+        custom_suffix: str = "",
+    ) -> None:
+        super().__init__(parent)
+        self.min_text = min_text
+        self.max_text = max_text
+        self.custom_suffix = custom_suffix
+
+    @override
+    def textFromValue(self, val: int) -> str:
+        if val == self.minimum() and self.min_text is not None:
+            return self.min_text
+        if val == self.maximum() and self.max_text is not None:
+            return self.max_text
+        return f"{val}{self.custom_suffix}"
+
+    @override
+    def valueFromText(self, text: str) -> int:
+        if self.min_text and text.strip().lower() == self.min_text.strip().lower():
+            return self.minimum()
+        if self.max_text and text.strip().lower() == self.max_text.strip().lower():
+            return self.maximum()
+
+        clean_text = text
+        if self.custom_suffix:
+            trimmed = self.custom_suffix.strip()
+            if text.endswith(self.custom_suffix):
+                clean_text = text[: -len(self.custom_suffix)]
+            elif trimmed and text.endswith(trimmed):
+                clean_text = text[: -len(trimmed)]
+        try:
+            return int(clean_text.strip())
+        except ValueError:
+            return super().valueFromText(text)

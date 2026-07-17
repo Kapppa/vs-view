@@ -53,6 +53,7 @@ Most of these symbols are re-exported through the top-level `vsview.api` module 
            - FrameEdit
            - TimeEdit
            - BaseGraphicsView
+           - CustomSpinBox
            - PluginGraphicsView
            - ListEditWidget
            - LoginCredentialsInput
