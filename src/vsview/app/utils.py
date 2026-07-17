@@ -4,6 +4,7 @@ import hashlib
 import io
 import os
 import sys
+import threading
 import weakref
 from collections import OrderedDict, UserDict
 from collections.abc import Callable, Container, Iterator, MutableSet, Sized
@@ -107,22 +108,28 @@ class VideoFramesCache(UserDict[int, vs.VideoFrame]):
 
         self.clip = weakref.ref(clip)
         self.cache_size = cache_size
+        self.lock = threading.Lock()
 
         vs.register_on_destroy(self.clear)
 
     @override
     def __setitem__(self, key: int, value: vs.VideoFrame) -> None:
-        super().__setitem__(key, value)
+        with self.lock:
+            super().__setitem__(key, value)
 
-        if len(self) > self.cache_size:
-            del self[next(iter(self.keys()))]
+            if len(self) > self.cache_size:
+                del self[next(iter(self.data.keys()))]
 
     @override
     def __getitem__(self, key: int) -> vs.VideoFrame:
-        if key not in self and (c := self.clip()):
-            self.add_frame(key, c.get_frame(key))
+        with self.lock:
+            in_cache = key in self
 
-        return super().__getitem__(key)
+        if not in_cache and (c := self.clip()):
+            return self.add_frame(key, c.get_frame(key))
+
+        with self.lock:
+            return super().__getitem__(key)
 
     def add_frame(self, n: int, f: vs.VideoFrame) -> vs.VideoFrame:
         f = f.copy()
