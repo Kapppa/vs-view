@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import linecache
+import textwrap
 from functools import cache
 from importlib.util import find_spec
 from logging import getLogger
@@ -509,13 +510,30 @@ class QuickScriptWorkspace(VSEngineWorkspace[CodeContent]):
 
 @cache
 def get_default_script() -> str:
-    basic_import = (
-        "from vstools import core, vs" if find_spec("vstools") else "import vapoursynth as vs\n\ncore = vs.core"
-    )
-    basic_import += "\nfrom vsview import set_output"
+    code = ""
+    if find_spec("vstools"):
+        code += "from vstools import core, initialize_clip, vs\n"
+    else:
+        code += "import vapoursynth as vs\n"
+        code += "\n"
+        code += "core = vs.core\n"
 
-    script = """
-clip = core.std.BlankClip().std.SetFrameProp("_Matrix", vs.MATRIX_RGB)
-set_output(clip)
-"""
-    return basic_import + "\n\n" + script
+    code += "from vsview import set_output\n"
+    code += "\n"
+
+    code += "clip = core.std.BlankClip()\n"
+
+    if find_spec("vstools"):
+        code += "clip = initialize_clip(clip, None)\n"
+    else:
+        code += textwrap.dedent("""
+        clip = core.std.SetFrameProps(
+            clip,
+            _Matrix=vs.MATRIX_RGB,
+            _Primaries=vs.PRIMARIES_BT709,
+            _Transfer=vs.TRANSFER_IEC_61966_2_1,
+        )\n""")
+
+    code += "set_output(clip)\n"
+
+    return code
