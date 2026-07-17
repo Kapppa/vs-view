@@ -97,7 +97,7 @@ class GlobalSettings(BaseModel):
             'This is only applied if the "Collection" field is currently empty.\n\n'
             "Available fields:\n"
             + "\n".join(f'- "{{{fmt}}}": {doc}' for fmt, doc in TMDBTitle.format_hints.items())
-            + '\n- "{vs_names}": Appended outputs names (e.g. "Source VS Encode")',
+            + '\n- "{vs_names}": Appended outputs names (e.g. "Source vs Encode")',
         ),
     ] = "{name} ({year}) - {vs_names}"
 
@@ -839,7 +839,7 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
         # Automatically set the collection name if it's currently empty
         if not self.collection_name.text().strip():
             voutputs = self.selected_voutputs
-            vs_names = " VS ".join(v.vs_name for v in voutputs)
+            vs_names = " vs ".join(v.vs_name for v in voutputs)
             self.collection_name.setText(title.format_name(self.settings.global_.tmdb_format, vs_names=vs_names))
 
     def on_tags_editing_started(self) -> None:
