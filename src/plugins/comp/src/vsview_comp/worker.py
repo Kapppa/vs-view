@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import random
 import re
 import threading
@@ -633,7 +634,7 @@ class SlowPicsWorker:
                 logger.debug("Starting upload of: %s", src.collection_name)
                 start_resp = await client.post(
                     url=f"/upload/{src.upload_type}",
-                    data=src.payload | {"browserId": self.settings.global_.browser_id},
+                    data=src.payload | {"browserId": self.settings.global_.browser_id} | await self._hash_images(src),
                 )
                 await client.gather(start_resp)
                 comp_data = SlowPicsUploadResponse.model_validate(start_resp.raise_for_status().json())
@@ -783,6 +784,27 @@ class SlowPicsWorker:
                 logger.error("Error uploading %s (attempt %d) '%s'", image_path.name, retry + 1, e)
                 logger.debug("Traceback:", exc_info=True)
                 await asyncio.sleep((retry + 1) * 2)
+
+    async def _hash_images(self, src: SlowPicsSources) -> dict[str, str]:
+        payload = {}
+
+        def _hash_image(file: Path, image_key: str) -> None:
+            with file.open("rb") as f:
+                payload[image_key] = hashlib.file_digest(f, "sha256").hexdigest()
+
+        hash_tasks = []
+        for j in range(len(src.sources[0].images)):
+            for i, (source_name, images) in enumerate(src.sources):
+                hash_tasks.append(
+                    asyncio.to_thread(
+                        _hash_image,
+                        images[j].path,
+                        f"comparisons[{j}].images[{i}].hashSum" if src.is_comparison else f"images[{j}].hashSum",
+                    )
+                )
+
+        await asyncio.gather(*hash_tasks)
+        return payload
 
     @staticmethod
     def _cookies_jar(cookies: CookieJar) -> dict[str, str]:
