@@ -40,6 +40,7 @@ from vsengine.futures import UnifiedFuture
 from vsview.api import (
     Accordion,
     ActionDefinition,
+    Checkbox,
     Frame,
     FrameEdit,
     IconName,
@@ -133,6 +134,14 @@ class GlobalSettings(BaseModel):
             ),
         ),
     ] = 0
+    auto_copy_slowpics_url: Annotated[
+        bool,
+        Checkbox(
+            label="Auto-Copy URL",
+            text="",
+            tooltip="Auto-copy Slow.pics URL when the upload is completed.",
+        ),
+    ] = False
 
     pict_types_i: bool = True
     pict_types_p: bool = True
@@ -983,6 +992,8 @@ class CompPlugin(WidgetPluginBase[GlobalSettings, None], IconReloadMixin):
                 self._reported_url = url
                 self.url_label.setText(f'<a href="{url}">{url}</a>')
                 self.set_url_on_top()
+                if self.settings.global_.auto_copy_slowpics_url:
+                    self.url_copy_btn.click()
 
             def on_upload_error(exc: BaseException) -> None:
                 if isinstance(exc, asyncio.CancelledError):
