@@ -89,6 +89,7 @@ class TabViewWidget(QTabWidget):
 
     @override
     def deleteLater(self) -> None:
+        self.blockSignals(True)
         self.clear()
         return super().deleteLater()
 
