@@ -4,18 +4,21 @@ from pathlib import Path
 from typing import Self, override
 
 from jetpytools import cachedproperty, classproperty
-from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, Qt
 from PySide6.QtGui import QKeyEvent, QKeySequence
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
     QKeySequenceEdit,
     QLabel,
     QScrollArea,
+    QSpinBox,
     QTabWidget,
+    QTimeEdit,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -37,6 +40,20 @@ NORMAL_STYLE = ""
 QWIDGETSIZE_MAX = 16777215
 
 logger = getLogger(__name__)
+
+
+class WheelEventFilter(QObject):
+    @override
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if event.type() != QEvent.Type.Wheel:
+            return super().eventFilter(watched, event)
+
+        # Ignore wheel event from the current widget
+        event.ignore()
+        # Send the event to the parent widget container instead, e.g. the SettingsTab.
+        if parent := watched.parent():
+            QCoreApplication.sendEvent(parent, event)
+        return True
 
 
 class SettingsTab(QScrollArea):
@@ -111,6 +128,7 @@ class SettingsDialog(QDialog, IconReloadMixin):
 
         self._global_widgets = dict[str, QWidget]()
         self._local_widgets = dict[str, QWidget]()
+        self._wheel_filter = WheelEventFilter(self)
 
         self.setWindowTitle("Settings")
         self.setMinimumSize(600, 500)
@@ -185,6 +203,10 @@ class SettingsDialog(QDialog, IconReloadMixin):
 
         layout.addLayout(button_layout)
 
+    def _apply_wheel_filter(self, widget: QWidget) -> None:
+        if isinstance(widget, (QComboBox, QSpinBox, QDoubleSpinBox, QTimeEdit)):
+            widget.installEventFilter(self._wheel_filter)
+
     def _create_global_tab(self) -> SettingsTab:
         # Build sections from registry
         sections = dict[str, tuple[Accordion, QFormLayout]]()
@@ -203,6 +225,7 @@ class SettingsDialog(QDialog, IconReloadMixin):
                 # Create widget from metadata
                 widget = entry.metadata.create_widget(self)
                 self._global_widgets[entry.key] = widget
+                self._apply_wheel_filter(widget)
 
                 # Special handling for icon_provider and icon_weight dropdowns
                 if entry.key == "appearance.icon_provider" and isinstance(widget, QComboBox):
@@ -334,6 +357,7 @@ class SettingsDialog(QDialog, IconReloadMixin):
                 # Create widget from metadata
                 widget = entry.metadata.create_widget(self)
                 self._local_widgets[entry.key] = widget
+                self._apply_wheel_filter(widget)
                 form.addRow(f"{entry.metadata.label}:", widget)
 
         return tab
