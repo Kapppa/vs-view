@@ -55,9 +55,13 @@ class SlowPicsSources(NamedTuple):
             "public": str(self.public).lower(),
             "visibility": "PUBLIC" if self.public else "LINK_ONLY",
             "removeAfter": str(self.remove_after) if self.remove_after >= 1 else "",
-            "canvasMode": "none",
-            "imageFit": "none",
         }
+
+        if self.is_comparison:
+            payload |= {
+                "canvasMode": "none",
+                "imageFit": "none",
+            }
 
         for j in range(len(self.sources[0].images)):
             if self.is_comparison:
