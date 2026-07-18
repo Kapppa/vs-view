@@ -202,11 +202,6 @@ class _PluginAPI(_PluginLimitedApi):
         self.__workspace: LoaderWorkspace[Any] = workspace
         self.__busy_callers = QObjectCounter[QObject]()
 
-        SettingsManager.signals.globalChanged.connect(self._on_global_settings_changed)
-        SettingsManager.signals.localChanged.connect(self._on_local_settings_changed)
-        SettingsManager.signals.aboutToSaveGlobal.connect(self.aboutToSaveGlobal.emit)
-        SettingsManager.signals.aboutToSaveLocal.connect(self.aboutToSaveLocal.emit)
-
     @property
     def voutputs(self) -> list[VideoOutputProxy]:
         """Return a dictionary of VideoOutputProxy objects for all tabs."""
