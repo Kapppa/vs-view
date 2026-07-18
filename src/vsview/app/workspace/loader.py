@@ -595,12 +595,11 @@ class LoaderWorkspace[T](BaseWorkspace):
         refresh_plugins: bool = False,
     ) -> bool:
         self.playback.stop()
+        self.outputs_manager.current_video_index = index
 
         if not self.outputs_manager.current_voutput:
             logger.debug("Invalid tab index %d, ignoring", index)
             return True
-
-        self.outputs_manager.current_video_index = index
 
         logger.debug("Switching to video output: clip=%r", self.outputs_manager.current_voutput.vs_output.clip)
 
