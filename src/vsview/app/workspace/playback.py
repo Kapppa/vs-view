@@ -780,12 +780,14 @@ class PlaybackManager(QObject):
     def _render_pending_frame(self) -> None:
         if self._pending_frame is None:
             self._timeline_rendering = False
+            self._tab_manager.disable_switch = False
             return
 
         frame = self._pending_frame
 
         self._pending_frame = None
         self._timeline_rendering = True
+        self._tab_manager.disable_switch = True
 
         @run_in_loop(return_future=False)
         def on_render_complete(f: Future[int]) -> None:
