@@ -136,7 +136,7 @@ class Application(QApplication):
         ):
             self.setStyleSheet(stylesheet)
             refresh_widgets = True
-        elif not stylesheet_path:
+        elif not stylesheet_path and self.styleSheet() != "":
             self.setStyleSheet("")
             refresh_widgets = True
 
