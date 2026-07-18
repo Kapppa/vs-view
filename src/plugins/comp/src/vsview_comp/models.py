@@ -55,6 +55,8 @@ class SlowPicsSources(NamedTuple):
             "public": str(self.public).lower(),
             "visibility": "PUBLIC" if self.public else "LINK_ONLY",
             "removeAfter": str(self.remove_after) if self.remove_after >= 1 else "",
+            "canvasMode": "none",
+            "imageFit": "none",
         }
 
         for j in range(len(self.sources[0].images)):
@@ -64,7 +66,7 @@ class SlowPicsSources(NamedTuple):
                 payload[f"comparisons[{j}].hentai"] = str(self.nsfw).lower()
 
                 for i, (source_name, images) in enumerate(self.sources):
-                    payload[f"comparisons[{j}].imageNames[{i}]"] = (
+                    payload[f"comparisons[{j}].images[{i}].name"] = (
                         f"{source_name}{f' ({images[j].pict_type})' if images[j].pict_type != '?' else ''}"
                     )
             else:
