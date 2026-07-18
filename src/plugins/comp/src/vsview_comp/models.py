@@ -57,12 +57,6 @@ class SlowPicsSources(NamedTuple):
             "removeAfter": str(self.remove_after) if self.remove_after >= 1 else "",
         }
 
-        if self.is_comparison:
-            payload |= {
-                "canvasMode": "none",
-                "imageFit": "none",
-            }
-
         for j in range(len(self.sources[0].images)):
             if self.is_comparison:
                 image_ref = self.sources[0][1][j]
@@ -90,7 +84,8 @@ class SlowPicsSources(NamedTuple):
     def get_images(self, comp_data: SlowPicsUploadResponse) -> Iterator[tuple[str, Path]]:
         for i, (_, images) in enumerate(self.sources):
             for j, (image_path, *_) in enumerate(images):
-                if ((image_uuid := comp_data.images[j][i] if self.is_comparison else comp_data.images[0][j]) not in comp_data.complete_image_uuids):
+                image_uuid =  comp_data.images[j][i] if self.is_comparison else comp_data.images[0][j]
+                if (image_uuid not in comp_data.complete_image_uuids):
                     yield image_uuid, image_path
 
 

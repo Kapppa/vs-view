@@ -631,10 +631,13 @@ class SlowPicsWorker:
                 logger.debug("Setup client")
                 await self._setup_client(client, cookies)
 
+                logger.debug("Calculating image hashes")
+                image_hashes = await self._hash_images(src)
+
                 logger.debug("Starting upload of: %s", src.collection_name)
                 start_resp = await client.post(
                     url=f"/upload/{src.upload_type}",
-                    data=src.payload | {"browserId": self.settings.global_.browser_id} | await self._hash_images(src),
+                    data=src.payload | {"browserId": self.settings.global_.browser_id} | image_hashes,
                 )
                 await client.gather(start_resp)
                 comp_data = SlowPicsUploadResponse.model_validate(start_resp.raise_for_status().json())
@@ -786,24 +789,23 @@ class SlowPicsWorker:
                 await asyncio.sleep((retry + 1) * 2)
 
     async def _hash_images(self, src: SlowPicsSources) -> dict[str, str]:
-        payload = {}
+        payload = dict[str, str]()
 
         def _hash_image(file: Path, image_key: str) -> None:
             with file.open("rb") as f:
                 payload[image_key] = hashlib.file_digest(f, "sha256").hexdigest()
 
-        hash_tasks = []
-        for j in range(len(src.sources[0].images)):
-            for i, (source_name, images) in enumerate(src.sources):
-                hash_tasks.append(
-                    asyncio.to_thread(
-                        _hash_image,
-                        images[j].path,
-                        f"comparisons[{j}].images[{i}].hashSum" if src.is_comparison else f"images[{j}].hashSum",
+        async with asyncio.TaskGroup() as tg:
+            for j in range(len(src.sources[0].images)):
+                for i, (_, images) in enumerate(src.sources):
+                    tg.create_task(
+                        asyncio.to_thread(
+                            _hash_image,
+                            images[j].path,
+                            f"comparisons[{j}].images[{i}].hashSum" if src.is_comparison else f"images[{j}].hashSum",
+                        )
                     )
-                )
 
-        await asyncio.gather(*hash_tasks)
         return payload
 
     @staticmethod
