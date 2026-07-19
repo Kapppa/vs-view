@@ -57,6 +57,12 @@ class SlowPicsSources(NamedTuple):
             "removeAfter": str(self.remove_after) if self.remove_after >= 1 else "",
         }
 
+        if self.is_comparison:
+            payload |= {
+                "canvasMode": "none",
+                "imageFit": "none",
+            }
+
         for j in range(len(self.sources[0].images)):
             if self.is_comparison:
                 image_ref = self.sources[0][1][j]
